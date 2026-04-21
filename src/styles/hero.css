@@ -1,0 +1,36 @@
+.hero {
+  width: 100%;
+  min-height: 90vh;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+  transition: background-image 1s ease-in-out;
+}
+
+/* dark overlay for text readability */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(48, 44, 44, 0.50);
+}
+
+.hero-overlay {
+  position: relative;
+  z-index: 2;
+  color: #f5d88c; /* light golden */
+  max-width: 600px;
+  padding: 120px 80px;
+}
+
+.hero-overlay h1 {
+  font-size: 42px;
+  margin-bottom: 15px;
+}
+
+.hero-overlay p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #f1f1f1;
+}
