@@ -1,40 +1,47 @@
-import { Link } from "react-router-dom"
-import "../styles/navbar.css"
-import Logo from "../assets/Logo.png"
+import { Link, useLocation } from "react-router-dom";
+import logo from "../assets/logo.png";
+import "./Navbar.css";
 
-function Navbar() {
-    return (
-        <nav className="navbar">
-            <div className="nav-left">
-                <img src={Logo} alt="logo" className="logo" />
-                <div className="nav-title">Lost & Found</div>
-            </div>
+const navLinks = [
+  { path: "/", label: "Home" },
+  { path: "/persons", label: "Persons" },
+  { path: "/items", label: "Items" },
+  { path: "/statistics", label: "Statistics" },
+  { path: "/contact", label: "Contact" },
+];
 
-            <ul className="nav-links">
-                <li><Link to="/">Home</Link></li>
+export default function Navbar({ onToggleSidebar }) {
+  const location = useLocation();
 
-                <li className="dropdown">
-                    <span>Lost &#x2304;</span>
-                    <div className="dropdown-menu">
-                    <Link to="/lost/person">Person</Link>
-                    <Link to="/lost/item">Item</Link>
-                    </div>
-                </li>
+  return (
+    <nav className="navbar">
+      <button className="navbar__hamburger" onClick={onToggleSidebar} aria-label="Toggle menu">
+        <span /><span /><span />
+      </button>
 
-                 <li className="dropdown">
-                    <span>Found &#x2304;</span>
-                    <div className="dropdown-menu">
-                    <Link to="/found/person">Person</Link>
-                    <Link to="/found/item">Item</Link>
-                    </div>
-                </li>
+      <div className="navbar__brand">
+        <div className="navbar__logo-circle">
+          <img src={logo} alt="Lost and Found logo" />
+        </div>
+        <span className="navbar__brand-text">Lost &amp; Found</span>
+      </div>
 
-                <li><Link to="/search">Search</Link></li>
-                <li><Link to="/statistics">Statistics</Link></li>
-                <li><Link to="/login">Login</Link></li>
-                <li><Link to="/register">Register</Link></li>
-            </ul>
-        </nav>
-    )
+      <div className="navbar__links">
+        {navLinks.map(link => (
+          <Link
+            key={link.path}
+            to={link.path}
+            className={`navbar__link ${location.pathname === link.path ? "navbar__link--active" : ""}`}
+          >
+            {link.label}
+          </Link>
+        ))}
+      </div>
+
+      <div className="navbar__auth">
+        <Link to="/login" className="navbar__signin">Sign In</Link>
+        <Link to="/signup" className="navbar__signup">Sign Up</Link>
+      </div>
+    </nav>
+  );
 }
-export default Navbar

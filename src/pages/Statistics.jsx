@@ -1,9 +1,5 @@
 function Statistics() {
-  return (
-    <div>
-      <h1>Statistics Page</h1>
-    </div>
-  )
+  return <h1>Statistics Page</h1>;
 }
 
-export default Statistics
+export default Statistics;
