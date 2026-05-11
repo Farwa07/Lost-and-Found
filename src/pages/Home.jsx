@@ -36,7 +36,7 @@ const reportTypes = [
 ];
 
 export default function Home() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const isHome = location.pathname === "/";
 
@@ -58,9 +58,7 @@ export default function Home() {
                 </p>
                 <div className="hero__buttons">
                   <button className="btn--primary">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                    </svg>
+                   <FaSearch />
                     Search Cases
                   </button>
                   <button className="btn--outline">
