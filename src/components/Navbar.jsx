@@ -1,47 +1,42 @@
-import { Link, useLocation } from "react-router-dom";
-import logo from "../assets/logo.png";
 import "./Navbar.css";
+import { FaUser } from "react-icons/fa";
+import logo from "../assets/Logo.png";
 
-const navLinks = [
-  { path: "/", label: "Home" },
-  { path: "/persons", label: "Persons" },
-  { path: "/items", label: "Items" },
-  { path: "/statistics", label: "Statistics" },
-  { path: "/contact", label: "Contact" },
-];
-
-export default function Navbar({ onToggleSidebar }) {
-  const location = useLocation();
+export default function Navbar({ toggleSidebar }) {
 
   return (
-    <nav className="navbar">
-      <button className="navbar__hamburger" onClick={onToggleSidebar} aria-label="Toggle menu">
-        <span /><span /><span />
+    <header className="navbar">
+
+      <button className="navbar__menu" onClick={toggleSidebar}>
+        ☰
       </button>
 
       <div className="navbar__brand">
-        <div className="navbar__logo-circle">
-          <img src={logo} alt="Lost and Found logo" />
+
+        <div className="navbar__logo">
+          <img src={logo} alt="logo" />
         </div>
-        <span className="navbar__brand-text">Lost &amp; Found</span>
+
+        <h2>Lost & Found</h2>
+
       </div>
 
-      <div className="navbar__links">
-        {navLinks.map(link => (
-          <Link
-            key={link.path}
-            to={link.path}
-            className={`navbar__link ${location.pathname === link.path ? "navbar__link--active" : ""}`}
-          >
-            {link.label}
-          </Link>
-        ))}
-      </div>
+      <nav className="navbar__links">
+        <a href="/">Home</a>
+        <a href="/persons">Persons</a>
+        <a href="/items">Items</a>
+        <a href="/statistics">Statistics</a>
+        <a href="/contact">Contact</a>
+      </nav>
 
-      <div className="navbar__auth">
-        <Link to="/login" className="navbar__signin">Sign In</Link>
-        <Link to="/signup" className="navbar__signup">Sign Up</Link>
+      <div className="navbar__right">
+        <a href="/signup">
+          <button className="navbar__signup">
+            Sign Up
+           </button>
+        </a>
       </div>
-    </nav>
+      
+    </header>
   );
 }
