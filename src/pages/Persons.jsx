@@ -1,6 +1,8 @@
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 
+import { useNavigate } from "react-router-dom";
+
 import { useState } from "react";
 
 import "./Persons.css";
@@ -93,6 +95,7 @@ const personsData = [
 export default function Persons(){
 
   const [sidebarOpen,setSidebarOpen] = useState(true);
+  const navigate = useNavigate();
 
   return(
 
@@ -131,13 +134,13 @@ export default function Persons(){
 
           <div className="persons-actions">
 
-  <button className="missing-btn">
-    Report Missing
-  </button>
+  <button className="missing-person-btn" onClick={() => navigate("/report-missing-person")}>
+  Report Missing
+</button>
 
-  <button className="found-btn">
-    Report Found
-  </button>
+<button className="found-person-btn" onClick={() => navigate("/report-found-person")}>
+  Report Found
+</button>
 
 </div>
 
@@ -165,6 +168,7 @@ export default function Persons(){
     <option>By Gender</option>
     <option>Male</option>
     <option>Female</option>
+    <option>Other</option>
   </select>
 
 </div>

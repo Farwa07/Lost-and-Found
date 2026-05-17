@@ -53,7 +53,7 @@
   font-size:14px;
 }
 
-.missing-btn{
+.missing-person-btn{
   border:none;
   background:linear-gradient(135deg,#d12828,#dc2626);
   color:white;
@@ -63,7 +63,7 @@
   cursor:pointer;
 }
 
-.found-btn{
+.found-person-btn{
    border:black;
   background:linear-gradient(135deg,#22c55e,#16a34a);
   color:#111827;

@@ -7,6 +7,8 @@ import Statistics from "./pages/Statistics";
 import Contact from "./pages/Contact";
 import MyReports from "./pages/MyReports";
 import SignUp from "./pages/SignUp";
+import MissingPerson from "./pages/MissingPerson";
+import FoundPerson from "./pages/FoundPerson";
 
 export default function App() {
   return (
@@ -20,6 +22,8 @@ export default function App() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/reports" element={<MyReports />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/report-missing-person" element={<MissingPerson />} />
+        <Route path="/report-found-person" element={<FoundPerson />} />
       </Routes>
     </BrowserRouter>
   );
