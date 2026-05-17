@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import hero1 from "../assets/hero1.jpeg";
-import hero2 from "../assets/hero2.jpg";
-import hero3 from "../assets/hero3.jpg";
+import hero2 from "../assets/hero5.jpg";
+import hero3 from "../assets/hero3.webp";
 import "./HeroSection.css";
 
 const images = [
