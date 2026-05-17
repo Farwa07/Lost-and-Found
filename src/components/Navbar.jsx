@@ -32,6 +32,7 @@ export default function Navbar({ toggleSidebar }) {
       <div className="navbar__right">
         <a href="/signup">
           <button className="navbar__signup">
+            <FaUser/>
             Sign Up
            </button>
         </a>

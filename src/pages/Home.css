@@ -194,3 +194,41 @@ body{
   }
 
 }
+.recent-card{
+  position:relative;
+}
+
+.case-tag{
+  position:absolute;
+  top:14px;
+  left:14px;
+
+  padding:6px 12px;
+  border-radius:30px;
+
+  font-size:12px;
+  font-weight:700;
+
+  color:white;
+
+  z-index:2;
+}
+
+.case-tag--missing{
+  background:#ef4444;
+}
+
+.case-tag--found{
+  background:#22c55e;
+}
+
+.case-category{
+  display:inline-block;
+
+  margin-bottom:10px;
+
+  font-size:13px;
+  font-weight:600;
+
+  color:#8b5cf6;
+}

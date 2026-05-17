@@ -1,5 +1,21 @@
 import { useState } from "react";
 
+import {
+  FaTachometerAlt,
+  FaSearch,
+  FaUsers,
+  FaBoxOpen,
+  FaChartBar,
+  FaBell,
+  FaFileAlt,
+  FaCog,
+  FaUserCircle,
+  FaPlus,
+  FaUser
+} from "react-icons/fa";
+
+import  bagimage from "../assets/bag.jfif";
+
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import HeroSection from "../components/HeroSection";
@@ -7,7 +23,88 @@ import HeroSection from "../components/HeroSection";
 import "./Home.css";
 
 const recentReports = [
-  1,2,3,4,5,6,7,8,9
+
+  {
+    id:1,
+    type:"Missing",
+    category:"Person",
+    title:"Missing Child Case",
+    location:"Lahore, Pakistan",
+    image:"https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1200&auto=format&fit=crop"
+  },
+
+  {
+    id:2,
+    type:"Found",
+    category:"Item",
+    title:"Found Backpack",
+    location:"Islamabad, Pakistan",
+    image:"https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1200&auto=format&fit=crop"
+  },
+
+  {
+    id:3,
+    type:"Missing",
+    category:"Item",
+    title:"Lost Mobile Phone",
+    location:"Karachi, Pakistan",
+    image:"https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1200&auto=format&fit=crop"
+  },
+
+  {
+    id:4,
+    type:"Found",
+    category:"Person",
+    title:"Found Elderly Person",
+    location:"Rawalpindi, Pakistan",
+    image:"https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=1200&auto=format&fit=crop"
+  },
+
+  {
+    id:5,
+    type:"Missing",
+    category:"Person",
+    title:"Missing Woman Report",
+    location:"Faisalabad, Pakistan",
+    image:"https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1200&auto=format&fit=crop"
+  },
+
+  {
+    id:6,
+    type:"Found",
+    category:"Item",
+    title:"Found Wallet",
+    location:"Multan, Pakistan",
+    image:"https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=1200&auto=format&fit=crop"
+  },
+
+  {
+    id:7,
+    type:"Missing",
+    category:"Item",
+    title:"Lost Laptop Bag",
+    location:"Sialkot, Pakistan",
+    image:bagimage
+  },
+
+  {
+    id:8,
+    type:"Found",
+    category:"Person",
+    title:"Found Young Boy",
+    location:"Peshawar, Pakistan",
+    image:"https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1200&auto=format&fit=crop"
+  },
+
+  {
+    id:9,
+    type:"Missing",
+    category:"Person",
+    title:"Missing Student",
+    location:"Gujranwala, Pakistan",
+    image:"https://images.unsplash.com/photo-1504593811423-6dd665756598?q=80&w=1200&auto=format&fit=crop"
+  }
+
 ];
 
 export default function Home(){
@@ -38,21 +135,21 @@ export default function Home(){
 
             <div className="feature-card">
               <div className="feature-icon">
-                👤
+                <FaUsers/>
               </div>
 
               <h3>
-                Report Missing Persons
+                Report Missing or Found Persons
               </h3>
 
               <p>
-                Quickly report missing persons with detailed information.
+                Quickly report missing or found persons with detailed information.
               </p>
             </div>
 
             <div className="feature-card">
               <div className="feature-icon">
-                🎒
+                <FaBoxOpen/>
               </div>
 
               <h3>
@@ -66,7 +163,7 @@ export default function Home(){
 
             <div className="feature-card">
               <div className="feature-icon">
-                🔍
+                <FaSearch/>
               </div>
 
               <h3>
@@ -97,7 +194,7 @@ export default function Home(){
               <a href="#" className="report-card">
 
                 <div className="report-card__icon">
-                  👤
+                  <FaUser/>
                 </div>
 
                 <h3>
@@ -109,7 +206,7 @@ export default function Home(){
               <a href="#" className="report-card">
 
                 <div className="report-card__icon">
-                  👤
+                  <FaUser/>
                 </div>
 
                 <h3>
@@ -121,7 +218,7 @@ export default function Home(){
               <a href="#" className="report-card">
 
                 <div className="report-card__icon">
-                  🎒
+                  <FaBoxOpen/>
                 </div>
 
                 <h3>
@@ -133,7 +230,7 @@ export default function Home(){
               <a href="#" className="report-card">
 
                 <div className="report-card__icon">
-                  🎒
+                  <FaBoxOpen/>
                 </div>
 
                 <h3>
@@ -156,31 +253,45 @@ export default function Home(){
 
             <div className="recent-grid">
 
-              {recentReports.map((item)=>(
-                <div key={item} className="recent-card">
+              {recentReports.map((report)=>(
+                <div key={report.id} className="recent-card">
 
-                  <img
-                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1200&auto=format&fit=crop"
-                    alt="report"
-                  />
+  <div className={`case-tag ${
+    report.type === "Found"
+      ? "case-tag--found"
+      : "case-tag--missing"
+  }`}>
 
-                  <div className="recent-card__content">
+    {report.type}
 
-                    <h3>
-                      Missing Person Case
-                    </h3>
+  </div>
 
-                    <p>
-                      Lahore, Pakistan
-                    </p>
+  <img
+    src={report.image}
+    alt="report"
+  />
 
-                    <button>
-                      View Details
-                    </button>
+  <div className="recent-card__content">
 
-                  </div>
+    <span className="case-category">
+      {report.category}
+    </span>
 
-                </div>
+    <h3>
+      {report.title}
+    </h3>
+
+    <p>
+      {report.location}
+    </p>
+
+    <button>
+      View Details
+    </button>
+
+  </div>
+
+</div>
               ))}
 
             </div>
@@ -234,7 +345,7 @@ export default function Home(){
                 Contact
               </h4>
 
-              <p>support@lostfound.com</p>
+              <p>support@lostandfound.com</p>
               <p>+92 300 1234567</p>
 
             </div>
