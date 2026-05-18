@@ -94,7 +94,7 @@ const personsData = [
 
 export default function Persons(){
 
-  const [sidebarOpen,setSidebarOpen] = useState(true);
+  const [sidebarOpen,setSidebarOpen] = useState(false);
   const navigate = useNavigate();
 
   return(

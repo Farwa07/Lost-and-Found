@@ -12,10 +12,12 @@ import {
 } from "react-icons/fa";
 
 export default function Sidebar({ open }) {
+  
 
   return (
 
     <aside className={`sidebar ${open ? "" : "sidebar--closed"}`}>
+      
 
       <button className="sidebar__btn">
         + New Report

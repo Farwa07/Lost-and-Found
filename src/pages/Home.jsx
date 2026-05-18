@@ -109,7 +109,7 @@ const recentReports = [
 
 export default function Home(){
 
-  const [sidebarOpen,setSidebarOpen] = useState(true);
+  const [sidebarOpen,setSidebarOpen] = useState(false);
 
   return(
 

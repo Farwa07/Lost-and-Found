@@ -1,6 +1,7 @@
 import "./SignUp.css";
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import hero1 from "../assets/hero1.jpeg";
 
@@ -29,6 +30,8 @@ export default function SignUp() {
 
   console.log(formData);
 };
+
+const navigate = useNavigate();
 
   return (
 
@@ -131,9 +134,12 @@ export default function SignUp() {
           </form>
 
           <p className="signup__bottom">
-            Already have an account?
-            <span> Sign In</span>
-          </p>
+  Already have an account?
+
+  <span onClick={() => navigate("/login")}>
+    Log In
+  </span>
+</p>
 
         </div>
 
