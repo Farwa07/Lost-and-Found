@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import "./LostItem.css";
+import "./FoundItem.css";
 
 import {
   FaBoxOpen,
@@ -8,17 +8,18 @@ import {
   FaIdCard,
 } from "react-icons/fa";
 
-const LostItem = () => {
+const FoundItem = () => {
 
   const [formData, setFormData] = useState({
 
-    // Lost Item Details
+    // Found Item Details
     itemName: "",
     itemCategory: "",
     itemColor: "",
     itemBrand: "",
-    lostLocation: "",
-    lostDate: "",
+    foundLocation: "",
+    foundDate: "",
+    currentLocation: "",
     itemDescription: "",
 
     // Reporter Details
@@ -28,7 +29,7 @@ const LostItem = () => {
     reporterAddress: "",
 
     // Uploads
-    lostItemImage: null,
+    foundItemImage: null,
     reporterIdCardImage: null,
 
   });
@@ -61,39 +62,39 @@ const LostItem = () => {
 
   return (
 
-    <div className="lost-item-page">
+    <div className="found-item-page">
 
-      <div className="lost-item-overlay">
+      <div className="found-item-overlay">
 
-        <div className="lost-item-container">
+        <div className="found-item-container">
 
           {/* HEADER */}
 
-          <div className="lost-item-header">
+          <div className="found-item-header">
 
-            <FaBoxOpen className="lost-item-icon" />
+            <FaBoxOpen className="found-item-icon" />
 
             <h2>
-              Report Lost Item
+              Report Found Item
             </h2>
 
             <p>
-              Provide complete details about the lost item to help others identify and return it safely.
+              Submit details about the found item to help reconnect it with the rightful owner.
             </p>
 
           </div>
 
           <form onSubmit={handleSubmit}>
 
-            {/* LOST ITEM DETAILS */}
+            {/* FOUND ITEM DETAILS */}
 
             <div className="section-title">
-              <h3>Lost Item Details</h3>
+              <h3>Found Item Details</h3>
             </div>
 
-            <div className="lost-item-grid">
+            <div className="found-item-grid">
 
-              <div className="lost-item-input">
+              <div className="found-item-input">
 
                 <label>Item Name</label>
 
@@ -107,7 +108,7 @@ const LostItem = () => {
 
               </div>
 
-              <div className="lost-item-input">
+              <div className="found-item-input">
 
                 <label>Item Category</label>
 
@@ -134,9 +135,9 @@ const LostItem = () => {
 
               </div>
 
-              <div className="lost-item-input">
+              <div className="found-item-input">
 
-                <label>Item Color</label>
+                <label>Item Color (Optional)</label>
 
                 <input
                   type="text"
@@ -145,46 +146,44 @@ const LostItem = () => {
                   onChange={handleChange}
                   pattern="[A-Za-z\s]+"
                   title="Only alphabets are allowed"
-                  
                 />
 
               </div>
 
-              <div className="lost-item-input">
+              <div className="found-item-input">
 
-                <label>Item Brand</label>
+                <label>Item Brand (Optional)</label>
 
                 <input
                   type="text"
                   name="itemBrand"
                   placeholder="Enter item brand"
                   onChange={handleChange}
-                 
                 />
 
               </div>
 
-              <div className="lost-item-input">
+              <div className="found-item-input">
 
-                <label>Lost Location</label>
+                <label>Found Location</label>
 
                 <input
                   type="text"
-                  name="lostLocation"
-                  placeholder="Where was the item lost?"
+                  name="foundLocation"
+                  placeholder="Where was the item found?"
                   onChange={handleChange}
                   required
                 />
 
               </div>
 
-              <div className="lost-item-input">
+              <div className="found-item-input">
 
-                <label>Lost Date</label>
+                <label>Found Date</label>
 
                 <input
                   type="date"
-                  name="lostDate"
+                  name="foundDate"
                   onChange={handleChange}
                   required
                 />
@@ -193,14 +192,28 @@ const LostItem = () => {
 
             </div>
 
-            <div className="lost-item-input full-width">
+            <div className="found-item-input full-width">
+
+              <label>Current Item Location</label>
+
+              <textarea
+                rows="4"
+                name="currentLocation"
+                placeholder="Enter where the item is currently kept"
+                onChange={handleChange}
+                required
+              ></textarea>
+
+            </div>
+
+            <div className="found-item-input full-width">
 
               <label>Item Description</label>
 
               <textarea
                 rows="5"
                 name="itemDescription"
-                placeholder="Mention item condition, unique marks, serial number or any important details."
+                placeholder="Mention item condition, unique marks or important details."
                 onChange={handleChange}
                 required
               ></textarea>
@@ -213,9 +226,9 @@ const LostItem = () => {
               <h3>Reporter Details</h3>
             </div>
 
-            <div className="lost-item-grid">
+            <div className="found-item-grid">
 
-              <div className="lost-item-input">
+              <div className="found-item-input">
 
                 <label>Reporter Full Name</label>
 
@@ -231,7 +244,7 @@ const LostItem = () => {
 
               </div>
 
-              <div className="lost-item-input">
+              <div className="found-item-input">
 
                 <label>Reporter Contact Number</label>
 
@@ -248,7 +261,7 @@ const LostItem = () => {
 
               </div>
 
-              <div className="lost-item-input">
+              <div className="found-item-input">
 
                 <label>Reporter Email</label>
 
@@ -264,7 +277,7 @@ const LostItem = () => {
 
               </div>
 
-              <div className="lost-item-input">
+              <div className="found-item-input">
 
                 <label>Reporter Address</label>
 
@@ -288,30 +301,26 @@ const LostItem = () => {
 
             <div className="upload-grid">
 
-              {/* ITEM IMAGE */}
-
               <div className="upload-box">
 
-                <label htmlFor="lostItemImage">
+                <label htmlFor="foundItemImage">
 
                   <FaUpload className="upload-icon" />
 
-                  Upload Lost Item Picture
+                  Upload Found Item Picture
 
                 </label>
 
                 <input
                   type="file"
-                  id="lostItemImage"
-                  name="lostItemImage"
+                  id="foundItemImage"
+                  name="foundItemImage"
                   accept="image/*"
                   onChange={handleFileChange}
                   required
                 />
 
               </div>
-
-              {/* ID CARD */}
 
               <div className="upload-box">
 
@@ -338,10 +347,10 @@ const LostItem = () => {
 
             <button
               type="submit"
-              className="lost-item-submit-btn"
+              className="found-item-submit-btn"
             >
 
-              Submit Lost Item Report
+              Submit Found Item Report
 
             </button>
 
@@ -356,4 +365,4 @@ const LostItem = () => {
   );
 };
 
-export default LostItem;
+export default FoundItem;

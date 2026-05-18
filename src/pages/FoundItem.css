@@ -1,5 +1,5 @@
-.lost-item-page{
-   min-height: 100vh;
+.found-item-page{
+  min-height: 100vh;
   padding: 40px 20px;
 
   background:
@@ -10,14 +10,14 @@
   align-items: flex-start;
 }
 
-.lost-item-overlay{
+.found-item-overlay{
   width: 100%;
   display: flex;
   justify-content: center;
 }
 
-.lost-item-container{
-   width: 100%;
+.found-item-container{
+  width: 100%;
   max-width: 1050px;
 
   background: rgba(255, 255, 255, 0.88);
@@ -39,12 +39,12 @@
 
 /* HEADER */
 
-.lost-item-header{
+.found-item-header{
   text-align:center;
   margin-bottom:40px;
 }
 
-.lost-item-icon{
+.found-item-icon{
   font-size:52px;
 
   margin-bottom:18px;
@@ -52,7 +52,7 @@
   color:#8b5cf6;
 }
 
-.lost-item-header h2{
+.found-item-header h2{
   font-size:42px;
   font-weight:800;
 
@@ -61,7 +61,7 @@
   color:#111827;
 }
 
-.lost-item-header p{
+.found-item-header p{
   color:#6b7280;
   font-size:16px;
 }
@@ -85,7 +85,7 @@
 
 /* GRID */
 
-.lost-item-grid{
+.found-item-grid{
   display: grid;
 
   grid-template-columns:
@@ -96,12 +96,12 @@
 
 /* INPUTS */
 
-.lost-item-input{
+.found-item-input{
   display:flex;
   flex-direction:column;
 }
 
-.lost-item-input label{
+.found-item-input label{
   font-weight:600;
 
   margin-bottom:10px;
@@ -109,9 +109,9 @@
   color:#374151;
 }
 
-.lost-item-input input,
-.lost-item-input select,
-.lost-item-input textarea{
+.found-item-input input,
+.found-item-input select,
+.found-item-input textarea{
   border:1px solid #dbe3f0;
 
   border-radius:16px;
@@ -127,9 +127,9 @@
   transition:0.25s;
 }
 
-.lost-item-input input:focus,
-.lost-item-input select:focus,
-.lost-item-input textarea:focus{
+.found-item-input input:focus,
+.found-item-input select:focus,
+.found-item-input textarea:focus{
   border-color:#8b5cf6;
 
   box-shadow:
@@ -199,7 +199,7 @@
 
 /* BUTTON */
 
-.lost-item-submit-btn{
+.found-item-submit-btn{
   width:100%;
 
   margin-top:40px;
@@ -224,7 +224,7 @@
   transition:0.3s;
 }
 
-.lost-item-submit-btn:hover{
+.found-item-submit-btn:hover{
   transform:translateY(-2px);
 
   box-shadow:
@@ -235,16 +235,16 @@
 
 @media(max-width:768px){
 
-  .lost-item-container{
+  .found-item-container{
     padding:28px;
   }
 
-  .lost-item-grid,
+  .found-item-grid,
   .upload-grid{
     grid-template-columns:1fr;
   }
 
-  .lost-item-header h2{
+  .found-item-header h2{
     font-size:32px;
   }
 
