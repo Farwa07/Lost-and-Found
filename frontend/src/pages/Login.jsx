@@ -5,9 +5,10 @@ import { useState } from "react";
 export default function Login() {
 
   const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  email: "",
+  password: "",
+  remember: false,
+});
 
   const handleChange = (e) => {
     setFormData({
@@ -112,10 +113,39 @@ export default function Login() {
 
             </div>
 
+             {/* REMEMBER + FORGOT */}
+
+            <div className="login__options">
+
+              <label className="login__remember">
+
+  <input
+    type="checkbox"
+    name="remember"
+    checked={formData.remember}
+    onChange={(e) =>
+      setFormData({
+        ...formData,
+        remember: e.target.checked,
+      })
+    }
+  />
+
+  Remember me
+
+</label>
+
+              <a href="/forgot-password" className="login__forgot">
+                 Forgot password?
+              </a>
+
+            </div>
+
             <button className="login__btn">
               Sign In
             </button>
 
+            
           </form>
 
         </div>

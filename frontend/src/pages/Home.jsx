@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Footer from "../components/Footer";
 
 import {
   FaTachometerAlt,
@@ -300,57 +301,9 @@ export default function Home(){
 
           {/* FOOTER */}
 
-          <footer className="footer">
+          <Footer />
 
-            <div className="footer__col">
-
-              <h3>
-                Lost & Found
-              </h3>
-
-              <p>
-                Helping reunite people and belongings safely.
-              </p>
-
-            </div>
-
-            <div className="footer__col">
-
-              <h4>
-                Quick Links
-              </h4>
-
-              <p>Home</p>
-              <p>Persons</p>
-              <p>Items</p>
-              <p>Statistics</p>
-
-            </div>
-
-            <div className="footer__col">
-
-              <h4>
-                Support
-              </h4>
-
-              <p>FAQs</p>
-              <p>Privacy Policy</p>
-              <p>Terms & Conditions</p>
-
-            </div>
-
-            <div className="footer__col">
-
-              <h4>
-                Contact
-              </h4>
-
-              <p>support@lostandfound.com</p>
-              <p>+92 300 1234567</p>
-
-            </div>
-
-          </footer>
+              
 
         </main>
 

@@ -16,7 +16,10 @@ import MyReports from "./pages/MyReports";
 
 import SignUp from "./pages/SignUp";
 
+
 import Login from "./pages/Login";
+
+
 
 export default function App() {
   return (
@@ -35,6 +38,8 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/report-lost-item" element={<LostItem />} />
         <Route path="/report-found-item" element={<FoundItem />} />
+        
+        
       </Routes>
     </BrowserRouter>
   );

@@ -171,6 +171,41 @@
     0 12px 25px rgba(14, 165, 233, 0.3);
 }
 
+.login__options{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  margin-bottom: 20px;
+  gap: 10px;
+}
+
+.login__remember{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #555;
+  cursor: pointer;
+}
+
+.login__remember input{
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.login__forgot{
+  font-size: 14px;
+  color: #2563eb;
+  text-decoration: none;
+  transition: 0.3s;
+}
+
+.login__forgot:hover{
+  text-decoration: underline;
+}
+
 /* RESPONSIVE */
 
 @media (max-width: 900px) {

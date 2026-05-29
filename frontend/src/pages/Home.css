@@ -155,32 +155,6 @@ body{
   cursor:pointer;
 }
 
-/* FOOTER */
-
-.footer{
-  background:linear-gradient(135deg,#0ea5e9,#8b5cf6);
-  color:white;
-  padding:60px 40px;
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:40px;
-}
-
-.footer h3{
-  margin-bottom:16px;
-   cursor:pointer;
-}
-
-.footer h4{
-  margin-bottom:16px;
- 
-}
-
-.footer p{
-  line-height:1.8;
-  opacity:0.92;
-  cursor:pointer;
-}
 
 /* RESPONSIVE */
 

@@ -1,5 +1,6 @@
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
+import Footer from "../components/Footer";
 
 import { useNavigate } from "react-router-dom";
 
@@ -237,62 +238,10 @@ export default function Items(){
             ))}
 
           </div>
-
-          {/* FOOTER */}
-
-          <footer className="footer">
-
-            <div className="footer__col">
-
-              <h3>
-                Lost & Found
-              </h3>
-
-              <p>
-                Helping reunite people and belongings safely.
-              </p>
-
-            </div>
-
-            <div className="footer__col">
-
-              <h4>
-                Quick Links
-              </h4>
-
-              <p>Home</p>
-              <p>Persons</p>
-              <p>Items</p>
-              <p>Statistics</p>
-
-            </div>
-
-            <div className="footer__col">
-
-              <h4>
-                Support
-              </h4>
-
-              <p>FAQs</p>
-              <p>Privacy Policy</p>
-              <p>Terms & Conditions</p>
-
-            </div>
-
-            <div className="footer__col">
-
-              <h4>
-                Contact
-              </h4>
-
-              <p>support@lostfound.com</p>
-              <p>+92 300 1234567</p>
-
-            </div>
-
-          </footer>
+             <Footer />
 
         </main>
+       
 
       </div>
 
