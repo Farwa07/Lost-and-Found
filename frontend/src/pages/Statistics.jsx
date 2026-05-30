@@ -17,11 +17,12 @@ import {
 } from "react-icons/fa";
 
 export default function Statistics() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("persons");
   const [city, setCity] = useState("All Cities");
   const [month, setMonth] = useState("All Months");
   const [tooltip, setTooltip] = useState(null);
+  const [showAllRows, setShowAllRows] = useState(false);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -95,30 +96,9 @@ export default function Statistics() {
     );
   });
 
-  const chartData =
-    city === "All Cities"
-      ? months.map((monthName) => {
-          const records = currentData.filter((item) => item.month === monthName);
-
-          return {
-            month: monthName,
-            missing: records.reduce(
-              (sum, item) => sum + (activeTab === "persons" ? item.missing : item.lost),
-              0
-            ),
-            found: records.reduce((sum, item) => sum + item.found, 0),
-            resolved: records.reduce(
-              (sum, item) => sum + (activeTab === "persons" ? item.resolved : item.returned),
-              0
-            ),
-          };
-        })
-      : filteredData.map((item) => ({
-          month: item.month,
-          missing: activeTab === "persons" ? item.missing : item.lost,
-          found: item.found,
-          resolved: activeTab === "persons" ? item.resolved : item.returned,
-        }));
+  const visibleTableData = showAllRows
+    ? filteredData
+    : filteredData.slice(0, 8);
 
   const totalMain = filteredData.reduce((sum, item) => {
     return sum + (activeTab === "persons" ? item.missing : item.lost);
@@ -130,30 +110,82 @@ export default function Statistics() {
     return sum + (activeTab === "persons" ? item.resolved : item.returned);
   }, 0);
 
-  const rate = totalMain > 0 ? Math.round((totalRecovered / totalMain) * 100) : 0;
+  const rate =
+    totalMain > 0 ? Math.round((totalRecovered / totalMain) * 100) : 0;
 
-  const maxValue = Math.max(
-    ...chartData.map((item) => Math.max(item.missing, item.found, item.resolved)),
-    1
-  );
+  const monthlyChartData = months.map((monthName) => {
+    const records = currentData.filter((item) => {
+      return (
+        item.month === monthName &&
+        (city === "All Cities" || item.city === city)
+      );
+    });
 
-  const getPoint = (value, index) => {
-    const x = 60 + index * (720 / (chartData.length - 1 || 1));
-    const y = 250 - (value / maxValue) * 210;
-    return `${x},${y}`;
+    return {
+      month: monthName,
+      main: records.reduce(
+        (sum, item) =>
+          sum + (activeTab === "persons" ? item.missing : item.lost),
+        0
+      ),
+      found: records.reduce((sum, item) => sum + item.found, 0),
+      recovered: records.reduce(
+        (sum, item) =>
+          sum + (activeTab === "persons" ? item.resolved : item.returned),
+        0
+      ),
+    };
+  });
+
+  const citySummaryData = cities.map((cityName) => {
+    const records = currentData.filter((item) => item.city === cityName);
+
+    return {
+      city: cityName,
+      total: records.reduce(
+        (sum, item) =>
+          sum + (activeTab === "persons" ? item.missing : item.lost),
+        0
+      ),
+    };
+  });
+
+  const maxCityTotal =
+    Math.max(...citySummaryData.map((item) => item.total)) || 1;
+
+  const maxChartValue =
+    Math.max(
+      ...monthlyChartData.map((item) =>
+        Math.max(item.main, item.found, item.recovered)
+      )
+    ) || 1;
+
+  const makePoints = (key) => {
+    return monthlyChartData
+      .map((item, index) => {
+        const x = 55 + index * 62;
+        const y = 240 - (item[key] / maxChartValue) * 190;
+        return `${x},${y}`;
+      })
+      .join(" ");
   };
 
-  const missingPoints = chartData.map((item, index) => getPoint(item.missing, index)).join(" ");
-  const foundPoints = chartData.map((item, index) => getPoint(item.found, index)).join(" ");
-  const resolvedPoints = chartData.map((item, index) => getPoint(item.resolved, index)).join(" ");
-
-  const ageGroups = [
-    { label: "0-12", count: 15 },
-    { label: "13-18", count: 22 },
-    { label: "19-35", count: 36 },
-    { label: "36-60", count: 29 },
-    { label: "60+", count: 18 },
-  ];
+  const ageGroups =
+    activeTab === "persons"
+      ? [
+          { label: "0-12", count: 15 },
+          { label: "13-18", count: 22 },
+          { label: "19-35", count: 36 },
+          { label: "36-60", count: 29 },
+          { label: "60+", count: 18 },
+        ]
+      : [
+          { label: "Electronics", count: 36 },
+          { label: "Bags", count: 25 },
+          { label: "Wallets", count: 30 },
+          { label: "Documents", count: 18 },
+          { label: "Others", count: 22 },
+        ];
 
   const maxAge = Math.max(...ageGroups.map((item) => item.count));
 
@@ -179,7 +211,10 @@ export default function Statistics() {
           <section className="statistics__tabs">
             <button
               className={activeTab === "persons" ? "active" : ""}
-              onClick={() => setActiveTab("persons")}
+              onClick={() => {
+                setActiveTab("persons");
+                setShowAllRows(false);
+              }}
             >
               <FaUsers />
               Persons Statistics
@@ -187,7 +222,10 @@ export default function Statistics() {
 
             <button
               className={activeTab === "items" ? "active" : ""}
-              onClick={() => setActiveTab("items")}
+              onClick={() => {
+                setActiveTab("items");
+                setShowAllRows(false);
+              }}
             >
               <FaBoxOpen />
               Items Statistics
@@ -197,7 +235,14 @@ export default function Statistics() {
           <section className="statistics__filters">
             <div className="statistics__filterBox">
               <FaMapMarkerAlt />
-              <select value={city} onChange={(e) => setCity(e.target.value)}>
+
+              <select
+                value={city}
+                onChange={(e) => {
+                  setCity(e.target.value);
+                  setShowAllRows(false);
+                }}
+              >
                 {cityOptions.map((cityName) => (
                   <option key={cityName}>{cityName}</option>
                 ))}
@@ -206,7 +251,14 @@ export default function Statistics() {
 
             <div className="statistics__filterBox">
               <FaCalendarAlt />
-              <select value={month} onChange={(e) => setMonth(e.target.value)}>
+
+              <select
+                value={month}
+                onChange={(e) => {
+                  setMonth(e.target.value);
+                  setShowAllRows(false);
+                }}
+              >
                 {monthOptions.map((monthName) => (
                   <option key={monthName}>{monthName}</option>
                 ))}
@@ -272,92 +324,71 @@ export default function Statistics() {
                 {tooltip && (
                   <div
                     className="chartTooltip"
-                    style={{
-                      left: tooltip.x,
-                      top: tooltip.y,
-                    }}
+                    style={{ left: tooltip.x, top: tooltip.y }}
                   >
                     <b>{tooltip.month}</b>
                     <span className="redText">
-                      {activeTab === "persons" ? "missing" : "lost"} : {tooltip.missing}
+                      {activeTab === "persons" ? "Missing" : "Lost"}:{" "}
+                      {tooltip.main}
                     </span>
-                    <span className="greenText">found : {tooltip.found}</span>
+                    <span className="greenText">Found: {tooltip.found}</span>
                     <span className="blueText">
-                      {activeTab === "persons" ? "resolved" : "returned"} : {tooltip.resolved}
+                      {activeTab === "persons" ? "Resolved" : "Returned"}:{" "}
+                      {tooltip.recovered}
                     </span>
                   </div>
                 )}
 
-                <svg viewBox="0 0 850 320" className="lineChart">
-                  <line x1="60" y1="250" x2="800" y2="250" />
-                  <line x1="60" y1="40" x2="60" y2="250" />
+                <svg viewBox="0 0 800 300" className="lineChart">
+                  <line x1="55" y1="240" x2="750" y2="240" />
+                  <line x1="55" y1="40" x2="55" y2="240" />
 
-                  {[0, 1, 2, 3, 4].map((num) => (
+                  {[0, 1, 2, 3].map((num) => (
                     <line
                       key={num}
-                      x1="60"
-                      x2="800"
-                      y1={250 - num * 52}
-                      y2={250 - num * 52}
+                      x1="55"
+                      x2="750"
+                      y1={240 - num * 55}
+                      y2={240 - num * 55}
                       className="gridLine"
                     />
                   ))}
 
-                  <polyline points={missingPoints} className="line redLine" />
-                  <polyline points={foundPoints} className="line greenLine" />
-                  <polyline points={resolvedPoints} className="line blueLine" />
+                  <polyline points={makePoints("main")} className="line redLine" />
+                  <polyline points={makePoints("found")} className="line greenLine" />
+                  <polyline
+                    points={makePoints("recovered")}
+                    className="line blueLine"
+                  />
 
-                  {chartData.map((item, index) => {
-                    const x = 60 + index * (720 / (chartData.length - 1 || 1));
+                  {monthlyChartData.map((item, index) => {
+                    const x = 55 + index * 62;
 
                     return (
-                      <g key={index}>
-                        <circle
-                          cx={x}
-                          cy={250 - (item.missing / maxValue) * 210}
-                          r="5"
-                          className="dot redDotStroke"
-                          onMouseEnter={() =>
-                            setTooltip({
-                              ...item,
-                              x: x + 10,
-                              y: 80,
-                            })
-                          }
-                          onMouseLeave={() => setTooltip(null)}
-                        />
+                      <g key={item.month}>
+                        {["main", "found", "recovered"].map((key) => {
+                          const y = 240 - (item[key] / maxChartValue) * 190;
 
-                        <circle
-                          cx={x}
-                          cy={250 - (item.found / maxValue) * 210}
-                          r="5"
-                          className="dot greenDotStroke"
-                          onMouseEnter={() =>
-                            setTooltip({
-                              ...item,
-                              x: x + 10,
-                              y: 80,
-                            })
-                          }
-                          onMouseLeave={() => setTooltip(null)}
-                        />
+                          return (
+                            <circle
+                              key={key}
+                              cx={x}
+                              cy={y}
+                              r="5"
+                              className={`dot ${key}DotStroke`}
+                              onMouseEnter={() =>
+                                setTooltip({
+                                  ...item,
+                                  x: Math.min(x + 8, 650),
+                                  y: 60,
+                                })
+                              }
+                              onMouseLeave={() => setTooltip(null)}
+                            />
+                          );
+                        })}
 
-                        <circle
-                          cx={x}
-                          cy={250 - (item.resolved / maxValue) * 210}
-                          r="5"
-                          className="dot blueDotStroke"
-                          onMouseEnter={() =>
-                            setTooltip({
-                              ...item,
-                              x: x + 10,
-                              y: 80,
-                            })
-                          }
-                          onMouseLeave={() => setTooltip(null)}
-                        />
-
-                        <text x={x} y="285" textAnchor="middle">
+                        <text x={x} y="275" textAnchor="middle">
                           {item.month.slice(0, 3)}
                         </text>
                       </g>
@@ -367,56 +398,56 @@ export default function Statistics() {
               </div>
 
               <div className="statistics__legend">
-                <span><b className="redDot"></b>{activeTab === "persons" ? "Missing" : "Lost"}</span>
-                <span><b className="greenDot"></b>Found</span>
-                <span><b className="blueDot"></b>{activeTab === "persons" ? "Resolved" : "Returned"}</span>
+                <span>
+                  <b className="redDot"></b>
+                  {activeTab === "persons" ? "Missing" : "Lost"}
+                </span>
+                <span>
+                  <b className="greenDot"></b>Found
+                </span>
+                <span>
+                  <b className="blueDot"></b>
+                  {activeTab === "persons" ? "Resolved" : "Returned"}
+                </span>
               </div>
             </div>
 
             <div className="statistics__chartBox">
-              <h3>Status Distribution</h3>
+              <h3>City Wise Summary</h3>
 
-              <div className="pieChart">
-                <div className="pieCircle"></div>
+              <div className="citySummaryCompact">
+                {citySummaryData.map((item) => (
+                  <div className="citySummaryRow" key={item.city}>
+                    <span>{item.city}</span>
 
-                <span className="pieLabel redPie">
-                  {activeTab === "persons" ? "Missing" : "Lost"} 43%
-                </span>
+                    <div className="citySummaryBar">
+                      <div
+                        style={{
+                          width: `${(item.total / maxCityTotal) * 100}%`,
+                        }}
+                      ></div>
+                    </div>
 
-                <span className="pieLabel greenPie">Found 31%</span>
-
-                <span className="pieLabel bluePie">
-                  {activeTab === "persons" ? "Resolved" : "Returned"} 25%
-                </span>
+                    <b>{item.total}</b>
+                  </div>
+                ))}
               </div>
             </div>
           </section>
 
           <section className="statistics__chartBox ageBox">
-            <h3>{activeTab === "persons" ? "Age Group Distribution" : "Item Category Distribution"}</h3>
+            <h3>
+              {activeTab === "persons"
+                ? "Age Group Distribution"
+                : "Item Category Distribution"}
+            </h3>
 
             <div className="ageChart">
-              {ageGroups.map((item, index) => (
-                <div
-                  className="ageBarItem"
-                  key={index}
-                  onMouseEnter={(e) =>
-                    setTooltip({
-                      month: item.label,
-                      missing: item.count,
-                      found: "",
-                      resolved: "",
-                      x: e.clientX - 100,
-                      y: e.clientY - 150,
-                    })
-                  }
-                  onMouseLeave={() => setTooltip(null)}
-                >
+              {ageGroups.map((item) => (
+                <div className="ageBarItem" key={item.label}>
                   <div
                     className="ageBar"
-                    style={{
-                      height: `${(item.count / maxAge) * 210}px`,
-                    }}
+                    style={{ height: `${(item.count / maxAge) * 190}px` }}
                   >
                     <span className="agePopup">
                       <b>{item.label}</b>
@@ -430,12 +461,30 @@ export default function Statistics() {
             </div>
 
             <div className="statistics__legend">
-              <span><b className="purpleDot"></b>count</span>
+              <span>
+                <b className="purpleDot"></b>count
+              </span>
             </div>
           </section>
 
           <section className="statistics__tableBox">
-            <h3>Detailed Statistics</h3>
+            <div className="statistics__tableHeader">
+              <div>
+                <h3>Detailed Statistics</h3>
+                <p>
+                  Showing {visibleTableData.length} of {filteredData.length} records
+                </p>
+              </div>
+
+              {filteredData.length > 8 && (
+                <button
+                  className="statistics__showBtn"
+                  onClick={() => setShowAllRows(!showAllRows)}
+                >
+                  {showAllRows ? "Show Less" : "Show More"}
+                </button>
+              )}
+            </div>
 
             <table>
               <thead>
@@ -450,10 +499,17 @@ export default function Statistics() {
               </thead>
 
               <tbody>
-                {filteredData.map((item, index) => {
-                  const firstValue = activeTab === "persons" ? item.missing : item.lost;
-                  const lastValue = activeTab === "persons" ? item.resolved : item.returned;
-                  const rowRate = firstValue > 0 ? Math.round((lastValue / firstValue) * 100) : 0;
+                {visibleTableData.map((item, index) => {
+                  const firstValue =
+                    activeTab === "persons" ? item.missing : item.lost;
+
+                  const lastValue =
+                    activeTab === "persons" ? item.resolved : item.returned;
+
+                  const rowRate =
+                    firstValue > 0
+                      ? Math.round((lastValue / firstValue) * 100)
+                      : 0;
 
                   return (
                     <tr key={index}>
