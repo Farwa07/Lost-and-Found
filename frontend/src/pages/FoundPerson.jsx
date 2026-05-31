@@ -47,6 +47,7 @@ const FoundPerson = () => {
     e.preventDefault();
 
     console.log(formData);
+    alert("Found Person Report Submitted Successfully!");
   };
 
   return (
@@ -82,7 +83,7 @@ const FoundPerson = () => {
                   onChange={handleChange}
                   pattern="[A-Za-z\s]+"
                   title="Only alphabets are allowed"
-                  required
+                  
                 />
               </div>
 

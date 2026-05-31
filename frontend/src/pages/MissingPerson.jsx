@@ -46,6 +46,7 @@ const MissingPerson = () => {
     e.preventDefault();
 
     console.log(formData);
+    alert("Missing Person Report Submitted Successfully!");
   };
 
   return (
@@ -273,7 +274,7 @@ const MissingPerson = () => {
                   name="firReportImage"
                   accept="image/*,.pdf"
                   onChange={handleFileChange}
-                  required
+                  
                 />
               </div>
             </div>

@@ -19,7 +19,7 @@ export default function Footer() {
       <div>
         <h4>Support</h4>
         <a href="/faqs">FAQs</a>
-        <a href="/privacy">Privacy Policy</a>
+        <a href="/privacy-policy">Privacy Policy</a>
         <a href="/terms">Terms & Conditions</a>
       </div>
 

@@ -19,6 +19,10 @@ import SignUp from "./pages/SignUp";
 
 import Login from "./pages/Login";
 
+import Faqs from "./pages/Faqs";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms from "./pages/Terms";
+
 
 
 export default function App() {
@@ -38,8 +42,11 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/report-lost-item" element={<LostItem />} />
         <Route path="/report-found-item" element={<FoundItem />} />
-        
-        
+        <Route path="/faqs" element={<Faqs />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<Terms />} />
+
+
       </Routes>
     </BrowserRouter>
   );
