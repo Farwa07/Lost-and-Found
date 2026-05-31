@@ -3,6 +3,7 @@ import hero1 from "../assets/hero1.jpeg";
 import hero2 from "../assets/hero5.jpg";
 import hero3 from "../assets/hero3.webp";
 import "./HeroSection.css";
+import { useNavigate } from "react-router-dom";
 
 const images = [
   hero1,
@@ -12,6 +13,7 @@ const images = [
 
 
 export default function HeroSection(){
+  const navigate = useNavigate();
 
   const [current,setCurrent] = useState(0);
 
@@ -50,17 +52,23 @@ export default function HeroSection(){
             A comprehensive platform to report and find lost persons and items.
           </p>
 
-          <div className="hero__buttons">
+       <div className="hero__buttons">
+  <button onClick={() => navigate("/persons")}>
+    Search Persons
+  </button>
 
-            <button className="hero__primary">
-              Search Cases
-            </button>
+  <button onClick={() => navigate("/items")}>
+    Search Items
+  </button>
 
-            <button className="hero__secondary">
-              Report a Case
-            </button>
+  <button onClick={() => navigate("/report-missing-person")}>
+    Report Missing Person
+  </button>
 
-          </div>
+  <button onClick={() => navigate("/report-lost-item")}>
+    Report Lost Item
+  </button>
+</div>
 
         </div>
 

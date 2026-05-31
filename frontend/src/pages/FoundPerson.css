@@ -224,8 +224,20 @@ input[type="date"] {
   font-size: 18px;
 }
 
-.upload-box input {
-  display: none;
+.upload-box input{
+  display:block;
+  width:100%;
+  margin-top:16px;
+  font-size:13px;
+}
+
+.file-name{
+  margin-top:10px;
+  font-size:13px;
+  color:#4f46e5;
+  font-weight:700;
+  text-align:center;
+  word-break:break-word;
 }
 
 /* BUTTON */

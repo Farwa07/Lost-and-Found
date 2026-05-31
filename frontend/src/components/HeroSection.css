@@ -38,8 +38,26 @@
 
 .hero__buttons{
   display:flex;
-  justify-content:center;
-  gap:20px;
+  flex-wrap:wrap;
+  gap:14px;
+  margin-top:28px;
+}
+
+.hero__buttons button{
+  border:none;
+  padding:14px 20px;
+  border-radius:14px;
+  font-weight:800;
+  cursor:pointer;
+  background:white;
+  color:#4f46e5;
+  box-shadow:0 10px 24px rgba(0,0,0,0.12);
+}
+
+.hero__buttons button:nth-child(3),
+.hero__buttons button:nth-child(4){
+  background:#111827;
+  color:white;
 }
 
 .hero__primary{
