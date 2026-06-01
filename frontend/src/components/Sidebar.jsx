@@ -1,4 +1,7 @@
 import "./Sidebar.css";
+
+import { useEffect, useState } from "react";
+
 import {
   FaTachometerAlt,
   FaUsers,
@@ -7,24 +10,49 @@ import {
   FaBell,
   FaFileAlt,
   FaCog,
-  FaUserCircle,
-  FaPlus
 } from "react-icons/fa";
 
 export default function Sidebar({ open }) {
-  
+  const [profileImage, setProfileImage] = useState("");
+  const [profileName, setProfileName] = useState("John Doe");
+
+  const loadProfileData = () => {
+    const savedImage = localStorage.getItem("lostFoundProfileImage");
+    const savedProfile = localStorage.getItem("lostFoundProfileData");
+
+    setProfileImage(savedImage || "");
+
+    if (savedProfile) {
+      const parsedProfile = JSON.parse(savedProfile);
+
+      setProfileName(parsedProfile.fullName || "John Doe");
+    } else {
+      setProfileName("John Doe");
+    }
+  };
+
+  useEffect(() => {
+    loadProfileData();
+
+    window.addEventListener("profileUpdated", loadProfileData);
+    window.addEventListener("storage", loadProfileData);
+
+    return () => {
+      window.removeEventListener("profileUpdated", loadProfileData);
+      window.removeEventListener("storage", loadProfileData);
+    };
+  }, []);
+
+  const initials = profileName
+    .split(" ")
+    .map((name) => name[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
-
     <aside className={`sidebar ${open ? "" : "sidebar--closed"}`}>
-      
-
-      <button className="sidebar__btn">
-        + New Report
-      </button>
-
       <div className="sidebar__links">
-
         <a href="/" className="sidebar__link sidebar__link--active">
           <FaTachometerAlt />
           Dashboard
@@ -55,37 +83,27 @@ export default function Sidebar({ open }) {
           My Reports
         </a>
 
-      </div>
-
-      <div className="sidebar__bottom">
-
         <a href="/settings" className="sidebar__link">
           <FaCog />
           Settings
         </a>
 
-        <div className="sidebar__profile">
-
+        <a href="/profile" className="sidebar__profile">
           <div className="sidebar__avatar">
-            JD
+            {profileImage ? (
+              <img src={profileImage} alt="Profile" />
+            ) : (
+              initials
+            )}
           </div>
 
           <div>
+            <h4>{profileName}</h4>
 
-            <h4>
-              John Doe
-            </h4>
-
-            <p>
-              View Profile
-            </p>
-
+            <p>View Profile</p>
           </div>
-
-        </div>
-
+        </a>
       </div>
-
     </aside>
   );
 }

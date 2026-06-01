@@ -23,6 +23,11 @@ import Faqs from "./pages/Faqs";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
 
+import ForgotPassword from "./pages/ForgotPassword";
+
+import Profile from "./pages/Profile";
+import Notifications from "./pages/Notifications";
+
 
 
 export default function App() {
@@ -45,6 +50,10 @@ export default function App() {
         <Route path="/faqs" element={<Faqs />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<Terms />} />
+
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/notifications" element={<Notifications />} />
 
 
       </Routes>
