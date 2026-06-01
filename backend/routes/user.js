@@ -6,6 +6,13 @@ const User = require('../models/user');
 router.post('/users', async (req, res) => {
   try {
     const { name, email, password, number } = req.body;
+    const existingUser = await User.findOne({ email });
+
+if (existingUser) {
+  return res.status(400).json({
+    message: "Email already exists"
+  });
+}
     const newUser = new User({ name, email, password, number });
     await newUser.save();
     res.status(201).json(newUser);
@@ -35,3 +42,4 @@ router.get('/users/:id', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+module.exports = router;
