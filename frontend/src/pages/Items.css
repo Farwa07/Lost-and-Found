@@ -158,30 +158,35 @@
 .lost{
   background:#ef4444;
 }
-
-.item-buttons{
-  display:flex;
-  gap:12px;
-  margin-top:20px;
+.item-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
 }
 
-.item-buttons button{
-  flex:1;
-  border:none;
-  background:linear-gradient(135deg,#0ea5e9,#8b5cf6);
-  color:white;
-  padding:12px;
-  border-radius:12px;
-  font-weight:700;
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
+.item-buttons .view-details-btn,
+.item-buttons .share-btn {
+  flex: 1;
+  border: none;
+  color: white;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.share-btn{
-  background:#111827 !important;
+.item-buttons .view-details-btn {
+  background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
+}
+
+.item-buttons .share-btn {
+  background: #111827;
 }
 
 .modal-overlay{

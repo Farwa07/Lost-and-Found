@@ -14,6 +14,7 @@ import {
   FaPhoneAlt,
 } from "react-icons/fa";
 import "./Persons.css";
+import CommentsButton from "../components/CommentsButton";
 
 const personsData = [
   {
@@ -334,18 +335,28 @@ export default function Persons() {
                       <FaCalendarAlt /> Date: {person.date}
                     </p>
 
-                    <div className="card-buttons">
-                      <button onClick={() => setSelectedPerson(person)}>
-                        <FaEye /> View Details
-                      </button>
+                  <div className="card-buttons">
+  <button
+    className="view-details-btn"
+    onClick={() => setSelectedPerson(person)}
+  >
+    <FaEye /> View Details
+  </button>
 
-                      <button
-                        className="share-btn"
-                        onClick={() => handleShare(person)}
-                      >
-                        <FaShareAlt /> Share
-                      </button>
-                    </div>
+  <button
+    className="share-btn"
+    onClick={() => handleShare(person)}
+  >
+    <FaShareAlt />
+    Share
+  </button>
+
+  <CommentsButton
+    reportTitle={person.title || person.name}
+    initialComments={person.comments || []}
+    currentUser="John Doe"
+  />
+</div>
                   </div>
                 </div>
               ))}

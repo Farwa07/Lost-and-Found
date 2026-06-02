@@ -16,6 +16,7 @@ import {
 } from "react-icons/fa";
 
 import "./Items.css";
+import CommentsButton from "../components/CommentsButton";
 
 const itemData = [
   {
@@ -196,6 +197,7 @@ const itemData = [
 
 export default function Items() {
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
   const [city, setCity] = useState("All");
@@ -255,10 +257,10 @@ export default function Items() {
 
   return (
     <div className="items-page">
-      <Navbar />
+      <Navbar  toggleSidebar={() => setSidebarOpen((prev) => !prev)}/>
 
       <div className="items-layout">
-        <Sidebar />
+        <Sidebar open={sidebarOpen}/>
 
         <main className="items-main">
           <div className="items-header">
@@ -401,25 +403,28 @@ export default function Items() {
                   </p>
 
                   <div className="item-buttons">
-                    <button
-                      onClick={() =>
-                        setSelectedItem(item)
-                      }
-                    >
-                      <FaEye />
-                      View Details
-                    </button>
+  <button
+    className="view-details-btn"
+    onClick={() => setSelectedItem(item)}
+  >
+    <FaEye />
+    View Details
+  </button>
 
-                    <button
-                      className="share-btn"
-                      onClick={() =>
-                        handleShare(item)
-                      }
-                    >
-                      <FaShareAlt />
-                      Share
-                    </button>
-                  </div>
+  <button
+    className="share-btn"
+    onClick={() => handleShare(item)}
+  >
+    <FaShareAlt />
+    Share
+  </button>
+
+  <CommentsButton
+    reportTitle={item.title}
+    initialComments={item.comments || []}
+    currentUser="John Doe"
+  />
+</div>
                 </div>
               </div>
             ))}

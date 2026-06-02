@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
+import CommentsButton from "../components/CommentsButton";
 
 import {
   FaBoxOpen,
@@ -187,6 +188,7 @@ export default function MyReports() {
   const [selectedReport, setSelectedReport] = useState(null);
   const [editingReport, setEditingReport] = useState(null);
   const [message, setMessage] = useState("");
+  const [activeFilter, setActiveFilter] = useState("all");
 
   const stats = useMemo(() => {
     return {
@@ -198,6 +200,22 @@ export default function MyReports() {
       solved: reports.filter((report) => report.caseStatus === "Solved").length,
     };
   }, [reports]);
+
+  const filteredReports = useMemo(() => {
+  if (activeFilter === "pending") {
+    return reports.filter((report) => report.adminStatus === "Pending");
+  }
+
+  if (activeFilter === "verified") {
+    return reports.filter((report) => report.adminStatus === "Verified");
+  }
+
+  if (activeFilter === "solved") {
+    return reports.filter((report) => report.caseStatus === "Solved");
+  }
+
+  return reports;
+}, [reports, activeFilter]);
 
   useEffect(() => {
     const reportId = searchParams.get("reportId");
@@ -349,50 +367,74 @@ export default function MyReports() {
           </section>
 
           <section className="myreports-stats">
-            <div className="myreports-stat-card">
-              <div className="myreports-stat-icon">
-                <FaFileAlt />
-              </div>
+  <button
+    type="button"
+    className={`myreports-stat-card ${
+      activeFilter === "all" ? "myreports-stat-card--active" : ""
+    }`}
+    onClick={() => setActiveFilter("all")}
+  >
+    <div className="myreports-stat-icon">
+      <FaFileAlt />
+    </div>
 
-              <div>
-                <h3>{stats.total}</h3>
-                <p>Total Reports</p>
-              </div>
-            </div>
+    <div>
+      <h3>{stats.total}</h3>
+      <p>Total Reports</p>
+    </div>
+  </button>
 
-            <div className="myreports-stat-card">
-              <div className="myreports-stat-icon">
-                <FaClock />
-              </div>
+  <button
+    type="button"
+    className={`myreports-stat-card ${
+      activeFilter === "pending" ? "myreports-stat-card--active" : ""
+    }`}
+    onClick={() => setActiveFilter("pending")}
+  >
+    <div className="myreports-stat-icon">
+      <FaClock />
+    </div>
 
-              <div>
-                <h3>{stats.pending}</h3>
-                <p>Pending Review</p>
-              </div>
-            </div>
+    <div>
+      <h3>{stats.pending}</h3>
+      <p>Pending Review</p>
+    </div>
+  </button>
 
-            <div className="myreports-stat-card">
-              <div className="myreports-stat-icon">
-                <FaCheckCircle />
-              </div>
+  <button
+    type="button"
+    className={`myreports-stat-card ${
+      activeFilter === "verified" ? "myreports-stat-card--active" : ""
+    }`}
+    onClick={() => setActiveFilter("verified")}
+  >
+    <div className="myreports-stat-icon">
+      <FaCheckCircle />
+    </div>
 
-              <div>
-                <h3>{stats.verified}</h3>
-                <p>Verified</p>
-              </div>
-            </div>
+    <div>
+      <h3>{stats.verified}</h3>
+      <p>Verified</p>
+    </div>
+  </button>
 
-            <div className="myreports-stat-card">
-              <div className="myreports-stat-icon">
-                <FaCheckCircle />
-              </div>
+  <button
+    type="button"
+    className={`myreports-stat-card ${
+      activeFilter === "solved" ? "myreports-stat-card--active" : ""
+    }`}
+    onClick={() => setActiveFilter("solved")}
+  >
+    <div className="myreports-stat-icon">
+      <FaCheckCircle />
+    </div>
 
-              <div>
-                <h3>{stats.solved}</h3>
-                <p>Solved</p>
-              </div>
-            </div>
-          </section>
+    <div>
+      <h3>{stats.solved}</h3>
+      <p>Solved</p>
+    </div>
+  </button>
+</section>
 
           {message && (
             <div className="myreports-message">
@@ -406,7 +448,7 @@ export default function MyReports() {
           )}
 
           <section className="myreports-list">
-            {reports.map((report) => (
+            {filteredReports.map((report) => (
               <div className="myreports-card" key={report.id}>
                 <div className="myreports-card__image">
                   <img src={report.image} alt={report.title} />
@@ -476,24 +518,30 @@ export default function MyReports() {
                     </label>
 
                     <div className="myreports-actions">
-                      <button onClick={() => openReportDetails(report)}>
-                        <FaEye />
-                        View
-                      </button>
+  <button onClick={() => openReportDetails(report)}>
+    <FaEye />
+    View
+  </button>
 
-                      <button onClick={() => setEditingReport(report)}>
-                        <FaEdit />
-                        Edit
-                      </button>
+  <CommentsButton
+    reportTitle={report.title || report.name}
+    initialComments={report.comments || []}
+    currentUser="John Doe"
+  />
 
-                      <button
-                        className="myreports-delete"
-                        onClick={() => handleDeleteReport(report.id)}
-                      >
-                        <FaTrash />
-                        Delete
-                      </button>
-                    </div>
+  <button onClick={() => setEditingReport(report)}>
+    <FaEdit />
+    Edit
+  </button>
+
+  <button
+    className="myreports-delete"
+    onClick={() => handleDeleteReport(report.id)}
+  >
+    <FaTrash />
+    Delete
+  </button>
+</div>
                   </div>
                 </div>
               </div>
