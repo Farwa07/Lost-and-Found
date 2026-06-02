@@ -4,6 +4,7 @@ import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import HeroSection from "../components/HeroSection";
+import CommentsButton from "../components/CommentsButton";
 
 import {
   FaSearch,
@@ -35,6 +36,24 @@ const recentReports = [
     reporterContact: "03001112222",
     relation: "Father",
     image: "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?q=80&w=1200&auto=format&fit=crop",
+
+    comments: [
+  {
+    id: 1,
+    user: "Sara Ahmed",
+    text: "Is report ki exact location confirm kar dein please.",
+    createdAt: "2026-06-01T10:30:00",
+    replies: [
+      {
+        id: 11,
+        user: "John Doe",
+        text: "Location Anarkali Bazaar ke near hai.",
+        createdAt: "2026-06-01T11:00:00",
+      },
+    ],
+  },
+],
+
   },
   {
     id: 2,
@@ -313,9 +332,20 @@ export default function Home() {
                       <FaCalendarAlt /> {report.date}
                     </p>
 
-                    <button onClick={() => setSelectedReport(report)}>
-                      View Details
-                    </button>
+                    <div className="recent-card__actions">
+  <button
+    className="recent-details-btn"
+    onClick={() => setSelectedReport(report)}
+  >
+    View Details
+  </button>
+
+  <CommentsButton
+    reportTitle={report.title}
+    initialComments={report.comments || []}
+    currentUser="John Doe"
+  />
+</div>
                   </div>
                 </div>
               ))}

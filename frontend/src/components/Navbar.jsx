@@ -1,6 +1,7 @@
 import "./Navbar.css";
 import { FaUser } from "react-icons/fa";
 import logo from "../assets/Logo.png";
+import { Link } from "react-router-dom";
 
 export default function Navbar({ toggleSidebar }) {
 
@@ -11,15 +12,13 @@ export default function Navbar({ toggleSidebar }) {
         ☰
       </button>
 
-      <div className="navbar__brand">
+      <Link to="/" className="navbar__brand">
+  <div className="navbar__logo">
+    <img src={logo} alt="logo" />
+  </div>
 
-        <div className="navbar__logo">
-          <img src={logo} alt="logo" />
-        </div>
-
-        <h2>Lost & Found</h2>
-
-      </div>
+  <h2>Lost & Found</h2>
+</Link>
 
       <nav className="navbar__links">
         <a href="/">Home</a>
