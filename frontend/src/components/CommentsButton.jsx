@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
+
 import {
   FaRegCommentDots,
   FaTimes,
@@ -8,6 +10,8 @@ import {
   FaTrash,
 } from "react-icons/fa";
 
+import { useAuth } from "../context/AuthContext";
+
 import "./CommentsButton.css";
 
 export default function CommentsButton({
@@ -15,11 +19,28 @@ export default function CommentsButton({
   initialComments = [],
   currentUser = "John Doe",
 }) {
+  const navigate = useNavigate();
+
+  const { isLoggedIn, isRegistered, currentUser: authUser } = useAuth();
+
+  const activeUserName =
+    authUser?.fullName || currentUser || "John Doe";
+
   const [open, setOpen] = useState(false);
   const [comments, setComments] = useState(initialComments);
   const [commentText, setCommentText] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState("");
+
+  const showAuthPrompt = (actionText) => {
+    alert(
+      isRegistered
+        ? `Please login to ${actionText}.`
+        : `Please create an account to ${actionText}.`
+    );
+
+    navigate(isRegistered ? "/login" : "/signup");
+  };
 
   const formatDateTime = (value) => {
     const date = new Date(value);
@@ -61,6 +82,11 @@ export default function CommentsButton({
   const handleAddComment = (e) => {
     e.preventDefault();
 
+    if (!isLoggedIn) {
+      showAuthPrompt("comment");
+      return;
+    }
+
     const text = commentText.trim();
 
     if (!text) {
@@ -70,7 +96,7 @@ export default function CommentsButton({
 
     const newComment = {
       id: Date.now(),
-      user: currentUser,
+      user: activeUserName,
       text,
       createdAt: new Date().toISOString(),
       replies: [],
@@ -81,6 +107,11 @@ export default function CommentsButton({
   };
 
   const handleDeleteComment = (commentId) => {
+    if (!isLoggedIn) {
+      showAuthPrompt("delete comments");
+      return;
+    }
+
     const confirmDelete = window.confirm("Delete this comment?");
 
     if (!confirmDelete) return;
@@ -90,8 +121,22 @@ export default function CommentsButton({
     );
   };
 
+  const handleReplyClick = (commentId) => {
+    if (!isLoggedIn) {
+      showAuthPrompt("reply");
+      return;
+    }
+
+    setReplyingTo(replyingTo === commentId ? null : commentId);
+  };
+
   const handleAddReply = (e, commentId) => {
     e.preventDefault();
+
+    if (!isLoggedIn) {
+      showAuthPrompt("reply");
+      return;
+    }
 
     const text = replyText.trim();
 
@@ -102,7 +147,7 @@ export default function CommentsButton({
 
     const newReply = {
       id: Date.now(),
-      user: currentUser,
+      user: activeUserName,
       text,
       createdAt: new Date().toISOString(),
     };
@@ -123,6 +168,11 @@ export default function CommentsButton({
   };
 
   const handleDeleteReply = (commentId, replyId) => {
+    if (!isLoggedIn) {
+      showAuthPrompt("delete replies");
+      return;
+    }
+
     const confirmDelete = window.confirm("Delete this reply?");
 
     if (!confirmDelete) return;
@@ -139,6 +189,10 @@ export default function CommentsButton({
           : comment
       )
     );
+  };
+
+  const canDeleteComment = (commentUser) => {
+    return isLoggedIn && commentUser === activeUserName;
   };
 
   const modalContent = (
@@ -177,13 +231,15 @@ export default function CommentsButton({
                         <span>{formatDateTime(comment.createdAt)}</span>
                       </div>
 
-                      <button
-                        type="button"
-                        className="comment-delete-btn"
-                        onClick={() => handleDeleteComment(comment.id)}
-                      >
-                        <FaTrash />
-                      </button>
+                      {canDeleteComment(comment.user) && (
+                        <button
+                          type="button"
+                          className="comment-delete-btn"
+                          onClick={() => handleDeleteComment(comment.id)}
+                        >
+                          <FaTrash />
+                        </button>
+                      )}
                     </div>
 
                     <p>{comment.text}</p>
@@ -191,11 +247,7 @@ export default function CommentsButton({
                     <button
                       type="button"
                       className="comment-reply-btn"
-                      onClick={() =>
-                        setReplyingTo(
-                          replyingTo === comment.id ? null : comment.id
-                        )
-                      }
+                      onClick={() => handleReplyClick(comment.id)}
                     >
                       <FaReply />
                       Reply
@@ -218,15 +270,17 @@ export default function CommentsButton({
                               <span>{formatDateTime(reply.createdAt)}</span>
                             </div>
 
-                            <button
-                              type="button"
-                              className="comment-delete-btn"
-                              onClick={() =>
-                                handleDeleteReply(comment.id, reply.id)
-                              }
-                            >
-                              <FaTrash />
-                            </button>
+                            {canDeleteComment(reply.user) && (
+                              <button
+                                type="button"
+                                className="comment-delete-btn"
+                                onClick={() =>
+                                  handleDeleteReply(comment.id, reply.id)
+                                }
+                              >
+                                <FaTrash />
+                              </button>
+                            )}
                           </div>
 
                           <p>{reply.text}</p>
@@ -266,7 +320,11 @@ export default function CommentsButton({
 
         <form className="add-comment-form" onSubmit={handleAddComment}>
           <textarea
-            placeholder="Write your comment here..."
+            placeholder={
+              isLoggedIn
+                ? "Write your comment here..."
+                : "Login or create an account to write a comment..."
+            }
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
           />

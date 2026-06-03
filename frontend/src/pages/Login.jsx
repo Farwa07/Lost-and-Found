@@ -1,20 +1,35 @@
 import "./Login.css";
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
+  const navigate = useNavigate();
+
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
-  email: "",
-  password: "",
-  remember: false,
-});
+    email: "",
+    password: "",
+    remember: false,
+  });
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const getRegisteredUser = () => {
+    try {
+      const savedUser = localStorage.getItem("lostFoundRegisteredUser");
+
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      return null;
+    }
   };
 
   const handleSubmit = (e) => {
@@ -28,51 +43,68 @@ export default function Login() {
       return;
     }
 
-    console.log(formData);
+    const registeredUser = getRegisteredUser();
+
+    if (!registeredUser) {
+      alert("No account found. Please create an account first.");
+      navigate("/signup");
+      return;
+    }
+
+    if (registeredUser.email !== formData.email) {
+      alert("This email is not registered. Please sign up first.");
+      return;
+    }
+
+    if (!registeredUser.password) {
+      alert("Your old signup data has no password saved. Please sign up again.");
+      localStorage.removeItem("lostFoundRegisteredUser");
+      localStorage.removeItem("lostFoundAuthToken");
+      localStorage.removeItem("lostFoundCurrentUser");
+      navigate("/signup");
+      return;
+    }
+
+    if (registeredUser.password !== formData.password) {
+      alert("Incorrect password. Please try again.");
+      return;
+    }
+
+    login(registeredUser);
+
+    console.log("Login Data:", {
+      email: formData.email,
+      remember: formData.remember,
+    });
 
     alert("Login Successful");
 
     setFormData({
       email: "",
       password: "",
+      remember: false,
     });
+
+    navigate("/");
   };
 
   return (
-
     <div className="login">
-
-      {/* LEFT SIDE */}
-
       <div className="login__left">
-
         <div className="login__overlay">
-
           <div className="login__content">
-
-            <h1>
-              Welcome Back
-            </h1>
+            <h1>Welcome Back</h1>
 
             <p>
               Sign in to continue helping reunite lost people and belongings.
             </p>
-
           </div>
-
         </div>
-
       </div>
 
-      {/* RIGHT SIDE */}
-
       <div className="login__right">
-
         <div className="login__card">
-
-          <h2>
-            Sign In
-          </h2>
+          <h2>Sign In</h2>
 
           <p className="login__subtitle">
             Login to your account
@@ -82,9 +114,7 @@ export default function Login() {
             className="login__form"
             onSubmit={handleSubmit}
           >
-
             <div className="login__field">
-
               <label>Email Address</label>
 
               <input
@@ -95,11 +125,9 @@ export default function Login() {
                 onChange={handleChange}
                 required
               />
-
             </div>
 
             <div className="login__field">
-
               <label>Password</label>
 
               <input
@@ -110,48 +138,36 @@ export default function Login() {
                 onChange={handleChange}
                 required
               />
-
             </div>
 
-             {/* REMEMBER + FORGOT */}
-
             <div className="login__options">
-
               <label className="login__remember">
+                <input
+                  type="checkbox"
+                  name="remember"
+                  checked={formData.remember}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      remember: e.target.checked,
+                    })
+                  }
+                />
 
-  <input
-    type="checkbox"
-    name="remember"
-    checked={formData.remember}
-    onChange={(e) =>
-      setFormData({
-        ...formData,
-        remember: e.target.checked,
-      })
-    }
-  />
-
-  Remember me
-
-</label>
+                Remember me
+              </label>
 
               <a href="/forgot-password" className="login__forgot">
-                 Forgot password?
+                Forgot password?
               </a>
-
             </div>
 
             <button className="login__btn">
               Sign In
             </button>
-
-            
           </form>
-
         </div>
-
       </div>
-
     </div>
   );
 }

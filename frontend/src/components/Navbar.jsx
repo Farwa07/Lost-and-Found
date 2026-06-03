@@ -1,24 +1,57 @@
 import "./Navbar.css";
+
 import { FaUser } from "react-icons/fa";
 import logo from "../assets/Logo.png";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export default function Navbar({ toggleSidebar }) {
+  const navigate = useNavigate();
+
+  const { isRegistered, isLoggedIn, logout } = useAuth();
+
+  const handleAuthButton = () => {
+    if (isLoggedIn) {
+      logout();
+      navigate("/");
+      return;
+    }
+
+    if (isRegistered) {
+      navigate("/login");
+      return;
+    }
+
+    navigate("/signup");
+  };
+
+  const getAuthButtonText = () => {
+    if (isLoggedIn) {
+      return "Logout";
+    }
+
+    if (isRegistered) {
+      return "Login";
+    }
+
+    return "Sign Up";
+  };
 
   return (
     <header className="navbar">
-
-      <button className="navbar__menu" onClick={toggleSidebar}>
-        ☰
-      </button>
+      {isLoggedIn && (
+        <button className="navbar__menu" onClick={toggleSidebar}>
+          ☰
+        </button>
+      )}
 
       <Link to="/" className="navbar__brand">
-  <div className="navbar__logo">
-    <img src={logo} alt="logo" />
-  </div>
+        <div className="navbar__logo">
+          <img src={logo} alt="logo" />
+        </div>
 
-  <h2>Lost & Found</h2>
-</Link>
+        <h2>Lost & Found</h2>
+      </Link>
 
       <nav className="navbar__links">
         <a href="/">Home</a>
@@ -29,14 +62,11 @@ export default function Navbar({ toggleSidebar }) {
       </nav>
 
       <div className="navbar__right">
-        <a href="/signup">
-          <button className="navbar__signup">
-            <FaUser/>
-            Sign Up
-           </button>
-        </a>
+        <button className="navbar__signup" onClick={handleAuthButton}>
+          <FaUser />
+          {getAuthButtonText()}
+        </button>
       </div>
-      
     </header>
   );
 }

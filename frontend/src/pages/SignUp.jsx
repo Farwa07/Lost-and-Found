@@ -2,9 +2,12 @@ import "./SignUp.css";
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export default function SignUp() {
   const navigate = useNavigate();
+
+  const { register } = useAuth();
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -36,6 +39,8 @@ export default function SignUp() {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     const phoneRegex = /^[0-9+\-\s]{10,15}$/;
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
     if (!emailRegex.test(formData.email)) {
       setMessage({
@@ -53,6 +58,14 @@ export default function SignUp() {
       return;
     }
 
+    if (!passwordRegex.test(formData.password)) {
+      setMessage({
+        type: "error",
+        text: "Password must contain uppercase, lowercase, number, special character and minimum 8 characters.",
+      });
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setMessage({
         type: "error",
@@ -61,7 +74,20 @@ export default function SignUp() {
       return;
     }
 
-    console.log("Signup Data:", formData);
+    const userData = {
+      fullName: formData.fullName,
+      email: formData.email,
+      phone: formData.phone,
+      password: formData.password,
+    };
+
+    register(userData);
+
+    console.log("Signup Data:", {
+      fullName: formData.fullName,
+      email: formData.email,
+      phone: formData.phone,
+    });
 
     setMessage({
       type: "success",
@@ -83,8 +109,6 @@ export default function SignUp() {
 
   return (
     <div className="signup">
-      {/* LEFT SIDE */}
-
       <div className="signup__left">
         <div className="signup__overlay">
           <div className="signup__content">
@@ -97,8 +121,6 @@ export default function SignUp() {
           </div>
         </div>
       </div>
-
-      {/* RIGHT SIDE */}
 
       <div className="signup__right">
         <div className="signup__card">
@@ -191,7 +213,6 @@ export default function SignUp() {
 
           <p className="signup__bottom">
             Already have an account?
-
             <span onClick={() => navigate("/login")}> Log In</span>
           </p>
         </div>
