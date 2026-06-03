@@ -1,6 +1,7 @@
 import "./Sidebar.css";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 import {
   FaTachometerAlt,
@@ -13,6 +14,8 @@ import {
 } from "react-icons/fa";
 
 export default function Sidebar({ open }) {
+  const { isLoggedIn } = useAuth();
+
   const [profileImage, setProfileImage] = useState("");
   const [profileName, setProfileName] = useState("John Doe");
 
@@ -23,9 +26,13 @@ export default function Sidebar({ open }) {
     setProfileImage(savedImage || "");
 
     if (savedProfile) {
-      const parsedProfile = JSON.parse(savedProfile);
+      try {
+        const parsedProfile = JSON.parse(savedProfile);
 
-      setProfileName(parsedProfile.fullName || "John Doe");
+        setProfileName(parsedProfile.fullName || "John Doe");
+      } catch {
+        setProfileName("John Doe");
+      }
     } else {
       setProfileName("John Doe");
     }
@@ -36,12 +43,18 @@ export default function Sidebar({ open }) {
 
     window.addEventListener("profileUpdated", loadProfileData);
     window.addEventListener("storage", loadProfileData);
+    window.addEventListener("authChanged", loadProfileData);
 
     return () => {
       window.removeEventListener("profileUpdated", loadProfileData);
       window.removeEventListener("storage", loadProfileData);
+      window.removeEventListener("authChanged", loadProfileData);
     };
   }, []);
+
+  if (!isLoggedIn) {
+    return null;
+  }
 
   const initials = profileName
     .split(" ")
