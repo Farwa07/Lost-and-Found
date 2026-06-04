@@ -4,6 +4,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require("./routes/authRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/reports", reportRoutes);
 
 // Database connection
 const port = process.env.PORT || 5000;
