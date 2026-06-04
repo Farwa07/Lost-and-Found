@@ -1,4 +1,5 @@
 import "./ForgotPassword.css";
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -9,20 +10,49 @@ export default function ForgotPassword() {
 
   const [email, setEmail] = useState("");
 
+  const [verifiedUser, setVerifiedUser] = useState(null);
+
   const [passwordData, setPasswordData] = useState({
     newPassword: "",
     confirmPassword: "",
   });
+
+  const getRegisteredUser = () => {
+    try {
+      const savedUser = localStorage.getItem("lostFoundRegisteredUser");
+
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      return null;
+    }
+  };
 
   const handleEmailSubmit = (e) => {
     e.preventDefault();
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-    if (!emailRegex.test(email)) {
+    const enteredEmail = email.trim().toLowerCase();
+
+    if (!emailRegex.test(enteredEmail)) {
       alert("Enter valid email address");
       return;
     }
+
+    const registeredUser = getRegisteredUser();
+
+    if (!registeredUser) {
+      alert("No account found. Please create an account first.");
+      navigate("/signup");
+      return;
+    }
+
+    if (registeredUser.email.toLowerCase() !== enteredEmail) {
+      alert("This email is not registered. Please enter your registered email.");
+      return;
+    }
+
+    setVerifiedUser(registeredUser);
 
     alert("Reset link verified. Now create your new password.");
     setStep("password");
@@ -53,12 +83,47 @@ export default function ForgotPassword() {
       return;
     }
 
-    alert("Password reset successfully");
+    if (!verifiedUser) {
+      alert("Please verify your registered email first.");
+      setStep("email");
+      return;
+    }
+
+    const updatedUser = {
+      ...verifiedUser,
+      password: passwordData.newPassword,
+    };
+
+    const profileData = {
+      fullName: updatedUser.fullName,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+    };
+
+    localStorage.setItem(
+      "lostFoundRegisteredUser",
+      JSON.stringify(updatedUser)
+    );
+
+    localStorage.setItem(
+      "lostFoundProfileData",
+      JSON.stringify(profileData)
+    );
+
+    localStorage.removeItem("lostFoundAuthToken");
+    localStorage.removeItem("lostFoundCurrentUser");
+
+    window.dispatchEvent(new Event("authChanged"));
+
+    alert("Password reset successfully. Please login with your new password.");
 
     setPasswordData({
       newPassword: "",
       confirmPassword: "",
     });
+
+    setEmail("");
+    setVerifiedUser(null);
 
     navigate("/login");
   };
@@ -88,7 +153,7 @@ export default function ForgotPassword() {
               <h2>Forgot Password?</h2>
 
               <p className="forgot__subtitle">
-                No worries, enter your email to reset your password
+                No worries, enter your registered email to reset your password
               </p>
 
               <form className="forgot__form" onSubmit={handleEmailSubmit}>
@@ -158,7 +223,16 @@ export default function ForgotPassword() {
 
               <p className="forgot__bottom">
                 Want to change email?{" "}
-                <span onClick={() => setStep("email")}>
+                <span
+                  onClick={() => {
+                    setStep("email");
+                    setVerifiedUser(null);
+                    setPasswordData({
+                      newPassword: "",
+                      confirmPassword: "",
+                    });
+                  }}
+                >
                   Go Back
                 </span>
               </p>
