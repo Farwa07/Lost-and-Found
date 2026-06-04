@@ -28,8 +28,10 @@ import ForgotPassword from "./pages/ForgotPassword";
 
 import Profile from "./pages/Profile";
 import Notifications from "./pages/Notifications";
+import Settings from "./pages/Settings";
 
 export default function App() {
+
   return (
     <AuthProvider>
       <BrowserRouter>
@@ -47,6 +49,7 @@ export default function App() {
           <Route path="/faqs" element={<Faqs />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/settings" element={<Settings />} />
 
           <Route
             path="/reports"
