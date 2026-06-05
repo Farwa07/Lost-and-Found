@@ -1,12 +1,11 @@
 import "./Notifications.css";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
-
-import { useNavigate } from "react-router-dom";
 
 import {
   FaBell,
@@ -22,8 +21,9 @@ import {
   FaUserCheck,
 } from "react-icons/fa";
 
-const initialNotifications = [
+const NOTIFICATIONS_KEY = "lostFoundNotifications";
 
+const initialNotifications = [
   {
     id: 1,
     reportId: 2,
@@ -120,29 +120,86 @@ const initialNotifications = [
     time: "3 days ago",
     isRead: true,
   },
-  
 ];
+
+const readNotifications = () => {
+  try {
+    const saved = localStorage.getItem(NOTIFICATIONS_KEY);
+    return saved ? JSON.parse(saved) : initialNotifications;
+  } catch {
+    return initialNotifications;
+  }
+};
+
+const saveNotifications = (nextNotifications) => {
+  localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(nextNotifications));
+};
 
 export default function Notifications() {
   const navigate = useNavigate();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState([]);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
 
+  useEffect(() => {
+    const saved = localStorage.getItem(NOTIFICATIONS_KEY);
+
+    if (!saved) {
+      saveNotifications(initialNotifications);
+      setNotifications(initialNotifications);
+    } else {
+      setNotifications(readNotifications());
+    }
+
+    const syncNotifications = () => {
+      setNotifications(readNotifications());
+    };
+
+    window.addEventListener("storage", syncNotifications);
+    window.addEventListener("lostFoundNotificationsUpdated", syncNotifications);
+
+    return () => {
+      window.removeEventListener("storage", syncNotifications);
+      window.removeEventListener(
+        "lostFoundNotificationsUpdated",
+        syncNotifications
+      );
+    };
+  }, []);
+
+  const updateNotifications = (nextNotifications) => {
+    setNotifications(nextNotifications);
+    saveNotifications(nextNotifications);
+    window.dispatchEvent(new Event("lostFoundNotificationsUpdated"));
+  };
+
   const openNotification = (notification) => {
-  setNotifications(
-    notifications.map((item) =>
+    const nextNotifications = notifications.map((item) =>
       item.id === notification.id
         ? {
             ...item,
             isRead: true,
           }
         : item
-    )
-  );
+    );
 
-  navigate(`/reports?reportId=${notification.reportId}`);
-};
+    updateNotifications(nextNotifications);
+
+    if (notification.type === "Match" && notification.matchId) {
+      navigate(`/match-alert/${notification.matchId}`);
+      return;
+    }
+
+    if (notification.actionUrl) {
+      navigate(notification.actionUrl);
+      return;
+    }
+
+    if (notification.reportId) {
+      navigate(`/reports?reportId=${notification.reportId}`);
+    }
+  };
 
   const unreadCount = notifications.filter(
     (notification) => !notification.isRead
@@ -154,7 +211,7 @@ export default function Notifications() {
   }, [notifications]);
 
   const markAsRead = (id) => {
-    setNotifications(
+    updateNotifications(
       notifications.map((notification) =>
         notification.id === id
           ? {
@@ -167,13 +224,13 @@ export default function Notifications() {
   };
 
   const deleteNotification = (id) => {
-    setNotifications(
+    updateNotifications(
       notifications.filter((notification) => notification.id !== id)
     );
   };
 
   const handleClearAll = () => {
-    setNotifications([]);
+    updateNotifications([]);
     setShowConfirmPopup(false);
   };
 
@@ -271,14 +328,16 @@ export default function Notifications() {
             {notifications.length > 0 ? (
               notifications.map((notification) => (
                 <div
-  className={`notification-card ${
-    !notification.isRead ? "notification-card--unread" : ""
-  }`}
-  key={notification.id}
-  onClick={() => openNotification(notification)}
->
+                  className={`notification-card ${
+                    !notification.isRead ? "notification-card--unread" : ""
+                  }`}
+                  key={notification.id}
+                  onClick={() => openNotification(notification)}
+                >
                   <div
-                    className={`notification-card__icon notification-card__icon--${notification.type.toLowerCase()}`}
+                    className={`notification-card__icon notification-card__icon--${String(
+                      notification.type
+                    ).toLowerCase()}`}
                   >
                     {getNotificationIcon(notification.type)}
                   </div>
@@ -315,33 +374,45 @@ export default function Notifications() {
 
                       <span>
                         <FaClock />
-                        {notification.time}
+                        {notification.time || "Just now"}
                       </span>
                     </div>
 
                     <div className="notification-card__actions">
+                      {notification.type === "Match" && notification.matchId && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openNotification(notification);
+                          }}
+                        >
+                          <FaUserCheck />
+                          View Match Details
+                        </button>
+                      )}
+
                       {!notification.isRead && (
                         <button
-  onClick={(e) => {
-    e.stopPropagation();
-    markAsRead(notification.id);
-  }}
->
-  <FaCheckCircle />
-  Mark as Read
-</button>
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markAsRead(notification.id);
+                          }}
+                        >
+                          <FaCheckCircle />
+                          Mark as Read
+                        </button>
                       )}
 
                       <button
-  className="notification-delete-btn"
-  onClick={(e) => {
-    e.stopPropagation();
-    deleteNotification(notification.id);
-  }}
->
-  <FaTrash />
-  Delete
-</button>
+                        className="notification-delete-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(notification.id);
+                        }}
+                      >
+                        <FaTrash />
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>

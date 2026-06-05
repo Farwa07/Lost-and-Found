@@ -31,6 +31,9 @@ import Profile from "./pages/Profile";
 import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
 
+import AdminPanel from "./pages/AdminPanel";
+import MatchAlertDetails from "./pages/MatchAlertDetails";
+
 export default function App() {
 
   return (
@@ -52,6 +55,9 @@ export default function App() {
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/settings" element={<Settings />} />
+
+          <Route path="/admin-panel" element={<AdminPanel />} />
+          <Route path="/match-alert/:matchId" element={<MatchAlertDetails />} />
 
           <Route
             path="/reports"
@@ -116,6 +122,10 @@ export default function App() {
             }
           />
         </Routes>
+
+            
+
+
       </BrowserRouter>
     </AuthProvider>
   );

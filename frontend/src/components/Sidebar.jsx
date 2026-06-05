@@ -11,6 +11,7 @@ import {
   FaBell,
   FaFileAlt,
   FaCog,
+  FaUserShield,
 } from "react-icons/fa";
 
 export default function Sidebar({ open }) {
@@ -70,6 +71,11 @@ export default function Sidebar({ open }) {
           <FaTachometerAlt />
           Dashboard
         </a>
+
+        <a href="/admin-panel" className="sidebar__link">
+  <FaUserShield />
+  Admin Panel
+</a>
 
         <a href="/persons" className="sidebar__link">
           <FaUsers />

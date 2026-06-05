@@ -176,7 +176,27 @@ const initialReports = [
     image:
       "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=1200&auto=format&fit=crop",
   },
-];
+ ];
+
+const REPORTS_KEY = "lostFoundReports";
+
+const readReports = () => {
+  try {
+    const savedReports = localStorage.getItem(REPORTS_KEY);
+    const parsedReports = savedReports ? JSON.parse(savedReports) : null;
+
+    return Array.isArray(parsedReports) && parsedReports.length > 0
+      ? parsedReports
+      : initialReports;
+  } catch {
+    return initialReports;
+  }
+};
+
+const writeReports = (nextReports) => {
+  localStorage.setItem(REPORTS_KEY, JSON.stringify(nextReports));
+  window.dispatchEvent(new Event("lostFoundReportsUpdated"));
+};
 
 export default function MyReports() {
   const navigate = useNavigate();
@@ -184,16 +204,43 @@ export default function MyReports() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [reports, setReports] = useState(initialReports);
+  const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [editingReport, setEditingReport] = useState(null);
   const [message, setMessage] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
 
+  const saveReports = (nextReports) => {
+    setReports(nextReports);
+    writeReports(nextReports);
+  };
+
+  useEffect(() => {
+    const syncReports = () => {
+      const latestReports = readReports();
+      setReports(latestReports);
+    };
+
+    const latestReports = readReports();
+    setReports(latestReports);
+
+    if (!localStorage.getItem(REPORTS_KEY)) {
+      writeReports(latestReports);
+    }
+
+    window.addEventListener("storage", syncReports);
+    window.addEventListener("lostFoundReportsUpdated", syncReports);
+
+    return () => {
+      window.removeEventListener("storage", syncReports);
+      window.removeEventListener("lostFoundReportsUpdated", syncReports);
+    };
+  }, []);
+
   const stats = useMemo(() => {
     return {
       total: reports.length,
-      pending: reports.filter((report) => report.adminStatus === "Pending")
+      pending: reports.filter((report) => ["Pending", "Pending Review"].includes(report.adminStatus))
         .length,
       verified: reports.filter((report) => report.adminStatus === "Verified")
         .length,
@@ -203,7 +250,7 @@ export default function MyReports() {
 
   const filteredReports = useMemo(() => {
   if (activeFilter === "pending") {
-    return reports.filter((report) => report.adminStatus === "Pending");
+    return reports.filter((report) => ["Pending", "Pending Review"].includes(report.adminStatus));
   }
 
   if (activeFilter === "verified") {
@@ -255,25 +302,25 @@ export default function MyReports() {
       return;
     }
 
-    setReports(reports.filter((report) => report.id !== id));
+    const nextReports = reports.filter((report) => report.id !== id);
+
+    saveReports(nextReports);
     setMessage("Report deleted successfully.");
     setSelectedReport(null);
     setSearchParams({});
   };
 
   const handleSolvedToggle = (id) => {
-    setReports(
-      reports.map((report) =>
-        report.id === id
-          ? {
-              ...report,
-              caseStatus:
-                report.caseStatus === "Solved" ? "Unsolved" : "Solved",
-            }
-          : report
-      )
+    const nextReports = reports.map((report) =>
+      report.id === id
+        ? {
+            ...report,
+            caseStatus: report.caseStatus === "Solved" ? "Unsolved" : "Solved",
+          }
+        : report
     );
 
+    saveReports(nextReports);
     setMessage("Case status updated successfully.");
   };
 
@@ -313,12 +360,11 @@ export default function MyReports() {
   const handleSaveEdit = (e) => {
     e.preventDefault();
 
-    setReports(
-      reports.map((report) =>
-        report.id === editingReport.id ? editingReport : report
-      )
+    const nextReports = reports.map((report) =>
+      report.id === editingReport.id ? editingReport : report
     );
 
+    saveReports(nextReports);
     setMessage("Report updated successfully.");
     setEditingReport(null);
   };
