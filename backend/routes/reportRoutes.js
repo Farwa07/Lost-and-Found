@@ -5,6 +5,8 @@ const multer = require("multer");
 const {
   createLostItemReport,
   createFoundItemReport,
+  createMissingPersonReport,
+  createFoundPersonReport,
 } = require("../controllers/reportController");
 
 // Multer storage setup
@@ -38,6 +40,27 @@ router.post(
     { name: "reporterIdCardImage", maxCount: 1 },
   ]),
   createFoundItemReport
+);
+
+// Create Missing Person Report
+router.post(
+  "/missing-person",
+  upload.fields([
+    { name: "missingPersonImage", maxCount: 1 },
+    { name: "reporterIdCardImage", maxCount: 1 },
+    { name: "firReportImage", maxCount: 1 },
+  ]),
+  createMissingPersonReport
+);
+
+// Create Found Person Report
+router.post(
+  "/found-person",
+  upload.fields([
+    { name: "foundPersonImage", maxCount: 1 },
+    { name: "reporterIdCardImage", maxCount: 1 },
+  ]),
+  createFoundPersonReport
 );
 
 module.exports = router;

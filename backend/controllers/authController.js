@@ -1,9 +1,121 @@
 const User = require("../models/user");
+const PendingSignup = require("../models/pendingSignup");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 
-// REGISTER USER
+// Email sender setup
+const sendEmail = async (to, subject, html) => {
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to,
+    subject,
+    html,
+  });
+};
+
+// SEND SIGNUP OTP
+const sendSignupOtp = async (req, res) => {
+  try {
+    const { fullName, email, phone, password } = req.body;
+
+    const cleanEmail = email.toLowerCase();
+
+    const existingUser = await User.findOne({ email: cleanEmail });
+
+    if (existingUser) {
+      return res.status(400).json({
+        message: "Email already exists",
+      });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await PendingSignup.findOneAndDelete({ email: cleanEmail });
+
+    const pendingSignup = new PendingSignup({
+      fullName,
+      email: cleanEmail,
+      phone,
+      password: hashedPassword,
+      otp,
+      otpExpire: Date.now() + 5 * 60 * 1000,
+    });
+
+    await pendingSignup.save();
+
+    await sendEmail(
+      cleanEmail,
+      "Lost & Found Signup OTP",
+      `
+        <h2>Email Verification</h2>
+        <p>Your OTP for Lost & Found account registration is:</p>
+        <h1>${otp}</h1>
+        <p>This OTP will expire in 5 minutes.</p>
+      `
+    );
+
+    res.status(200).json({
+      message: "OTP sent to your email successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// VERIFY SIGNUP OTP
+const verifySignupOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const cleanEmail = email.toLowerCase();
+
+    const pendingSignup = await PendingSignup.findOne({
+      email: cleanEmail,
+      otp,
+      otpExpire: { $gt: Date.now() },
+    });
+
+    if (!pendingSignup) {
+      return res.status(400).json({
+        message: "Invalid or expired OTP",
+      });
+    }
+
+    const newUser = new User({
+      fullName: pendingSignup.fullName,
+      email: pendingSignup.email,
+      phone: pendingSignup.phone,
+      password: pendingSignup.password,
+    });
+
+    await newUser.save();
+
+    await PendingSignup.findOneAndDelete({ email: cleanEmail });
+
+    res.status(201).json({
+      message: "Account verified and registered successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// REGISTER USER - old direct signup, optional
 const registerUser = async (req, res) => {
   try {
     const { fullName, email, phone, password } = req.body;
@@ -42,7 +154,7 @@ const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
       return res.status(400).json({
@@ -87,12 +199,14 @@ const loginUser = async (req, res) => {
   }
 };
 
-// FORGOT PASSWORD - SEND OTP TO EMAIL
+// FORGOT PASSWORD
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ email });
+    const cleanEmail = email.toLowerCase();
+
+    const user = await User.findOne({ email: cleanEmail });
 
     if (!user) {
       return res.status(404).json({
@@ -103,30 +217,20 @@ const forgotPassword = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     user.resetOtp = otp;
-    user.resetOtpExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+    user.resetOtpExpire = Date.now() + 10 * 60 * 1000;
 
     await user.save();
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: "Lost & Found Password Reset OTP",
-      html: `
+    await sendEmail(
+      cleanEmail,
+      "Lost & Found Password Reset OTP",
+      `
         <h2>Password Reset Request</h2>
         <p>Your OTP for password reset is:</p>
         <h1>${otp}</h1>
         <p>This OTP will expire in 10 minutes.</p>
-        <p>If you did not request this, please ignore this email.</p>
-      `,
-    });
+      `
+    );
 
     res.status(200).json({
       message: "OTP sent to your email successfully",
@@ -143,8 +247,10 @@ const resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
 
+    const cleanEmail = email.toLowerCase();
+
     const user = await User.findOne({
-      email,
+      email: cleanEmail,
       resetOtp: otp,
       resetOtpExpire: { $gt: Date.now() },
     });
@@ -178,4 +284,6 @@ module.exports = {
   loginUser,
   forgotPassword,
   resetPassword,
+  sendSignupOtp,
+  verifySignupOtp,
 };
