@@ -2,12 +2,9 @@ import "./SignUp.css";
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 
 export default function SignUp() {
   const navigate = useNavigate();
-
-  const { register } = useAuth();
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -34,6 +31,19 @@ export default function SignUp() {
     });
   };
 
+  const getRegisteredUser = () => {
+    try {
+      const savedUser = localStorage.getItem("lostFoundRegisteredUser");
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const generateOtp = () => {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -42,7 +52,9 @@ export default function SignUp() {
     const passwordRegex =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
-    if (!emailRegex.test(formData.email)) {
+    const cleanEmail = formData.email.trim().toLowerCase();
+
+    if (!emailRegex.test(cleanEmail)) {
       setMessage({
         type: "error",
         text: "Please enter a valid email address.",
@@ -74,37 +86,57 @@ export default function SignUp() {
       return;
     }
 
+    const registeredUser = getRegisteredUser();
+
+    if (
+      registeredUser &&
+      registeredUser.email?.toLowerCase() === cleanEmail
+    ) {
+      setMessage({
+        type: "error",
+        text: "This email is already registered. Please login instead.",
+      });
+      return;
+    }
+
     const userData = {
-      fullName: formData.fullName,
-      email: formData.email,
-      phone: formData.phone,
+      fullName: formData.fullName.trim(),
+      email: cleanEmail,
+      phone: formData.phone.trim(),
       password: formData.password,
     };
 
-    register(userData);
+    const otp = generateOtp();
+
+    const pendingSignup = {
+      userData,
+      otp,
+      expiresAt: Date.now() + 5 * 60 * 1000,
+    };
+
+    localStorage.setItem(
+      "lostFoundPendingSignup",
+      JSON.stringify(pendingSignup)
+    );
 
     console.log("Signup Data:", {
-      fullName: formData.fullName,
-      email: formData.email,
-      phone: formData.phone,
+      fullName: userData.fullName,
+      email: userData.email,
+      phone: userData.phone,
     });
+
+    alert(`Demo OTP sent to your email: ${otp}`);
 
     setMessage({
       type: "success",
-      text: "Account created successfully. Redirecting to login...",
+      text: "OTP sent successfully. Please verify your email.",
     });
 
-    setFormData({
-      fullName: "",
-      email: "",
-      phone: "",
-      password: "",
-      confirmPassword: "",
+    navigate("/verify-otp", {
+      state: {
+        email: userData.email,
+      },
     });
-
-    setTimeout(() => {
-      navigate("/login");
-    }, 1200);
   };
 
   return (
@@ -207,7 +239,7 @@ export default function SignUp() {
             </div>
 
             <button className="signup__btn" type="submit">
-              Create Account
+              Send OTP
             </button>
           </form>
 

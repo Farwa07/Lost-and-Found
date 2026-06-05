@@ -18,6 +18,7 @@ import Contact from "./pages/Contact";
 import MyReports from "./pages/MyReports";
 
 import SignUp from "./pages/SignUp";
+import VerifyOtp from "./pages/VerifyOtp";
 import Login from "./pages/Login";
 
 import Faqs from "./pages/Faqs";
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/contact" element={<Contact />} />
 
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/verify-otp" element={<VerifyOtp />} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
 
