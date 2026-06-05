@@ -23,12 +23,12 @@ const reportSchema = new mongoose.Schema(
     // Common item fields
     itemName: {
       type: String,
-      required: true,
+      default: "",
     },
 
     itemCategory: {
       type: String,
-      required: true,
+      default: "",
     },
 
     itemColor: {
@@ -43,7 +43,7 @@ const reportSchema = new mongoose.Schema(
 
     itemDescription: {
       type: String,
-      required: true,
+      default: "",
     },
 
     // Lost item fields
@@ -81,6 +81,75 @@ const reportSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Missing person fields
+    missingPersonName: {
+      type: String,
+      default: "",
+    },
+
+    missingPersonAge: {
+      type: Number,
+    },
+
+    missingPersonGender: {
+      type: String,
+      default: "",
+    },
+
+    missingPersonLastSeenLocation: {
+      type: String,
+      default: "",
+    },
+
+    missingPersonLastSeenDate: {
+      type: Date,
+    },
+
+    missingPersonDescription: {
+      type: String,
+      default: "",
+    },
+
+    reporterRelationship: {
+      type: String,
+      default: "",
+    },
+
+    missingPersonImage: {
+      type: String,
+      default: "",
+    },
+
+    firReportImage: {
+      type: String,
+      default: "",
+    },
+
+    // Found person fields
+foundPersonName: {
+  type: String,
+  default: "",
+},
+
+estimatedAge: {
+  type: Number,
+},
+
+foundPersonGender: {
+  type: String,
+  default: "",
+},
+
+foundPersonDescription: {
+  type: String,
+  default: "",
+},
+
+foundPersonImage: {
+  type: String,
+  default: "",
+},
+
     // Reporter fields
     reporterFullName: {
       type: String,
@@ -94,12 +163,12 @@ const reportSchema = new mongoose.Schema(
 
     reporterEmail: {
       type: String,
-      required: true,
+      default: "",
     },
 
     reporterAddress: {
       type: String,
-      required: true,
+      default: "",
     },
 
     reporterIdCardImage: {
