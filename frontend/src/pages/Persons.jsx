@@ -15,6 +15,7 @@ import {
 } from "react-icons/fa";
 import "./Persons.css";
 import CommentsButton from "../components/CommentsButton";
+import ReportPostButton from "../components/ReportPostButton";
 
 const personsData = [
   {
@@ -343,6 +344,14 @@ export default function Persons() {
     <FaEye /> View Details
   </button>
 
+   <CommentsButton
+    reportTitle={person.title || person.name}
+    initialComments={person.comments || []}
+    currentUser="John Doe"
+  />
+  
+  <ReportPostButton report={person} />
+
   <button
     className="share-btn"
     onClick={() => handleShare(person)}
@@ -350,12 +359,8 @@ export default function Persons() {
     <FaShareAlt />
     Share
   </button>
-
-  <CommentsButton
-    reportTitle={person.title || person.name}
-    initialComments={person.comments || []}
-    currentUser="John Doe"
-  />
+                        
+ 
 </div>
                   </div>
                 </div>

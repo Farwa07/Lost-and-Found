@@ -378,6 +378,55 @@ body{
   font-weight:800;
 }
 
+
+.recent-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.recent-card__actions .recent-view-btn,
+.recent-card__actions .recent-share-btn {
+  border: none;
+  color: white;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  margin-top: 0;
+}
+
+.recent-card__actions .recent-view-btn {
+  background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
+}
+
+.recent-card__actions .recent-share-btn {
+  background: #111827;
+  width: 100%;
+}
+
+.recent-card__actions .comments-open-btn {
+  background: #f8fafc !important;
+  color: #475569 !important;
+  border: 1px solid #e5e7eb !important;
+  margin-top: 0 !important;
+}
+
+.recent-card__actions .report-post-btn {
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  margin-top: 0 !important;
+}
+
+
 @media(max-width:600px){
   .recent-card__actions{
     flex-direction:column;

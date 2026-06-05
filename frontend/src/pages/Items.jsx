@@ -17,6 +17,7 @@ import {
 
 import "./Items.css";
 import CommentsButton from "../components/CommentsButton";
+import ReportPostButton from "../components/ReportPostButton";
 
 const itemData = [
   {
@@ -411,6 +412,14 @@ export default function Items() {
     View Details
   </button>
 
+  <CommentsButton
+    reportTitle={item.title || item.itemName}
+    initialComments={item.comments || []}
+    currentUser="John Doe"
+  />
+
+  <ReportPostButton report={item} />
+
   <button
     className="share-btn"
     onClick={() => handleShare(item)}
@@ -418,12 +427,6 @@ export default function Items() {
     <FaShareAlt />
     Share
   </button>
-
-  <CommentsButton
-    reportTitle={item.title}
-    initialComments={item.comments || []}
-    currentUser="John Doe"
-  />
 </div>
                 </div>
               </div>

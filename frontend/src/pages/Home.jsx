@@ -5,6 +5,7 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import HeroSection from "../components/HeroSection";
 import CommentsButton from "../components/CommentsButton";
+import ReportPostButton from "../components/ReportPostButton";
 
 import {
   FaSearch,
@@ -15,8 +16,9 @@ import {
   FaCalendarAlt,
   FaPhoneAlt,
   FaTimes,
+  FaEye,
+  FaShareAlt,
 } from "react-icons/fa";
-
 import bagimage from "../assets/bag.jfif";
 import "./Home.css";
 
@@ -200,6 +202,27 @@ export default function Home() {
 
   const navigate = useNavigate();
 
+  const handleShare = (report) => {
+  const title = report.title || report.name || report.itemName || "Report";
+
+  const location =
+    report.location ||
+    report.lastSeenLocation ||
+    report.foundLocation ||
+    "N/A";
+
+  const contact =
+    report.reporterContact ||
+    report.reporterContactNumber ||
+    "N/A";
+
+  const text = `${report.type} ${report.category}: ${title}, Location: ${location}, Contact: ${contact}`;
+
+  navigator.clipboard.writeText(text);
+
+  alert("Report details copied for sharing!");
+};
+
   return (
     <div className="home">
       <Navbar toggleSidebar={() => setSidebarOpen((prev) => !prev)} />
@@ -332,11 +355,12 @@ export default function Home() {
                       <FaCalendarAlt /> {report.date}
                     </p>
 
-                    <div className="recent-card__actions">
+<div className="recent-card__actions">
   <button
-    className="recent-details-btn"
+    className="recent-view-btn"
     onClick={() => setSelectedReport(report)}
   >
+    <FaEye />
     View Details
   </button>
 
@@ -345,6 +369,16 @@ export default function Home() {
     initialComments={report.comments || []}
     currentUser="John Doe"
   />
+
+  <ReportPostButton report={report} />
+
+  <button
+    className="recent-share-btn"
+    onClick={() => handleShare(report)}
+  >
+    <FaShareAlt />
+    Share
+  </button>
 </div>
                   </div>
                 </div>

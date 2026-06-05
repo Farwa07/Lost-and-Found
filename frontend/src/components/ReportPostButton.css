@@ -1,0 +1,149 @@
+.report-post-btn {
+  border: none !important;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  padding: 12px !important;
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+
+  margin-top: 0 !important;
+  transition: 0.25s ease !important;
+}
+
+.report-post-btn:hover {
+  background: #fee2e2 !important;
+  transform: translateY(-2px);
+}
+
+.report-post-overlay {
+  position: fixed;
+  inset: 0;
+
+  background: rgba(15, 23, 42, 0.68);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 22px;
+  z-index: 9999;
+}
+
+.report-post-modal {
+  width: 100%;
+  max-width: 430px;
+
+  background: white;
+
+  border-radius: 26px;
+  padding: 30px;
+
+  position: relative;
+
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.25);
+}
+
+.report-post-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+
+  width: 36px;
+  height: 36px;
+
+  border: none;
+  border-radius: 50%;
+
+  background: #111827;
+  color: white;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.report-post-icon {
+  width: 62px;
+  height: 62px;
+
+  border-radius: 18px;
+
+  background: #fef2f2;
+  color: #dc2626;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 24px;
+
+  margin-bottom: 18px;
+}
+
+.report-post-modal h2 {
+  color: #111827;
+  font-size: 28px;
+  font-weight: 900;
+
+  margin-bottom: 10px;
+}
+
+.report-post-modal p {
+  color: #64748b;
+  line-height: 1.6;
+
+  margin-bottom: 20px;
+}
+
+.report-post-modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.report-post-modal label {
+  color: #374151;
+  font-weight: 800;
+}
+
+.report-post-modal select {
+  height: 52px;
+
+  border: 1px solid #dbe4ff;
+  border-radius: 15px;
+
+  padding: 0 14px;
+
+  outline: none;
+  background: white;
+  color: #111827;
+}
+
+.report-post-modal select:focus {
+  border-color: #8b5cf6;
+
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.12);
+}
+
+.report-post-submit {
+  border: none;
+
+  padding: 14px 18px;
+
+  border-radius: 15px;
+
+  background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
+
+  color: white;
+
+  font-weight: 900;
+  cursor: pointer;
+}
