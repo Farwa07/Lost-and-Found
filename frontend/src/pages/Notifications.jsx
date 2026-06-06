@@ -25,7 +25,7 @@ const NOTIFICATIONS_KEY = "lostFoundNotifications";
 
 const initialNotifications = [
   {
-    id: 1,
+    id: "demo-1",
     reportId: 2,
     type: "Match",
     title: "Potential Match Found",
@@ -35,9 +35,10 @@ const initialNotifications = [
     city: "Gujranwala",
     time: "10 minutes ago",
     isRead: false,
+    createdAt: "2026-05-20T10:00:00.000Z",
   },
   {
-    id: 2,
+    id: "demo-2",
     reportId: 1,
     type: "Verification",
     title: "Report Verified",
@@ -47,9 +48,10 @@ const initialNotifications = [
     city: "Lahore",
     time: "1 hour ago",
     isRead: false,
+    createdAt: "2026-05-20T09:00:00.000Z",
   },
   {
-    id: 3,
+    id: "demo-3",
     reportId: 1,
     type: "Comment",
     title: "New Comment on Your Report",
@@ -59,45 +61,23 @@ const initialNotifications = [
     city: "Lahore",
     time: "2 hours ago",
     isRead: false,
+    createdAt: "2026-05-20T08:00:00.000Z",
   },
   {
-    id: 4,
-    reportId: 2,
-    type: "Comment",
-    title: "Someone Asked for More Details",
-    message:
-      "A user commented: Can you please share the exact time when the wallet was lost?",
-    caseTitle: "Black Wallet",
-    city: "Gujranwala",
-    time: "3 hours ago",
-    isRead: true,
-  },
-  {
-    id: 5,
-    reportId: 3,
-    type: "Comment",
-    title: "New Helpful Comment",
-    message:
-      "A user commented: I found a similar Samsung mobile near Paris Road. Please contact with proof.",
-    caseTitle: "Samsung Mobile",
-    city: "Sialkot",
-    time: "5 hours ago",
-    isRead: false,
-  },
-  {
-    id: 6,
-    reportId: 6,
+    id: "demo-4",
+    reportId: null,
     type: "Alert",
     title: "Admin Alert",
     message:
       "Please update your report image. Clear images help admin verify cases quickly.",
-    caseTitle: "Dell Laptop Bag",
-    city: "Faisalabad",
+    caseTitle: "System Update",
+    city: "All Cities",
     time: "Yesterday",
     isRead: true,
+    createdAt: "2026-05-19T08:00:00.000Z",
   },
   {
-    id: 7,
+    id: "demo-5",
     reportId: 4,
     type: "Status",
     title: "Case Status Updated",
@@ -107,32 +87,29 @@ const initialNotifications = [
     city: "Karachi",
     time: "2 days ago",
     isRead: false,
-  },
-  {
-    id: 8,
-    reportId: 5,
-    type: "Match",
-    title: "Match Confirmation Required",
-    message:
-      "Admin has found a possible match. Please check your report and contact support if needed.",
-    caseTitle: "School Backpack",
-    city: "Lahore",
-    time: "3 days ago",
-    isRead: true,
+    createdAt: "2026-05-18T08:00:00.000Z",
   },
 ];
 
 const readNotifications = () => {
   try {
     const saved = localStorage.getItem(NOTIFICATIONS_KEY);
-    return saved ? JSON.parse(saved) : initialNotifications;
+
+    if (saved !== null) {
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : initialNotifications;
+    }
+
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(initialNotifications));
+    return initialNotifications;
   } catch {
     return initialNotifications;
   }
 };
 
-const saveNotifications = (nextNotifications) => {
+const writeNotifications = (nextNotifications) => {
   localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(nextNotifications));
+  window.dispatchEvent(new Event("lostFoundNotificationsUpdated"));
 };
 
 export default function Notifications() {
@@ -141,20 +118,14 @@ export default function Notifications() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem(NOTIFICATIONS_KEY);
-
-    if (!saved) {
-      saveNotifications(initialNotifications);
-      setNotifications(initialNotifications);
-    } else {
-      setNotifications(readNotifications());
-    }
-
     const syncNotifications = () => {
       setNotifications(readNotifications());
     };
+
+    syncNotifications();
 
     window.addEventListener("storage", syncNotifications);
     window.addEventListener("lostFoundNotificationsUpdated", syncNotifications);
@@ -168,42 +139,14 @@ export default function Notifications() {
     };
   }, []);
 
-  const updateNotifications = (nextNotifications) => {
+  const saveNotifications = (nextNotifications) => {
     setNotifications(nextNotifications);
-    saveNotifications(nextNotifications);
-    window.dispatchEvent(new Event("lostFoundNotificationsUpdated"));
+    writeNotifications(nextNotifications);
   };
 
-  const openNotification = (notification) => {
-    const nextNotifications = notifications.map((item) =>
-      item.id === notification.id
-        ? {
-            ...item,
-            isRead: true,
-          }
-        : item
-    );
-
-    updateNotifications(nextNotifications);
-
-    if (notification.type === "Match" && notification.matchId) {
-      navigate(`/match-alert/${notification.matchId}`);
-      return;
-    }
-
-    if (notification.actionUrl) {
-      navigate(notification.actionUrl);
-      return;
-    }
-
-    if (notification.reportId) {
-      navigate(`/reports?reportId=${notification.reportId}`);
-    }
-  };
-
-  const unreadCount = notifications.filter(
-    (notification) => !notification.isRead
-  ).length;
+  const unreadCount = useMemo(() => {
+    return notifications.filter((notification) => !notification.isRead).length;
+  }, [notifications]);
 
   const matchCount = useMemo(() => {
     return notifications.filter((notification) => notification.type === "Match")
@@ -211,28 +154,108 @@ export default function Notifications() {
   }, [notifications]);
 
   const markAsRead = (id) => {
-    updateNotifications(
-      notifications.map((notification) =>
-        notification.id === id
-          ? {
-              ...notification,
-              isRead: true,
-            }
-          : notification
-      )
+    const nextNotifications = notifications.map((notification) =>
+      notification.id === id
+        ? {
+            ...notification,
+            isRead: true,
+          }
+        : notification
     );
+
+    saveNotifications(nextNotifications);
   };
 
   const deleteNotification = (id) => {
-    updateNotifications(
-      notifications.filter((notification) => notification.id !== id)
+    const nextNotifications = notifications.filter(
+      (notification) => notification.id !== id
     );
+
+    saveNotifications(nextNotifications);
+
+    if (selectedNotification?.id === id) {
+      setSelectedNotification(null);
+    }
   };
 
   const handleClearAll = () => {
-    updateNotifications([]);
+    saveNotifications([]);
     setShowConfirmPopup(false);
+    setSelectedNotification(null);
   };
+
+ const openNotification = (notification) => {
+  const nextNotifications = notifications.map((item) =>
+    item.id === notification.id
+      ? {
+          ...item,
+          isRead: true,
+        }
+      : item
+  );
+
+  setNotifications(nextNotifications);
+  localStorage.setItem(
+    "lostFoundNotifications",
+    JSON.stringify(nextNotifications)
+  );
+
+  const type = String(notification.type || "").toLowerCase();
+
+  if (type === "match") {
+    if (notification.actionUrl) {
+      navigate(notification.actionUrl);
+      return;
+    }
+
+    if (notification.matchId) {
+      navigate(`/match-alert/${notification.matchId}`);
+      return;
+    }
+
+    alert(
+      "This match alert has no confirmed match data yet. Confirm the match from Admin Panel first."
+    );
+    return;
+  }
+
+  if (type === "comment") {
+    if (notification.reportId) {
+      navigate(`/reports?reportId=${notification.reportId}&openComments=true`);
+      return;
+    }
+
+    alert(notification.message);
+    return;
+  }
+
+  if (type === "verification" || type === "status") {
+    if (notification.reportId) {
+      navigate(`/reports?reportId=${notification.reportId}`);
+      return;
+    }
+
+    alert(notification.message);
+    return;
+  }
+
+  if (type === "alert") {
+    if (notification.reportId) {
+      navigate(`/reports?reportId=${notification.reportId}`);
+      return;
+    }
+
+    alert(notification.message);
+    return;
+  }
+
+  if (notification.reportId) {
+    navigate(`/reports?reportId=${notification.reportId}`);
+    return;
+  }
+
+  alert(notification.message);
+};
 
   const getNotificationIcon = (type) => {
     if (type === "Match") {
@@ -336,7 +359,7 @@ export default function Notifications() {
                 >
                   <div
                     className={`notification-card__icon notification-card__icon--${String(
-                      notification.type
+                      notification.type || "alert"
                     ).toLowerCase()}`}
                   >
                     {getNotificationIcon(notification.type)}
@@ -364,12 +387,12 @@ export default function Notifications() {
                     <div className="notification-meta">
                       <span>
                         <FaCheckCircle />
-                        {notification.caseTitle}
+                        {notification.caseTitle || "System Update"}
                       </span>
 
                       <span>
                         <FaMapMarkerAlt />
-                        {notification.city}
+                        {notification.city || "All Cities"}
                       </span>
 
                       <span>
@@ -378,26 +401,12 @@ export default function Notifications() {
                       </span>
                     </div>
 
-                    <div className="notification-card__actions">
-                      {notification.type === "Match" && notification.matchId && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openNotification(notification);
-                          }}
-                        >
-                          <FaUserCheck />
-                          View Match Details
-                        </button>
-                      )}
-
+                    <div
+                      className="notification-card__actions"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {!notification.isRead && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            markAsRead(notification.id);
-                          }}
-                        >
+                        <button onClick={() => markAsRead(notification.id)}>
                           <FaCheckCircle />
                           Mark as Read
                         </button>
@@ -405,10 +414,7 @@ export default function Notifications() {
 
                       <button
                         className="notification-delete-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteNotification(notification.id);
-                        }}
+                        onClick={() => deleteNotification(notification.id)}
                       >
                         <FaTrash />
                         Delete
@@ -421,22 +427,85 @@ export default function Notifications() {
               <div className="notifications-empty">
                 <FaBell />
 
-                <h2>No Notifications Found</h2>
+                <h2>No Notifications</h2>
 
-                <p>You do not have any notifications right now.</p>
+                <p>
+                  You do not have any notifications right now. Admin alerts,
+                  comments, verification updates and match alerts will appear
+                  here.
+                </p>
               </div>
             )}
           </section>
 
-          {showConfirmPopup && (
+          {selectedNotification && (
             <div
-              className="notifications-confirm-overlay"
-              onClick={() => setShowConfirmPopup(false)}
+              className="notifications-detail-overlay"
+              onClick={() => setSelectedNotification(null)}
             >
               <div
-                className="notifications-confirm-box"
+                className="notifications-detail-box"
                 onClick={(e) => e.stopPropagation()}
               >
+                <button
+                  className="notifications-detail-close"
+                  onClick={() => setSelectedNotification(null)}
+                >
+                  <FaTimes />
+                </button>
+
+                <div
+                  className={`notifications-detail-icon notification-card__icon--${String(
+                    selectedNotification.type || "alert"
+                  ).toLowerCase()}`}
+                >
+                  {getNotificationIcon(selectedNotification.type)}
+                </div>
+
+                <span className="notification-type">
+                  {selectedNotification.type}
+                </span>
+
+                <h2>{selectedNotification.title}</h2>
+
+                <p>{selectedNotification.message}</p>
+
+                {selectedNotification.extraMessage && (
+                  <p className="notifications-detail-note">
+                    {selectedNotification.extraMessage}
+                  </p>
+                )}
+
+                <div className="notification-meta">
+                  <span>
+                    <FaCheckCircle />
+                    {selectedNotification.caseTitle || "System Update"}
+                  </span>
+
+                  <span>
+                    <FaMapMarkerAlt />
+                    {selectedNotification.city || "All Cities"}
+                  </span>
+
+                  <span>
+                    <FaClock />
+                    {selectedNotification.time || "Just now"}
+                  </span>
+                </div>
+
+                <button
+                  className="notifications-detail-ok"
+                  onClick={() => setSelectedNotification(null)}
+                >
+                  Okay
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showConfirmPopup && (
+            <div className="notifications-confirm-overlay">
+              <div className="notifications-confirm-box">
                 <button
                   className="notifications-confirm-close"
                   onClick={() => setShowConfirmPopup(false)}
@@ -445,14 +514,13 @@ export default function Notifications() {
                 </button>
 
                 <div className="notifications-confirm-icon">
-                  <FaExclamationTriangle />
+                  <FaTrash />
                 </div>
 
                 <h2>Clear All Notifications?</h2>
 
                 <p>
-                  Are you sure you want to delete all notifications? This action
-                  cannot be undone.
+                  This will remove all notifications from frontend localStorage.
                 </p>
 
                 <div className="notifications-confirm-actions">
@@ -464,10 +532,10 @@ export default function Notifications() {
                   </button>
 
                   <button
-                    className="notifications-confirm-btn"
+                    className="notifications-delete-confirm-btn"
                     onClick={handleClearAll}
                   >
-                    Yes, Clear All
+                    Clear All
                   </button>
                 </div>
               </div>

@@ -9,7 +9,6 @@ import Footer from "../components/Footer";
 import {
   FaBan,
   FaBell,
-  FaBoxOpen,
   FaCalendarAlt,
   FaCheckCircle,
   FaCheckDouble,
@@ -18,6 +17,7 @@ import {
   FaEnvelope,
   FaExclamationTriangle,
   FaEye,
+  FaFileAlt,
   FaFlag,
   FaMapMarkerAlt,
   FaPaperPlane,
@@ -38,6 +38,8 @@ const REPORTS_KEY = "lostFoundReports";
 const NOTIFICATIONS_KEY = "lostFoundNotifications";
 const USERS_KEY = "lostFoundUsers";
 const ADMIN_LOG_KEY = "lostFoundAdminActionLog";
+const CONFIRMED_MATCHES_KEY = "lostFoundConfirmedMatches";
+const MATCH_DECISIONS_KEY = "lostFoundMatchDecisions";
 
 const defaultReports = [
   {
@@ -108,27 +110,27 @@ const defaultReports = [
     id: 3,
     type: "Found",
     category: "Item",
-    title: "Samsung Mobile",
+    title: "Black Leather Wallet",
     age: "",
     gender: "",
-    itemCategory: "Mobile",
-    color: "Blue",
-    brand: "Samsung",
-    city: "Sialkot",
-    location: "Paris Road, Sialkot",
-    currentLocation: "Nearby shop at Paris Road",
+    itemCategory: "Wallet",
+    color: "Black",
+    brand: "Leather Hub",
+    city: "Gujranwala",
+    location: "Satellite Town Market, Gujranwala",
+    currentLocation: "Shop number 14, Satellite Town Market",
     date: "2026-05-22",
     adminStatus: "Verified",
     caseStatus: "Unsolved",
     description:
-      "Samsung mobile found near roadside. Owner can contact with proof.",
+      "Found black leather wallet near Satellite Town Market. It contains CNIC copy and cash.",
     reporterName: "Ayesha Malik",
     reporterContact: "03123456789",
     reporterEmail: "ayesha@example.com",
-    reporterAddress: "Sialkot",
+    reporterAddress: "Gujranwala",
     relation: "Citizen",
     image:
-      "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1200&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=1200&auto=format&fit=crop",
     flags: [],
     flagCount: 0,
     createdAt: "2026-05-22T15:00:00.000Z",
@@ -339,10 +341,57 @@ const writeStorage = (key, value) => {
   localStorage.setItem(key, JSON.stringify(value));
 };
 
-const addDaysDifferenceScore = (lostDate, foundDate) => {
-  if (!lostDate || !foundDate) {
-    return 0;
-  }
+const dispatchReportsUpdate = () => {
+  window.dispatchEvent(new Event("lostFoundReportsUpdated"));
+};
+
+const dispatchNotificationsUpdate = () => {
+  window.dispatchEvent(new Event("lostFoundNotificationsUpdated"));
+};
+
+const getPairKey = (lostId, foundId) => `${lostId}-${foundId}`;
+
+const getReportIdentityKey = (report) => {
+  return [
+    report.type,
+    report.category,
+    report.title,
+    report.city,
+    report.location,
+    report.date,
+    report.itemCategory,
+    report.color,
+    report.brand,
+    report.gender,
+    report.age,
+  ]
+    .map((value) => normalize(value || ""))
+    .join("|");
+};
+
+const getVisualPairKey = (lostReport, foundReport) => {
+  return `${getReportIdentityKey(lostReport)}---${getReportIdentityKey(
+    foundReport
+  )}`;
+};
+
+const removeDuplicateReports = (reports) => {
+  const seen = new Set();
+
+  return reports.filter((report) => {
+    const key = getReportIdentityKey(report);
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
+
+const getDateScore = (lostDate, foundDate) => {
+  if (!lostDate || !foundDate) return 0;
 
   const firstDate = new Date(lostDate);
   const secondDate = new Date(foundDate);
@@ -351,11 +400,11 @@ const addDaysDifferenceScore = (lostDate, foundDate) => {
     return 0;
   }
 
-  const diff = Math.abs(secondDate - firstDate) / (1000 * 60 * 60 * 24);
+  const diffDays = Math.abs(secondDate - firstDate) / (1000 * 60 * 60 * 24);
 
-  if (diff <= 3) return 15;
-  if (diff <= 10) return 10;
-  if (diff <= 30) return 6;
+  if (diffDays <= 3) return 15;
+  if (diffDays <= 10) return 10;
+  if (diffDays <= 30) return 6;
 
   return 0;
 };
@@ -369,32 +418,54 @@ const keywordScore = (left = "", right = "") => {
     .split(/\W+/)
     .filter((word) => word.length > 3);
 
-  if (!leftWords.length || !rightWords.length) {
-    return 0;
-  }
+  if (!leftWords.length || !rightWords.length) return 0;
 
-  const matches = leftWords.filter((word) => rightWords.includes(word));
-  return Math.min(matches.length * 5, 15);
+  const matchedWords = leftWords.filter((word) => rightWords.includes(word));
+
+  return Math.min(matchedWords.length * 5, 15);
 };
 
 const calculateMatchScore = (lostReport, foundReport) => {
   let score = 0;
   const reasons = [];
+  const matchedFields = [];
 
   if (lostReport.category === foundReport.category) {
-    score += 20;
+    score += 15;
     reasons.push("Same report category");
+    matchedFields.push("Category");
   }
 
   if (normalize(lostReport.city) === normalize(foundReport.city)) {
     score += 20;
     reasons.push("Same city");
+    matchedFields.push("City");
+  }
+
+  const locationMatch =
+    normalize(lostReport.location) === normalize(foundReport.location) ||
+    normalize(lostReport.location).includes(normalize(foundReport.city)) ||
+    normalize(foundReport.location).includes(normalize(lostReport.city));
+
+  if (locationMatch) {
+    score += 10;
+    reasons.push("Location information is similar");
+    matchedFields.push("Location");
+  }
+
+  const datePoints = getDateScore(lostReport.date, foundReport.date);
+
+  if (datePoints > 0) {
+    score += datePoints;
+    reasons.push("Dates are close");
+    matchedFields.push("Date");
   }
 
   if (lostReport.category === "Person") {
     if (normalize(lostReport.gender) === normalize(foundReport.gender)) {
       score += 15;
       reasons.push("Same gender");
+      matchedFields.push("Gender");
     }
 
     const ageDiff = Math.abs(Number(lostReport.age) - Number(foundReport.age));
@@ -402,6 +473,7 @@ const calculateMatchScore = (lostReport, foundReport) => {
     if (!Number.isNaN(ageDiff) && ageDiff <= 3) {
       score += 10;
       reasons.push("Similar age");
+      matchedFields.push("Age");
     }
   }
 
@@ -409,16 +481,19 @@ const calculateMatchScore = (lostReport, foundReport) => {
     if (normalize(lostReport.itemCategory) === normalize(foundReport.itemCategory)) {
       score += 18;
       reasons.push("Same item category");
+      matchedFields.push("Item Category");
     }
 
     if (lostReport.color && normalize(lostReport.color) === normalize(foundReport.color)) {
       score += 10;
       reasons.push("Same color");
+      matchedFields.push("Color");
     }
 
     if (lostReport.brand && normalize(lostReport.brand) === normalize(foundReport.brand)) {
       score += 10;
       reasons.push("Same brand");
+      matchedFields.push("Brand");
     }
   }
 
@@ -431,23 +506,19 @@ const calculateMatchScore = (lostReport, foundReport) => {
   if (titlePoints > 0) {
     score += titlePoints;
     reasons.push("Title keywords are similar");
+    matchedFields.push("Title Keywords");
   }
 
   if (descriptionPoints > 0) {
     score += descriptionPoints;
     reasons.push("Description keywords are similar");
-  }
-
-  const datePoints = addDaysDifferenceScore(lostReport.date, foundReport.date);
-
-  if (datePoints > 0) {
-    score += datePoints;
-    reasons.push("Dates are close");
+    matchedFields.push("Description Keywords");
   }
 
   return {
     score: Math.min(score, 100),
-    reasons,
+    reasons: [...new Set(reasons)],
+    matchedFields: [...new Set(matchedFields)],
   };
 };
 
@@ -456,6 +527,7 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState("reports");
   const [reports, setReports] = useState([]);
   const [users, setUsers] = useState([]);
+  const [matchDecisions, setMatchDecisions] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [alertReport, setAlertReport] = useState(null);
   const [showAlertPopup, setShowAlertPopup] = useState(false);
@@ -479,34 +551,27 @@ export default function AdminPanel() {
   useEffect(() => {
     const savedReports = readStorage(REPORTS_KEY, null);
     const savedUsers = readStorage(USERS_KEY, null);
+    const savedDecisions = readStorage(MATCH_DECISIONS_KEY, []);
 
-    if (savedReports && Array.isArray(savedReports) && savedReports.length > 0) {
-      setReports(savedReports);
+    if (Array.isArray(savedReports) && savedReports.length > 0) {
+      const cleanReports = removeDuplicateReports(savedReports);
+      setReports(cleanReports);
+      writeStorage(REPORTS_KEY, cleanReports);
     } else {
-      setReports(defaultReports);
-      writeStorage(REPORTS_KEY, defaultReports);
+      const cleanReports = removeDuplicateReports(defaultReports);
+      setReports(cleanReports);
+      writeStorage(REPORTS_KEY, cleanReports);
     }
 
-    if (savedUsers && Array.isArray(savedUsers) && savedUsers.length > 0) {
+    if (Array.isArray(savedUsers) && savedUsers.length > 0) {
       setUsers(savedUsers);
     } else {
       setUsers(defaultUsers);
       writeStorage(USERS_KEY, defaultUsers);
     }
+
+    setMatchDecisions(Array.isArray(savedDecisions) ? savedDecisions : []);
   }, []);
-
-  const saveReports = (nextReports, successMessage = "Admin changes saved.") => {
-    setReports(nextReports);
-    writeStorage(REPORTS_KEY, nextReports);
-    window.dispatchEvent(new Event("lostFoundReportsUpdated"));
-    showMessage(successMessage);
-  };
-
-  const saveUsers = (nextUsers, successMessage = "User changes saved.") => {
-    setUsers(nextUsers);
-    writeStorage(USERS_KEY, nextUsers);
-    showMessage(successMessage);
-  };
 
   const showMessage = (text) => {
     setMessage(text);
@@ -516,27 +581,47 @@ export default function AdminPanel() {
     }, 3200);
   };
 
+  const saveReports = (nextReports, successMessage = "Admin changes saved.") => {
+    const cleanReports = removeDuplicateReports(nextReports);
+
+    setReports(cleanReports);
+    writeStorage(REPORTS_KEY, cleanReports);
+    dispatchReportsUpdate();
+    showMessage(successMessage);
+  };
+
+  const saveUsers = (nextUsers, successMessage = "User changes saved.") => {
+    setUsers(nextUsers);
+    writeStorage(USERS_KEY, nextUsers);
+    showMessage(successMessage);
+  };
+
+  const saveMatchDecisions = (nextDecisions) => {
+    setMatchDecisions(nextDecisions);
+    writeStorage(MATCH_DECISIONS_KEY, nextDecisions);
+  };
+
   const addAdminLog = (action, reportTitle = "") => {
     const previousLogs = readStorage(ADMIN_LOG_KEY, []);
 
     const nextLogs = [
       {
-        id: Date.now(),
+        id: `${Date.now()}-${Math.random()}`,
         action,
         reportTitle,
         date: new Date().toLocaleString("en-PK"),
       },
       ...previousLogs,
-    ].slice(0, 50);
+    ].slice(0, 60);
 
     writeStorage(ADMIN_LOG_KEY, nextLogs);
   };
 
-  const addNotification = (report, type, title, text) => {
+  const addNotification = (report, type, title, text, extraData = {}) => {
     const previousNotifications = readStorage(NOTIFICATIONS_KEY, []);
 
     const nextNotification = {
-      id: Date.now(),
+      id: `${Date.now()}-${Math.random()}`,
       reportId: report?.id || null,
       type,
       title,
@@ -546,10 +631,15 @@ export default function AdminPanel() {
       time: "Just now",
       isRead: false,
       createdAt: new Date().toISOString(),
+      ...extraData,
     };
 
-    writeStorage(NOTIFICATIONS_KEY, [nextNotification, ...previousNotifications]);
-    window.dispatchEvent(new Event("lostFoundNotificationsUpdated"));
+    writeStorage(NOTIFICATIONS_KEY, [
+      nextNotification,
+      ...previousNotifications,
+    ]);
+
+    dispatchNotificationsUpdate();
   };
 
   const stats = useMemo(() => {
@@ -598,7 +688,9 @@ export default function AdminPanel() {
 
       const typeMatch = filters.type === "All" || report.type === filters.type;
       const cityMatch = filters.city === "All" || report.city === filters.city;
-      const flaggedMatch = !filters.flaggedOnly || Number(report.flagCount || 0) >= 5;
+
+      const flaggedMatch =
+        !filters.flaggedOnly || Number(report.flagCount || 0) >= 5;
 
       return (
         searchMatch &&
@@ -611,22 +703,61 @@ export default function AdminPanel() {
     });
   }, [reports, filters]);
 
-  const flaggedReports = useMemo(() => {
-    return reports.filter((report) => Number(report.flagCount || 0) >= 5);
-  }, [reports]);
+  const matchedReports = useMemo(() => {
+  return reports.filter(
+    (report) =>
+      report.adminStatus === "Matched" ||
+      report.matchDecision === "Confirmed" ||
+      report.matchId
+  );
+}, [reports]);
+
 
   const potentialMatches = useMemo(() => {
+    const dismissedPairKeys = new Set(
+      matchDecisions
+        .filter((decision) => decision.decision === "Not Matched")
+        .map((decision) => decision.pairKey)
+    );
+
+    const dismissedVisualKeys = new Set(
+      matchDecisions
+        .filter((decision) => decision.decision === "Not Matched")
+        .map((decision) => decision.visualPairKey)
+        .filter(Boolean)
+    );
+
+    const confirmedPairKeys = new Set(
+      matchDecisions
+        .filter((decision) => decision.decision === "Confirmed")
+        .map((decision) => decision.pairKey)
+    );
+
+    const confirmedVisualKeys = new Set(
+      matchDecisions
+        .filter((decision) => decision.decision === "Confirmed")
+        .map((decision) => decision.visualPairKey)
+        .filter(Boolean)
+    );
+
     const lostReports = reports.filter(
       (report) =>
         ["Missing", "Lost"].includes(report.type) &&
-        report.adminStatus !== "Rejected"
+        report.adminStatus !== "Rejected" &&
+        report.adminStatus !== "Matched" &&
+        report.caseStatus !== "Solved"
     );
 
     const foundReports = reports.filter(
-      (report) => report.type === "Found" && report.adminStatus !== "Rejected"
+      (report) =>
+        report.type === "Found" &&
+        report.adminStatus !== "Rejected" &&
+        report.adminStatus !== "Matched" &&
+        report.caseStatus !== "Solved"
     );
 
     const matches = [];
+    const usedVisualPairs = new Set();
 
     lostReports.forEach((lostReport) => {
       foundReports.forEach((foundReport) => {
@@ -634,22 +765,40 @@ export default function AdminPanel() {
           return;
         }
 
+        const pairKey = getPairKey(lostReport.id, foundReport.id);
+        const visualPairKey = getVisualPairKey(lostReport, foundReport);
+
+        if (
+          dismissedPairKeys.has(pairKey) ||
+          dismissedVisualKeys.has(visualPairKey) ||
+          confirmedPairKeys.has(pairKey) ||
+          confirmedVisualKeys.has(visualPairKey) ||
+          usedVisualPairs.has(visualPairKey)
+        ) {
+          return;
+        }
+
         const result = calculateMatchScore(lostReport, foundReport);
 
-        if (result.score >= 45) {
+        if (result.score >= 70) {
+          usedVisualPairs.add(visualPairKey);
+
           matches.push({
-            id: `${lostReport.id}-${foundReport.id}`,
+            id: pairKey,
+            pairKey,
+            visualPairKey,
             lostReport,
             foundReport,
             score: result.score,
             reasons: result.reasons,
+            matchedFields: result.matchedFields,
           });
         }
       });
     });
 
     return matches.sort((a, b) => b.score - a.score);
-  }, [reports]);
+  }, [reports, matchDecisions]);
 
   const resetFilters = () => {
     setFilters({
@@ -662,11 +811,26 @@ export default function AdminPanel() {
     });
   };
 
+  const openFilteredReports = (status, flaggedOnly = false) => {
+    setActiveTab("reports");
+
+    setFilters({
+      search: "",
+      status,
+      category: "All",
+      type: "All",
+      city: "All",
+      flaggedOnly,
+    });
+  };
+
   const updateAdminStatus = (reportId, nextStatus) => {
-    const targetReport = reports.find((report) => report.id === reportId);
+    const targetReport = reports.find(
+      (report) => String(report.id) === String(reportId)
+    );
 
     const nextReports = reports.map((report) =>
-      report.id === reportId
+      String(report.id) === String(reportId)
         ? {
             ...report,
             adminStatus: nextStatus,
@@ -688,10 +852,12 @@ export default function AdminPanel() {
   };
 
   const updateCaseStatus = (reportId, nextCaseStatus) => {
-    const targetReport = reports.find((report) => report.id === reportId);
+    const targetReport = reports.find(
+      (report) => String(report.id) === String(reportId)
+    );
 
     const nextReports = reports.map((report) =>
-      report.id === reportId
+      String(report.id) === String(reportId)
         ? {
             ...report,
             caseStatus: nextCaseStatus,
@@ -713,10 +879,12 @@ export default function AdminPanel() {
   };
 
   const clearFlags = (reportId) => {
-    const targetReport = reports.find((report) => report.id === reportId);
+    const targetReport = reports.find(
+      (report) => String(report.id) === String(reportId)
+    );
 
     const nextReports = reports.map((report) =>
-      report.id === reportId
+      String(report.id) === String(reportId)
         ? {
             ...report,
             flags: [],
@@ -730,67 +898,216 @@ export default function AdminPanel() {
   };
 
   const deleteReport = (reportId) => {
-    const targetReport = reports.find((report) => report.id === reportId);
+    const targetReport = reports.find(
+      (report) => String(report.id) === String(reportId)
+    );
 
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this report as fake/inappropriate?"
     );
 
-    if (!confirmDelete) {
-      return;
-    }
+    if (!confirmDelete) return;
 
-    const nextReports = reports.filter((report) => report.id !== reportId);
+    const nextReports = reports.filter(
+      (report) => String(report.id) !== String(reportId)
+    );
 
     saveReports(nextReports, "Report deleted by admin.");
     addAdminLog("Report deleted", targetReport?.title);
+
+    if (targetReport) {
+      addNotification(
+        targetReport,
+        "Alert",
+        "Report Deleted by Admin",
+        `Your report "${targetReport.title}" was removed because it was fake, duplicate or inappropriate.`
+      );
+    }
+
     setSelectedReport(null);
   };
 
-  const confirmMatch = (lostReport, foundReport) => {
+  const confirmMatch = (match) => {
     const confirmAction = window.confirm(
-      `Confirm match between "${lostReport.title}" and "${foundReport.title}"?`
+      `Confirm match between "${match.lostReport.title}" and "${match.foundReport.title}"?`
     );
 
     if (!confirmAction) {
       return;
     }
 
+    const matchId = `match-${match.lostReport.id}-${match.foundReport.id}-${Date.now()}`;
+    const matchedAt = new Date().toISOString();
+
+    let updatedLostReport = null;
+    let updatedFoundReport = null;
+
     const nextReports = reports.map((report) => {
-      if (report.id === lostReport.id || report.id === foundReport.id) {
-        return {
+      if (String(report.id) === String(match.lostReport.id)) {
+        updatedLostReport = {
           ...report,
           adminStatus: "Matched",
           caseStatus: "Solved",
-          matchedWith:
-            report.id === lostReport.id ? foundReport.id : lostReport.id,
+          matchedWith: match.foundReport.id,
+          matchId,
+          matchScore: match.score,
+          matchedFields: match.matchedFields,
+          matchedAt,
+          matchedBy: "Admin",
+          matchDecision: "Confirmed",
         };
+
+        return updatedLostReport;
+      }
+
+      if (String(report.id) === String(match.foundReport.id)) {
+        updatedFoundReport = {
+          ...report,
+          adminStatus: "Matched",
+          caseStatus: "Solved",
+          matchedWith: match.lostReport.id,
+          matchId,
+          matchScore: match.score,
+          matchedFields: match.matchedFields,
+          matchedAt,
+          matchedBy: "Admin",
+          matchDecision: "Confirmed",
+        };
+
+        return updatedFoundReport;
       }
 
       return report;
     });
 
-    saveReports(nextReports, "Match confirmed and both reports marked solved.");
-    addAdminLog("Match confirmed", `${lostReport.title} + ${foundReport.title}`);
+    const matchRecord = {
+      id: matchId,
+      matchId,
+      pairKey: match.pairKey,
+      visualPairKey: match.visualPairKey,
+      score: match.score,
+      threshold: 70,
+      reasons: match.reasons,
+      matchedFields: match.matchedFields,
+      lostReport: updatedLostReport,
+      foundReport: updatedFoundReport,
+      matchedAt,
+      matchedBy: "Admin",
+      decision: "Confirmed",
+      userMessage:
+        "Admin confirmed this rule-based match. Please compare both reports and contact the other reporter using the phone/email details shown below.",
+    };
+
+    const previousMatches = readStorage(CONFIRMED_MATCHES_KEY, []);
+
+    const nextMatches = [
+      matchRecord,
+      ...previousMatches.filter(
+        (item) =>
+          item.pairKey !== match.pairKey &&
+          item.visualPairKey !== match.visualPairKey
+      ),
+    ];
+
+    writeStorage(CONFIRMED_MATCHES_KEY, nextMatches);
+
+    const nextDecisions = [
+      {
+        id: `${Date.now()}-${Math.random()}`,
+        pairKey: match.pairKey,
+        visualPairKey: match.visualPairKey,
+        decision: "Confirmed",
+        matchId,
+        score: match.score,
+        lostReportId: match.lostReport.id,
+        foundReportId: match.foundReport.id,
+        lostTitle: match.lostReport.title,
+        foundTitle: match.foundReport.title,
+        decidedAt: matchedAt,
+        decidedBy: "Admin",
+      },
+      ...matchDecisions.filter(
+        (item) =>
+          item.pairKey !== match.pairKey &&
+          item.visualPairKey !== match.visualPairKey
+      ),
+    ];
+
+    saveMatchDecisions(nextDecisions);
+
+    saveReports(
+      nextReports,
+      "Match confirmed. Both reports are saved as Matched and Solved."
+    );
+
+    addAdminLog(
+      "Match confirmed",
+      `${match.lostReport.title} + ${match.foundReport.title}`
+    );
+
+    const actionUrl = `/match-alert/${matchId}`;
 
     addNotification(
-      lostReport,
+      updatedLostReport,
       "Match",
-      "Match Confirmed",
-      `Admin confirmed a possible match for your report "${lostReport.title}".`
+      "Match Confirmed by Admin",
+      `Admin confirmed a ${match.score}% match for your report "${updatedLostReport.title}". Open this alert to compare both reports.`,
+      { matchId, actionUrl }
     );
 
     addNotification(
-      foundReport,
+      updatedFoundReport,
       "Match",
-      "Match Confirmed",
-      `Admin confirmed your found report "${foundReport.title}" as a possible match.`
+      "Match Confirmed by Admin",
+      `Admin confirmed your found report "${updatedFoundReport.title}" as a ${match.score}% match. Open this alert to compare both reports.`,
+      { matchId, actionUrl }
     );
+  };
+
+  const dismissMatch = (match) => {
+    const confirmAction = window.confirm(
+      `Mark "${match.lostReport.title}" and "${match.foundReport.title}" as Not Matched?`
+    );
+
+    if (!confirmAction) {
+      return;
+    }
+
+    const nextDecisions = [
+      {
+        id: `${Date.now()}-${Math.random()}`,
+        pairKey: match.pairKey,
+        visualPairKey: match.visualPairKey,
+        decision: "Not Matched",
+        score: match.score,
+        lostReportId: match.lostReport.id,
+        foundReportId: match.foundReport.id,
+        lostTitle: match.lostReport.title,
+        foundTitle: match.foundReport.title,
+        decidedAt: new Date().toISOString(),
+        decidedBy: "Admin",
+      },
+      ...matchDecisions.filter(
+        (item) =>
+          item.pairKey !== match.pairKey &&
+          item.visualPairKey !== match.visualPairKey
+      ),
+    ];
+
+    saveMatchDecisions(nextDecisions);
+
+    addAdminLog(
+      "Match dismissed",
+      `${match.lostReport.title} + ${match.foundReport.title}`
+    );
+
+    showMessage("Match suggestion removed and saved as Not Matched.");
   };
 
   const openAlertModal = (report) => {
     setAlertReport(report);
     setShowAlertPopup(true);
+
     setAlertForm({
       type: "Alert",
       title: "Admin Alert",
@@ -817,13 +1134,20 @@ export default function AdminPanel() {
 
     addAdminLog("Alert sent", alertReport?.title || "General Alert");
     showMessage("Alert notification created successfully.");
+
     setAlertReport(null);
     setShowAlertPopup(false);
+
+    setAlertForm({
+      type: "Alert",
+      title: "Admin Alert",
+      message: "",
+    });
   };
 
   const toggleUserStatus = (userId) => {
     const nextUsers = users.map((user) =>
-      user.id === userId
+      String(user.id) === String(userId)
         ? {
             ...user,
             status: user.status === "Blocked" ? "Active" : "Blocked",
@@ -835,16 +1159,12 @@ export default function AdminPanel() {
   };
 
   const deleteUser = (userId) => {
-    const confirmDelete = window.confirm(
-      "Delete this user from frontend admin list?"
-    );
+    const confirmDelete = window.confirm("Delete this user from frontend admin list?");
 
-    if (!confirmDelete) {
-      return;
-    }
+    if (!confirmDelete) return;
 
     saveUsers(
-      users.filter((user) => user.id !== userId),
+      users.filter((user) => String(user.id) !== String(userId)),
       "User removed from admin list."
     );
   };
@@ -852,9 +1172,8 @@ export default function AdminPanel() {
   const renderStatusBadge = (status) => {
     return (
       <span className={`admin-status admin-status--${getStatusClass(status)}`}>
+        {(status === "Pending" || status === "Pending Review") && <FaClock />}
         {status === "Verified" && <FaCheckCircle />}
-        {status === "Pending Review" && <FaClock />}
-        {status === "Pending" && <FaClock />}
         {status === "Rejected" && <FaBan />}
         {status === "Matched" && <FaPeopleArrows />}
         {status}
@@ -911,11 +1230,11 @@ export default function AdminPanel() {
           </div>
 
           <p className="admin-report-meta">
-            <FaMapMarkerAlt /> {report.location}
+            <FaMapMarkerAlt /> {report.location || "N/A"}
           </p>
 
           <p className="admin-report-meta">
-            <FaCalendarAlt /> {report.date}
+            <FaCalendarAlt /> {report.date || "N/A"}
           </p>
 
           <p className="admin-report-desc">{report.description}</p>
@@ -928,10 +1247,10 @@ export default function AdminPanel() {
               <b>Contact:</b> {report.reporterContact || "N/A"}
             </span>
             <span>
-              <b>Flags:</b> {report.flagCount || 0}
+              <b>Email:</b> {report.reporterEmail || "N/A"}
             </span>
             <span>
-              <b>City:</b> {report.city || "N/A"}
+              <b>Flags:</b> {report.flagCount || 0}
             </span>
           </div>
 
@@ -1017,14 +1336,22 @@ export default function AdminPanel() {
               placeholder="Search by title, city, location, description or reporter..."
               value={filters.search}
               onChange={(e) =>
-                setFilters({ ...filters, search: e.target.value })
+                setFilters({
+                  ...filters,
+                  search: e.target.value,
+                })
               }
             />
           </div>
 
           <select
             value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+            onChange={(e) =>
+              setFilters({
+                ...filters,
+                status: e.target.value,
+              })
+            }
           >
             {statusOptions.map((status) => (
               <option key={status}>{status}</option>
@@ -1034,7 +1361,10 @@ export default function AdminPanel() {
           <select
             value={filters.category}
             onChange={(e) =>
-              setFilters({ ...filters, category: e.target.value })
+              setFilters({
+                ...filters,
+                category: e.target.value,
+              })
             }
           >
             <option>All</option>
@@ -1044,7 +1374,12 @@ export default function AdminPanel() {
 
           <select
             value={filters.type}
-            onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+            onChange={(e) =>
+              setFilters({
+                ...filters,
+                type: e.target.value,
+              })
+            }
           >
             {types.map((type) => (
               <option key={type}>{type}</option>
@@ -1053,7 +1388,12 @@ export default function AdminPanel() {
 
           <select
             value={filters.city}
-            onChange={(e) => setFilters({ ...filters, city: e.target.value })}
+            onChange={(e) =>
+              setFilters({
+                ...filters,
+                city: e.target.value,
+              })
+            }
           >
             {cities.map((city) => (
               <option key={city}>{city}</option>
@@ -1065,7 +1405,10 @@ export default function AdminPanel() {
               type="checkbox"
               checked={filters.flaggedOnly}
               onChange={(e) =>
-                setFilters({ ...filters, flaggedOnly: e.target.checked })
+                setFilters({
+                  ...filters,
+                  flaggedOnly: e.target.checked,
+                })
               }
             />
             Flagged Only
@@ -1100,25 +1443,116 @@ export default function AdminPanel() {
     );
   };
 
-  const renderFlaggedTab = () => {
-    return (
+
+  const renderMatchedTab = () => {
+  return (
+    <>
+      <section className="admin-list-heading">
+        <div>
+          <h2>Matched & Solved Reports</h2>
+
+          <p>
+            These are the reports confirmed by admin as matched. Both lost/missing
+            and found reports are saved here with Matched and Solved status.
+          </p>
+        </div>
+      </section>
+
       <section className="admin-report-list">
-        {flaggedReports.length > 0 ? (
-          flaggedReports.map(renderReportCard)
+        {matchedReports.length > 0 ? (
+          matchedReports.map(renderReportCard)
         ) : (
           <div className="admin-empty-box">
-            <FaFlag />
-            <h3>No flagged reports</h3>
-            <p>Reports with 5 or more flags will appear here for admin review.</p>
+            <FaPeopleArrows />
+            <h3>No matched reports yet</h3>
+            <p>
+              Confirm a match from Matches tab. After confirmation, matched reports
+              will appear here.
+            </p>
           </div>
         )}
       </section>
+    </>
+  );
+};
+
+
+  const renderMatchReportBox = (report, sideTitle) => {
+    return (
+      <div className="admin-match-report">
+        <img src={report.image} alt={report.title} />
+
+        <span>{sideTitle}</span>
+
+        <h3>{report.title}</h3>
+
+        <p>{report.location}</p>
+
+        <div className="admin-report-info-grid">
+          <span>
+            <b>Type:</b> {report.type}
+          </span>
+          <span>
+            <b>Category:</b> {report.category}
+          </span>
+          <span>
+            <b>City:</b> {report.city}
+          </span>
+          <span>
+            <b>Date:</b> {report.date}
+          </span>
+
+          {report.category === "Person" && (
+            <>
+              <span>
+                <b>Age:</b> {report.age || "N/A"}
+              </span>
+              <span>
+                <b>Gender:</b> {report.gender || "N/A"}
+              </span>
+            </>
+          )}
+
+          {report.category === "Item" && (
+            <>
+              <span>
+                <b>Item:</b> {report.itemCategory || "N/A"}
+              </span>
+              <span>
+                <b>Color:</b> {report.color || "N/A"}
+              </span>
+              <span>
+                <b>Brand:</b> {report.brand || "N/A"}
+              </span>
+            </>
+          )}
+
+          <span>
+            <b>Reporter:</b> {report.reporterName || "N/A"}
+          </span>
+          <span>
+            <b>Phone:</b> {report.reporterContact || "N/A"}
+          </span>
+          <span>
+            <b>Email:</b> {report.reporterEmail || "N/A"}
+          </span>
+        </div>
+      </div>
     );
   };
 
   const renderMatchesTab = () => {
     return (
       <section className="admin-match-list">
+        <section className="admin-list-heading">
+          <div>
+            <h2>Rule-Based Match Comparison</h2>
+            <p>
+              Only 70% or higher lost/missing vs found candidates are shown for admin decision.
+            </p>
+          </div>
+        </section>
+
         {potentialMatches.length > 0 ? (
           potentialMatches.map((match) => (
             <article className="admin-match-card" key={match.id}>
@@ -1128,23 +1562,13 @@ export default function AdminPanel() {
               </div>
 
               <div className="admin-match-columns">
-                <div className="admin-match-report">
-                  <img src={match.lostReport.image} alt={match.lostReport.title} />
-                  <span>{match.lostReport.type}</span>
-                  <h3>{match.lostReport.title}</h3>
-                  <p>{match.lostReport.location}</p>
-                </div>
+                {renderMatchReportBox(match.lostReport, "Lost / Missing Case")}
 
                 <div className="admin-match-line">
                   <FaPeopleArrows />
                 </div>
 
-                <div className="admin-match-report">
-                  <img src={match.foundReport.image} alt={match.foundReport.title} />
-                  <span>{match.foundReport.type}</span>
-                  <h3>{match.foundReport.title}</h3>
-                  <p>{match.foundReport.location}</p>
-                </div>
+                {renderMatchReportBox(match.foundReport, "Found Case")}
               </div>
 
               <div className="admin-match-reasons">
@@ -1153,27 +1577,39 @@ export default function AdminPanel() {
                 ))}
               </div>
 
+              <div className="admin-report-info-grid">
+                <span>
+                  <b>Matched Fields:</b> {match.matchedFields.join(", ")}
+                </span>
+
+                <span>
+                  <b>Threshold:</b> 70%
+                </span>
+              </div>
+
               <div className="admin-report-actions">
-                <button
-                  type="button"
-                  onClick={() => setSelectedReport(match.lostReport)}
-                >
+                <button type="button" onClick={() => setSelectedReport(match.lostReport)}>
                   <FaEye /> View Lost/Missing
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedReport(match.foundReport)}
-                >
+                <button type="button" onClick={() => setSelectedReport(match.foundReport)}>
                   <FaEye /> View Found
                 </button>
 
                 <button
                   type="button"
                   className="admin-action-success"
-                  onClick={() => confirmMatch(match.lostReport, match.foundReport)}
+                  onClick={() => confirmMatch(match)}
                 >
-                  <FaCheckDouble /> Confirm Match
+                  <FaCheckDouble /> Confirm Matched & Solve
+                </button>
+
+                <button
+                  type="button"
+                  className="admin-action-warning"
+                  onClick={() => dismissMatch(match)}
+                >
+                  <FaBan /> Not Matched
                 </button>
               </div>
             </article>
@@ -1181,8 +1617,10 @@ export default function AdminPanel() {
         ) : (
           <div className="admin-empty-box">
             <FaPeopleArrows />
-            <h3>No potential matches</h3>
-            <p>Rule-based matching will show similar lost/found cases here.</p>
+            <h3>No 70%+ potential matches</h3>
+            <p>
+              New possible matches will appear here when lost/missing and found reports have strong similarity.
+            </p>
           </div>
         )}
       </section>
@@ -1248,44 +1686,26 @@ export default function AdminPanel() {
       <section className="admin-alert-card">
         <div className="admin-alert-card__heading">
           <FaPaperPlane />
+
           <div>
             <h2>Send General Admin Alert</h2>
             <p>
-              This creates a frontend notification in localStorage. Later backend
-              can replace this with Nodemailer/API notification logic.
+              General alert will only show in notification popup. Report-specific alert opens the related report.
             </p>
           </div>
         </div>
 
-        <form
-          className="admin-alert-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setAlertReport(null);
-
-            if (!alertForm.title.trim() || !alertForm.message.trim()) {
-              showMessage("Please enter alert title and message.");
-              return;
-            }
-
-            addNotification(null, alertForm.type, alertForm.title, alertForm.message);
-            addAdminLog("General alert sent", "All Users");
-            showMessage("General notification created successfully.");
-
-            setAlertForm({
-              type: "Alert",
-              title: "Admin Alert",
-              message: "",
-            });
-          }}
-        >
+        <form className="admin-alert-form" onSubmit={sendAlert}>
           <div className="admin-form-grid">
             <label>
               Alert Type
               <select
                 value={alertForm.type}
                 onChange={(e) =>
-                  setAlertForm({ ...alertForm, type: e.target.value })
+                  setAlertForm({
+                    ...alertForm,
+                    type: e.target.value,
+                  })
                 }
               >
                 <option>Alert</option>
@@ -1301,7 +1721,10 @@ export default function AdminPanel() {
                 type="text"
                 value={alertForm.title}
                 onChange={(e) =>
-                  setAlertForm({ ...alertForm, title: e.target.value })
+                  setAlertForm({
+                    ...alertForm,
+                    title: e.target.value,
+                  })
                 }
                 placeholder="Enter alert title"
               />
@@ -1311,20 +1734,304 @@ export default function AdminPanel() {
           <label>
             Alert Message
             <textarea
-              rows="5"
               value={alertForm.message}
               onChange={(e) =>
-                setAlertForm({ ...alertForm, message: e.target.value })
+                setAlertForm({
+                  ...alertForm,
+                  message: e.target.value,
+                })
               }
-              placeholder="Write notification message for users..."
+              placeholder="Write notification message..."
             ></textarea>
           </label>
 
           <button type="submit" className="admin-primary-btn">
-            <FaPaperPlane /> Send Alert
+            <FaPaperPlane /> Send Notification
           </button>
         </form>
       </section>
+    );
+  };
+
+  const renderLogsTab = () => {
+    const logs = readStorage(ADMIN_LOG_KEY, []);
+
+    return (
+      <section className="admin-alert-card">
+        <div className="admin-alert-card__heading">
+          <FaClipboardList />
+
+          <div>
+            <h2>Admin Activity Log</h2>
+            <p>Recent frontend admin actions saved in localStorage.</p>
+          </div>
+        </div>
+
+        {logs.length > 0 ? (
+          <div className="admin-report-info-grid">
+            {logs.map((log) => (
+              <span key={log.id}>
+                <b>{log.action}</b>
+                <br />
+                {log.reportTitle || "System"} — {log.date}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="admin-empty-box">
+            <FaClipboardList />
+            <h3>No admin logs yet</h3>
+            <p>
+              Actions like verify, reject, delete, alert and match confirmation will appear here.
+            </p>
+          </div>
+        )}
+      </section>
+    );
+  };
+
+  const renderDetailsModal = () => {
+    if (!selectedReport) return null;
+
+    return (
+      <div className="admin-modal-overlay" onClick={() => setSelectedReport(null)}>
+        <div className="admin-details-modal" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="admin-modal-close"
+            onClick={() => setSelectedReport(null)}
+          >
+            <FaTimes />
+          </button>
+
+          <img src={selectedReport.image} alt={selectedReport.title} />
+
+          <div className="admin-modal-badges">
+            <span
+              className={`admin-type-badge ${
+                selectedReport.type === "Found" ? "admin-type-badge--found" : ""
+              }`}
+            >
+              {selectedReport.type}
+            </span>
+
+            {renderStatusBadge(selectedReport.adminStatus)}
+          </div>
+
+          <h2>{selectedReport.title}</h2>
+
+          <div className="admin-detail-grid">
+            <p>
+              <b>Category:</b> {selectedReport.category}
+            </p>
+            <p>
+              <b>Case Status:</b> {selectedReport.caseStatus}
+            </p>
+            <p>
+              <b>City:</b> {selectedReport.city || "N/A"}
+            </p>
+            <p>
+              <b>Date:</b> {selectedReport.date || "N/A"}
+            </p>
+            <p>
+              <b>Location:</b> {selectedReport.location || "N/A"}
+            </p>
+            <p>
+              <b>Current Location:</b> {selectedReport.currentLocation || "N/A"}
+            </p>
+
+            {selectedReport.category === "Person" && (
+              <>
+                <p>
+                  <b>Age:</b> {selectedReport.age || "N/A"}
+                </p>
+                <p>
+                  <b>Gender:</b> {selectedReport.gender || "N/A"}
+                </p>
+                <p>
+                  <b>Relation:</b> {selectedReport.relation || "N/A"}
+                </p>
+              </>
+            )}
+
+            {selectedReport.category === "Item" && (
+              <>
+                <p>
+                  <b>Item Category:</b> {selectedReport.itemCategory || "N/A"}
+                </p>
+                <p>
+                  <b>Color:</b> {selectedReport.color || "N/A"}
+                </p>
+                <p>
+                  <b>Brand:</b> {selectedReport.brand || "N/A"}
+                </p>
+              </>
+            )}
+          </div>
+
+          <h3>Description</h3>
+          <p>{selectedReport.description}</p>
+
+          <hr />
+
+          <h3>Reporter Details</h3>
+
+          <div className="admin-detail-grid">
+            <p>
+              <FaUser /> <b>Name:</b> {selectedReport.reporterName || "N/A"}
+            </p>
+            <p>
+              <FaPhoneAlt /> <b>Phone:</b>{" "}
+              {selectedReport.reporterContact || "N/A"}
+            </p>
+            <p>
+              <FaEnvelope /> <b>Email:</b>{" "}
+              {selectedReport.reporterEmail || "N/A"}
+            </p>
+            <p>
+              <FaMapMarkerAlt /> <b>Address:</b>{" "}
+              {selectedReport.reporterAddress || "N/A"}
+            </p>
+          </div>
+
+          <hr />
+
+          <h3>Flags / Reports</h3>
+
+          {Number(selectedReport.flagCount || 0) > 0 ? (
+            <div className="admin-detail-grid">
+              {(selectedReport.flags || []).map((flag, index) => (
+                <p key={`${flag.reason}-${index}`}>
+                  <FaFlag /> <b>{flag.user || "User"}:</b> {flag.reason}{" "}
+                  {flag.date ? `(${flag.date})` : ""}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p>No flags reported for this post.</p>
+          )}
+
+          <div className="admin-modal-actions">
+            <button
+              type="button"
+              className="admin-action-success"
+              onClick={() => updateAdminStatus(selectedReport.id, "Verified")}
+            >
+              <FaCheckCircle /> Verify
+            </button>
+
+            <button
+              type="button"
+              className="admin-action-warning"
+              onClick={() => updateAdminStatus(selectedReport.id, "Rejected")}
+            >
+              <FaBan /> Reject
+            </button>
+
+            <button type="button" onClick={() => openAlertModal(selectedReport)}>
+              <FaBell /> Send Alert
+            </button>
+
+            <button
+              type="button"
+              className="admin-action-danger"
+              onClick={() => deleteReport(selectedReport.id)}
+            >
+              <FaTrash /> Delete Fake
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderAlertModal = () => {
+    if (!showAlertPopup) return null;
+
+    return (
+      <div
+        className="admin-modal-overlay"
+        onClick={() => {
+          setShowAlertPopup(false);
+          setAlertReport(null);
+        }}
+      >
+        <div className="admin-alert-modal" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="admin-modal-close"
+            onClick={() => {
+              setShowAlertPopup(false);
+              setAlertReport(null);
+            }}
+          >
+            <FaTimes />
+          </button>
+
+          <div className="admin-alert-modal__icon">
+            <FaBell />
+          </div>
+
+          <h2>{alertReport ? "Send Report Alert" : "Send General Alert"}</h2>
+
+          <p>
+            {alertReport
+              ? `Notification will be created for "${alertReport.title}".`
+              : "Notification will be created as a general admin alert."}
+          </p>
+
+          <form className="admin-alert-form" onSubmit={sendAlert}>
+            <label>
+              Alert Type
+              <select
+                value={alertForm.type}
+                onChange={(e) =>
+                  setAlertForm({
+                    ...alertForm,
+                    type: e.target.value,
+                  })
+                }
+              >
+                <option>Alert</option>
+                <option>Verification</option>
+                <option>Match</option>
+                <option>Status</option>
+              </select>
+            </label>
+
+            <label>
+              Alert Title
+              <input
+                type="text"
+                value={alertForm.title}
+                onChange={(e) =>
+                  setAlertForm({
+                    ...alertForm,
+                    title: e.target.value,
+                  })
+                }
+              />
+            </label>
+
+            <label>
+              Alert Message
+              <textarea
+                value={alertForm.message}
+                onChange={(e) =>
+                  setAlertForm({
+                    ...alertForm,
+                    message: e.target.value,
+                  })
+                }
+              ></textarea>
+            </label>
+
+            <button type="submit" className="admin-primary-btn">
+              <FaPaperPlane /> Send Alert
+            </button>
+          </form>
+        </div>
+      </div>
     );
   };
 
@@ -1341,10 +2048,12 @@ export default function AdminPanel() {
               <span className="admin-kicker">
                 <FaUserShield /> Admin Dashboard
               </span>
+
               <h1>Admin Panel</h1>
+
               <p>
-                Verify reports, review flagged posts, confirm matches, manage
-                users, update case status and send alerts.
+                Verify reports, review flagged content, manage users, update case status,
+                compare 70%+ rule-based matches and send alerts to users.
               </p>
             </div>
 
@@ -1353,7 +2062,7 @@ export default function AdminPanel() {
               className="admin-hero__btn"
               onClick={() => openAlertModal(null)}
             >
-              <FaBell /> Create Alert
+              <FaBell /> Send Alert
             </button>
           </section>
 
@@ -1361,6 +2070,7 @@ export default function AdminPanel() {
             <div className="admin-message">
               <FaCheckCircle />
               {message}
+
               <button type="button" onClick={() => setMessage("")}>
                 <FaTimes />
               </button>
@@ -1368,43 +2078,47 @@ export default function AdminPanel() {
           )}
 
           <section className="admin-stats-grid">
-            <button type="button" onClick={() => setActiveTab("reports")}>
+            <button type="button" onClick={() => openFilteredReports("All")}>
               <span>
-                <FaClipboardList />
+                <FaFileAlt />
               </span>
+
               <div>
                 <h3>{stats.total}</h3>
                 <p>Total Reports</p>
               </div>
             </button>
 
-            <button type="button" onClick={() => setActiveTab("reports")}>
+            <button type="button" onClick={() => openFilteredReports("Pending Review")}>
               <span>
                 <FaClock />
               </span>
+
               <div>
                 <h3>{stats.pending}</h3>
                 <p>Pending Review</p>
               </div>
             </button>
 
-            <button type="button" onClick={() => setActiveTab("reports")}>
+            <button type="button" onClick={() => openFilteredReports("Verified")}>
               <span>
                 <FaCheckCircle />
               </span>
+
               <div>
                 <h3>{stats.verified}</h3>
                 <p>Verified</p>
               </div>
             </button>
 
-            <button type="button" onClick={() => setActiveTab("flagged")}>
+            <button type="button" onClick={() => openFilteredReports("Rejected")}>
               <span>
-                <FaFlag />
+                <FaBan />
               </span>
+
               <div>
-                <h3>{stats.flagged}</h3>
-                <p>Flagged Review</p>
+                <h3>{stats.rejected}</h3>
+                <p>Rejected</p>
               </div>
             </button>
 
@@ -1412,19 +2126,21 @@ export default function AdminPanel() {
               <span>
                 <FaPeopleArrows />
               </span>
+
               <div>
                 <h3>{potentialMatches.length}</h3>
-                <p>Potential Matches</p>
+                <p>70%+ Matches</p>
               </div>
             </button>
 
-            <button type="button" onClick={() => setActiveTab("users")}>
+            <button type="button" onClick={() => openFilteredReports("All", true)}>
               <span>
-                <FaUsers />
+                <FaFlag />
               </span>
+
               <div>
-                <h3>{users.length}</h3>
-                <p>Users</p>
+                <h3>{stats.flagged}</h3>
+                <p>Flagged Posts</p>
               </div>
             </button>
           </section>
@@ -1440,19 +2156,19 @@ export default function AdminPanel() {
 
             <button
               type="button"
-              className={activeTab === "flagged" ? "admin-tab--active" : ""}
-              onClick={() => setActiveTab("flagged")}
-            >
-              <FaFlag /> Flagged Posts
-            </button>
-
-            <button
-              type="button"
               className={activeTab === "matches" ? "admin-tab--active" : ""}
               onClick={() => setActiveTab("matches")}
             >
               <FaPeopleArrows /> Matches
             </button>
+
+            <button
+  type="button"
+  className={activeTab === "matched" ? "admin-tab--active" : ""}
+  onClick={() => setActiveTab("matched")}
+>
+  <FaCheckDouble /> Matched
+</button>
 
             <button
               type="button"
@@ -1467,235 +2183,31 @@ export default function AdminPanel() {
               className={activeTab === "alerts" ? "admin-tab--active" : ""}
               onClick={() => setActiveTab("alerts")}
             >
-              <FaBell /> Alerts
+              <FaPaperPlane /> Alerts
+            </button>
+
+            <button
+              type="button"
+              className={activeTab === "logs" ? "admin-tab--active" : ""}
+              onClick={() => setActiveTab("logs")}
+            >
+              <FaShieldAlt /> Logs
             </button>
           </section>
 
           {activeTab === "reports" && renderReportsTab()}
-          {activeTab === "flagged" && renderFlaggedTab()}
           {activeTab === "matches" && renderMatchesTab()}
+          {activeTab === "matched" && renderMatchedTab()}
           {activeTab === "users" && renderUsersTab()}
           {activeTab === "alerts" && renderAlertsTab()}
+          {activeTab === "logs" && renderLogsTab()}
+
+          {renderDetailsModal()}
+          {renderAlertModal()}
 
           <Footer />
         </main>
       </div>
-
-      {selectedReport && (
-        <div className="admin-modal-overlay" onClick={() => setSelectedReport(null)}>
-          <div className="admin-details-modal" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="admin-modal-close"
-              onClick={() => setSelectedReport(null)}
-            >
-              <FaTimes />
-            </button>
-
-            <img src={selectedReport.image} alt={selectedReport.title} />
-
-            <div className="admin-modal-badges">
-              <span
-                className={`admin-type-badge ${
-                  selectedReport.type === "Found" ? "admin-type-badge--found" : ""
-                }`}
-              >
-                {selectedReport.type}
-              </span>
-
-              {renderStatusBadge(selectedReport.adminStatus)}
-            </div>
-
-            <h2>{selectedReport.title}</h2>
-
-            <div className="admin-detail-grid">
-              <p>
-                <b>Category:</b> {selectedReport.category}
-              </p>
-              <p>
-                <b>Case Status:</b> {selectedReport.caseStatus}
-              </p>
-              <p>
-                <b>City:</b> {selectedReport.city}
-              </p>
-              <p>
-                <b>Date:</b> {selectedReport.date}
-              </p>
-              {selectedReport.age && (
-                <p>
-                  <b>Age:</b> {selectedReport.age}
-                </p>
-              )}
-              {selectedReport.gender && (
-                <p>
-                  <b>Gender:</b> {selectedReport.gender}
-                </p>
-              )}
-              {selectedReport.itemCategory && (
-                <p>
-                  <b>Item Category:</b> {selectedReport.itemCategory}
-                </p>
-              )}
-              {selectedReport.color && (
-                <p>
-                  <b>Color:</b> {selectedReport.color}
-                </p>
-              )}
-              {selectedReport.brand && (
-                <p>
-                  <b>Brand:</b> {selectedReport.brand}
-                </p>
-              )}
-              <p>
-                <b>Flags:</b> {selectedReport.flagCount || 0}
-              </p>
-            </div>
-
-            <p>
-              <b>Location:</b> {selectedReport.location}
-            </p>
-
-            {selectedReport.currentLocation && (
-              <p>
-                <b>Current Location:</b> {selectedReport.currentLocation}
-              </p>
-            )}
-
-            <p>
-              <b>Description:</b> {selectedReport.description}
-            </p>
-
-            <hr />
-
-            <h3>Reporter Information</h3>
-            <div className="admin-detail-grid">
-              <p>
-                <b>Name:</b> {selectedReport.reporterName || "N/A"}
-              </p>
-              <p>
-                <b>Contact:</b> {selectedReport.reporterContact || "N/A"}
-              </p>
-              <p>
-                <b>Email:</b> {selectedReport.reporterEmail || "N/A"}
-              </p>
-              <p>
-                <b>Relation:</b> {selectedReport.relation || "N/A"}
-              </p>
-            </div>
-
-            {selectedReport.flags?.length > 0 && (
-              <>
-                <hr />
-                <h3>Flag Reasons</h3>
-                <div className="admin-flag-list">
-                  {selectedReport.flags.map((flag, index) => (
-                    <div key={`${flag.reason}-${index}`}>
-                      <b>{flag.user || "User"}</b>
-                      <span>{flag.reason}</span>
-                      <small>{flag.date}</small>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <div className="admin-report-actions admin-modal-actions">
-              <button
-                type="button"
-                className="admin-action-success"
-                onClick={() => updateAdminStatus(selectedReport.id, "Verified")}
-              >
-                <FaCheckCircle /> Verify
-              </button>
-
-              <button
-                type="button"
-                className="admin-action-warning"
-                onClick={() => updateAdminStatus(selectedReport.id, "Rejected")}
-              >
-                <FaBan /> Reject
-              </button>
-
-              <button type="button" onClick={() => openAlertModal(selectedReport)}>
-                <FaBell /> Alert
-              </button>
-
-              <button
-                type="button"
-                className="admin-action-danger"
-                onClick={() => deleteReport(selectedReport.id)}
-              >
-                <FaTrash /> Delete Fake
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAlertPopup && (
-        <div className="admin-modal-overlay" onClick={() => setShowAlertPopup(false)}>
-          <form className="admin-alert-modal" onSubmit={sendAlert} onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="admin-modal-close"
-              onClick={() => setShowAlertPopup(false)}
-            >
-              <FaTimes />
-            </button>
-
-            <FaBell className="admin-alert-modal__icon" />
-            <h2>{alertReport ? "Send Report Alert" : "Create Admin Alert"}</h2>
-            <p>
-              {alertReport
-                ? `This alert will be linked with "${alertReport.title}".`
-                : "This alert will be saved as a general frontend notification."}
-            </p>
-
-            <label>
-              Alert Type
-              <select
-                value={alertForm.type}
-                onChange={(e) =>
-                  setAlertForm({ ...alertForm, type: e.target.value })
-                }
-              >
-                <option>Alert</option>
-                <option>Verification</option>
-                <option>Match</option>
-                <option>Status</option>
-              </select>
-            </label>
-
-            <label>
-              Alert Title
-              <input
-                type="text"
-                value={alertForm.title}
-                onChange={(e) =>
-                  setAlertForm({ ...alertForm, title: e.target.value })
-                }
-                placeholder="Enter title"
-              />
-            </label>
-
-            <label>
-              Message
-              <textarea
-                rows="5"
-                value={alertForm.message}
-                onChange={(e) =>
-                  setAlertForm({ ...alertForm, message: e.target.value })
-                }
-                placeholder="Write message..."
-              ></textarea>
-            </label>
-
-            <button type="submit" className="admin-primary-btn">
-              <FaPaperPlane /> Send Alert
-            </button>
-          </form>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
@@ -19,8 +19,10 @@ import {
   FaEye,
   FaShareAlt,
 } from "react-icons/fa";
-import bagimage from "../assets/bag.jfif";
+
 import "./Home.css";
+
+const REPORTS_KEY = "lostFoundReports";
 
 const recentReports = [
   {
@@ -33,29 +35,31 @@ const recentReports = [
     city: "Lahore",
     location: "Anarkali Bazaar, Lahore",
     date: "2026-05-12",
-    description: "Last seen wearing red t-shirt and blue jeans. Small school bag with him.",
+    description:
+      "Last seen wearing red t-shirt and blue jeans. Small school bag with him.",
     reporterName: "Imran Khan",
     reporterContact: "03001112222",
     relation: "Father",
-    image: "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?q=80&w=1200&auto=format&fit=crop",
-
+    image:
+      "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?q=80&w=1200&auto=format&fit=crop",
     comments: [
-  {
-    id: 1,
-    user: "Sara Ahmed",
-    text: "Is report ki exact location confirm kar dein please.",
-    createdAt: "2026-06-01T10:30:00",
-    replies: [
       {
-        id: 11,
-        user: "John Doe",
-        text: "Location Anarkali Bazaar ke near hai.",
-        createdAt: "2026-06-01T11:00:00",
+        id: 1,
+        user: "Sara Ahmed",
+        text: "Is report ki exact location confirm kar dein please.",
+        createdAt: "2026-06-01T10:30:00",
+        replies: [
+          {
+            id: 11,
+            user: "John Doe",
+            text: "Location Anarkali Bazaar ke near hai.",
+            createdAt: "2026-06-01T11:00:00",
+          },
+        ],
       },
     ],
-  },
-],
-
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
   {
     id: 2,
@@ -68,11 +72,16 @@ const recentReports = [
     location: "Saddar Market, Karachi",
     currentLocation: "Edhi Center Karachi",
     date: "2026-05-18",
-    description: "Found crying near market area. Wearing pink frock and white sandals.",
+    description:
+      "Found crying near market area. Wearing pink frock and white sandals.",
     reporterName: "Sadia Ahmed",
     reporterContact: "03125556666",
     relation: "Citizen",
-    image: "https://images.unsplash.com/photo-1516627145497-ae6968895b74?q=80&w=1200&auto=format&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1516627145497-ae6968895b74?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
   {
     id: 3,
@@ -88,7 +97,11 @@ const recentReports = [
     reporterName: "Naveed Ali",
     reporterContact: "03214445555",
     relation: "Brother",
-    image: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
   {
     id: 4,
@@ -105,7 +118,11 @@ const recentReports = [
     reporterName: "Saima Bibi",
     reporterContact: "03334445555",
     relation: "NGO Worker",
-    image: "https://images.unsplash.com/photo-1519457431-44ccd64a579b?q=80&w=1200&auto=format&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1519457431-44ccd64a579b?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
   {
     id: 5,
@@ -122,7 +139,11 @@ const recentReports = [
     reporterName: "Ahmed Khan",
     reporterContact: "03009998888",
     reporterAddress: "Johar Town Lahore",
-    image: "https://images.unsplash.com/photo-1581605405669-fcdf81165afa?q=80&w=1200&auto=format&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1581605405669-fcdf81165afa?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
   {
     id: 6,
@@ -140,7 +161,11 @@ const recentReports = [
     reporterName: "Ali Raza",
     reporterContact: "03335556666",
     reporterAddress: "Cantt Multan",
-    image: "https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=1200&auto=format&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
   {
     id: 7,
@@ -157,7 +182,11 @@ const recentReports = [
     reporterName: "Hassan Tariq",
     reporterContact: "03456667777",
     reporterAddress: "Peoples Colony Faisalabad",
-    image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=1200&auto=format&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
   {
     id: 8,
@@ -175,7 +204,11 @@ const recentReports = [
     reporterName: "Noman Malik",
     reporterContact: "03016667777",
     reporterAddress: "Satellite Town Rawalpindi",
-    image: "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?q=80&w=1200&auto=format&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
   {
     id: 9,
@@ -192,36 +225,186 @@ const recentReports = [
     reporterName: "Kamran Ali",
     reporterContact: "03297776666",
     reporterAddress: "Hayatabad Peshawar",
-    image: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?q=80&w=1200&auto=format&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
 ];
+
+const readReports = () => {
+  try {
+    const savedReports = localStorage.getItem(REPORTS_KEY);
+    const parsedReports = savedReports ? JSON.parse(savedReports) : [];
+
+    return Array.isArray(parsedReports) ? parsedReports : [];
+  } catch {
+    return [];
+  }
+};
+
+const getSafeImage = (report) => {
+  if (report.image) {
+    return report.image;
+  }
+
+  if (report.category === "Person") {
+    return "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop";
+  }
+
+  return "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1200&auto=format&fit=crop";
+};
+
+const normalizeReport = (report, source = "storage") => {
+  const type = report.type || report.status || "Missing";
+  const category = report.category || "Person";
+
+  return {
+    ...report,
+    viewId: `${source}-${report.id}`,
+    id: report.id,
+    type,
+    status: type,
+    category,
+    title: report.title || report.name || report.itemName || "Untitled Report",
+    age: report.age || "",
+    gender: report.gender || "",
+    itemCategory: report.itemCategory || "",
+    color: report.color || report.itemColor || "",
+    brand: report.brand || report.itemBrand || "",
+    city: report.city || "Unknown",
+    location:
+      report.location ||
+      report.lastSeenLocation ||
+      report.foundLocation ||
+      report.lostLocation ||
+      "",
+    currentLocation: report.currentLocation || "",
+    date: report.date || report.lostDate || report.foundDate || "",
+    description: report.description || report.itemDescription || "",
+    reporterName:
+      report.reporterName ||
+      report.reporterFullName ||
+      "Unknown Reporter",
+    reporterContact:
+      report.reporterContact ||
+      report.reporterContactNumber ||
+      "",
+    reporterEmail: report.reporterEmail || "",
+    reporterAddress: report.reporterAddress || "",
+    relation:
+      report.relation ||
+      report.reporterRelationship ||
+      "",
+    image: getSafeImage(report),
+    comments: Array.isArray(report.comments) ? report.comments : [],
+    adminStatus: report.adminStatus || "Pending Review",
+    caseStatus: report.caseStatus || "Unsolved",
+    createdAt: report.createdAt || report.date || "",
+    flags: Array.isArray(report.flags) ? report.flags : [],
+    flagCount: Number(report.flagCount || 0),
+  };
+};
+
+const getLiveReportsFromStorage = () => {
+  return readReports()
+    .filter((report) => ["Missing", "Found", "Lost"].includes(report.type || report.status))
+    .filter((report) => ["Person", "Item"].includes(report.category))
+    .filter((report) => report.adminStatus !== "Rejected")
+    .map((report) => normalizeReport(report, "live"));
+};
+
+const getTimeValue = (report) => {
+  const value = report.createdAt || report.date;
+
+  if (!value) {
+    return 0;
+  }
+
+  const time = new Date(value).getTime();
+
+  return Number.isNaN(time) ? 0 : time;
+};
+
+const removeDuplicateReports = (reports) => {
+  const seen = new Set();
+
+  return reports.filter((report) => {
+    const key = [
+      report.type,
+      report.category,
+      report.title,
+      report.city,
+      report.location,
+      report.date,
+    ]
+      .map((item) => String(item || "").toLowerCase().trim())
+      .join("|");
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [storedReports, setStoredReports] = useState([]);
 
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const syncReports = () => {
+      setStoredReports(getLiveReportsFromStorage());
+    };
+
+    syncReports();
+
+    window.addEventListener("storage", syncReports);
+    window.addEventListener("lostFoundReportsUpdated", syncReports);
+
+    return () => {
+      window.removeEventListener("storage", syncReports);
+      window.removeEventListener("lostFoundReportsUpdated", syncReports);
+    };
+  }, []);
+
+  const homeReports = useMemo(() => {
+    const mergedReports = removeDuplicateReports([
+      ...storedReports,
+      ...recentReports.map((report) => normalizeReport(report, "static")),
+    ]);
+
+    return mergedReports
+      .sort((a, b) => getTimeValue(b) - getTimeValue(a))
+      .slice(0, 9);
+  }, [storedReports]);
+
   const handleShare = (report) => {
-  const title = report.title || report.name || report.itemName || "Report";
+    const title = report.title || report.name || report.itemName || "Report";
 
-  const location =
-    report.location ||
-    report.lastSeenLocation ||
-    report.foundLocation ||
-    "N/A";
+    const location =
+      report.location ||
+      report.lastSeenLocation ||
+      report.foundLocation ||
+      "N/A";
 
-  const contact =
-    report.reporterContact ||
-    report.reporterContactNumber ||
-    "N/A";
+    const contact =
+      report.reporterContact ||
+      report.reporterContactNumber ||
+      "N/A";
 
-  const text = `${report.type} ${report.category}: ${title}, Location: ${location}, Contact: ${contact}`;
+    const text = `${report.type} ${report.category}: ${title}, Location: ${location}, Contact: ${contact}`;
 
-  navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text);
 
-  alert("Report details copied for sharing!");
-};
+    alert("Report details copied for sharing!");
+  };
 
   return (
     <div className="home">
@@ -328,8 +511,8 @@ export default function Home() {
             </div>
 
             <div className="recent-grid">
-              {recentReports.map((report) => (
-                <div key={report.id} className="recent-card">
+              {homeReports.map((report) => (
+                <div key={report.viewId} className="recent-card">
                   <div
                     className={`case-tag ${
                       report.type === "Found"
@@ -348,38 +531,38 @@ export default function Home() {
                     <h3>{report.title}</h3>
 
                     <p>
-                      <FaMapMarkerAlt /> {report.location}
+                      <FaMapMarkerAlt /> {report.location || report.city}
                     </p>
 
                     <p>
-                      <FaCalendarAlt /> {report.date}
+                      <FaCalendarAlt /> {report.date || "N/A"}
                     </p>
 
-<div className="recent-card__actions">
-  <button
-    className="recent-view-btn"
-    onClick={() => setSelectedReport(report)}
-  >
-    <FaEye />
-    View Details
-  </button>
+                    <div className="recent-card__actions">
+                      <button
+                        className="recent-view-btn"
+                        onClick={() => setSelectedReport(report)}
+                      >
+                        <FaEye />
+                        View Details
+                      </button>
 
-  <CommentsButton
-    reportTitle={report.title}
-    initialComments={report.comments || []}
-    currentUser="John Doe"
-  />
+                      <CommentsButton
+                        reportTitle={report.title}
+                        initialComments={report.comments || []}
+                        currentUser="John Doe"
+                      />
 
-  <ReportPostButton report={report} />
+                      <ReportPostButton report={report} />
 
-  <button
-    className="recent-share-btn"
-    onClick={() => handleShare(report)}
-  >
-    <FaShareAlt />
-    Share
-  </button>
-</div>
+                      <button
+                        className="recent-share-btn"
+                        onClick={() => handleShare(report)}
+                      >
+                        <FaShareAlt />
+                        Share
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -387,99 +570,146 @@ export default function Home() {
           </section>
 
           {selectedReport && (
-  <div
-    className="home-modal-overlay"
-    onClick={() => setSelectedReport(null)}
-  >
-    <div
-      className="home-details-modal"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        className="home-modal-close"
-        onClick={() => setSelectedReport(null)}
-      >
-        <FaTimes />
-      </button>
+            <div
+              className="home-modal-overlay"
+              onClick={() => setSelectedReport(null)}
+            >
+              <div
+                className="home-details-modal"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  className="home-modal-close"
+                  onClick={() => setSelectedReport(null)}
+                >
+                  <FaTimes />
+                </button>
 
-      <img src={selectedReport.image} alt={selectedReport.title} />
+                <img src={selectedReport.image} alt={selectedReport.title} />
 
-      <span
-        className={`detail-status ${
-          selectedReport.type === "Found"
-            ? "case-tag--found"
-            : "case-tag--missing"
-        }`}
-      >
-        {selectedReport.type}
-      </span>
+                <span
+                  className={`detail-status ${
+                    selectedReport.type === "Found"
+                      ? "case-tag--found"
+                      : "case-tag--missing"
+                  }`}
+                >
+                  {selectedReport.type}
+                </span>
 
-      <h2>{selectedReport.title}</h2>
+                <h2>{selectedReport.title}</h2>
 
-      <div className="home-detail-grid">
-        <p><b>Case Type:</b> {selectedReport.type}</p>
-        <p><b>Category:</b> {selectedReport.category}</p>
+                <div className="home-detail-grid">
+                  <p>
+                    <b>Case Type:</b> {selectedReport.type}
+                  </p>
 
-        {selectedReport.age && (
-          <p><b>Age:</b> {selectedReport.age}</p>
-        )}
+                  <p>
+                    <b>Category:</b> {selectedReport.category}
+                  </p>
 
-        {selectedReport.gender && (
-          <p><b>Gender:</b> {selectedReport.gender}</p>
-        )}
+                  {selectedReport.age && (
+                    <p>
+                      <b>Age:</b> {selectedReport.age}
+                    </p>
+                  )}
 
-        {selectedReport.city && (
-          <p><b>City:</b> {selectedReport.city}</p>
-        )}
+                  {selectedReport.gender && (
+                    <p>
+                      <b>Gender:</b> {selectedReport.gender}
+                    </p>
+                  )}
 
-        <p><b>Date:</b> {selectedReport.date}</p>
-      </div>
+                  {selectedReport.city && (
+                    <p>
+                      <b>City:</b> {selectedReport.city}
+                    </p>
+                  )}
 
-      {selectedReport.itemCategory && (
-        <p><b>Item Category:</b> {selectedReport.itemCategory}</p>
-      )}
+                  <p>
+                    <b>Date:</b> {selectedReport.date || "N/A"}
+                  </p>
 
-      {selectedReport.brand && (
-        <p><b>Brand:</b> {selectedReport.brand}</p>
-      )}
+                  <p>
+                    <b>Case Status:</b>{" "}
+                    {selectedReport.caseStatus || "Unsolved"}
+                  </p>
+                </div>
 
-      {selectedReport.color && (
-        <p><b>Color:</b> {selectedReport.color}</p>
-      )}
+                {selectedReport.itemCategory && (
+                  <p>
+                    <b>Item Category:</b> {selectedReport.itemCategory}
+                  </p>
+                )}
 
-      <p><b>Location:</b> {selectedReport.location}</p>
+                {selectedReport.brand && (
+                  <p>
+                    <b>Brand:</b> {selectedReport.brand}
+                  </p>
+                )}
 
-      {selectedReport.currentLocation && (
-        <p><b>Current Location:</b> {selectedReport.currentLocation}</p>
-      )}
+                {selectedReport.color && (
+                  <p>
+                    <b>Color:</b> {selectedReport.color}
+                  </p>
+                )}
 
-      <p><b>Description:</b> {selectedReport.description}</p>
+                <p>
+                  <b>Location:</b> {selectedReport.location || "N/A"}
+                </p>
 
-      <hr />
+                {selectedReport.currentLocation && (
+                  <p>
+                    <b>Current Location:</b> {selectedReport.currentLocation}
+                  </p>
+                )}
 
-      <h3>Reporter Details</h3>
+                <p>
+                  <b>Description:</b> {selectedReport.description}
+                </p>
 
-      <p><b>Reporter Name:</b> {selectedReport.reporterName}</p>
+                <hr />
 
-      {selectedReport.relation && (
-        <p><b>Relation:</b> {selectedReport.relation}</p>
-      )}
+                <h3>Reporter Details</h3>
 
-      {selectedReport.reporterAddress && (
-        <p><b>Address:</b> {selectedReport.reporterAddress}</p>
-      )}
+                <p>
+                  <b>Reporter Name:</b> {selectedReport.reporterName}
+                </p>
 
-      <p><b>Contact Number:</b> {selectedReport.reporterContact}</p>
+                {selectedReport.relation && (
+                  <p>
+                    <b>Relation:</b> {selectedReport.relation}
+                  </p>
+                )}
 
-      <a
-        href={`tel:${selectedReport.reporterContact}`}
-        className="call-btn"
-      >
-        <FaPhoneAlt /> Contact Now
-      </a>
-    </div>
-  </div>
-)}
+                {selectedReport.reporterAddress && (
+                  <p>
+                    <b>Address:</b> {selectedReport.reporterAddress}
+                  </p>
+                )}
+
+                {selectedReport.reporterEmail && (
+                  <p>
+                    <b>Email:</b> {selectedReport.reporterEmail}
+                  </p>
+                )}
+
+                <p>
+                  <b>Contact Number:</b>{" "}
+                  {selectedReport.reporterContact || "N/A"}
+                </p>
+
+                {selectedReport.reporterContact && (
+                  <a
+                    href={`tel:${selectedReport.reporterContact}`}
+                    className="call-btn"
+                  >
+                    <FaPhoneAlt /> Contact Now
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
 
           <Footer />
         </main>
