@@ -22,6 +22,26 @@ const userSchema = new mongoose.Schema({
     required: true
   },
 
+  city: {
+  type: String,
+  default: "",
+},
+
+address: {
+  type: String,
+  default: "",
+},
+
+bio: {
+  type: String,
+  default: "",
+},
+
+profileImage: {
+  type: String,
+  default: "",
+},
+
   role: {
     type: String,
     enum: ['user', 'admin'],
