@@ -2,12 +2,11 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 import { useNavigate } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FaCalendarAlt,
   FaUser,
   FaMapMarkerAlt,
-  FaInfoCircle,
   FaEye,
   FaShareAlt,
   FaRedo,
@@ -16,6 +15,8 @@ import {
 import "./Persons.css";
 import CommentsButton from "../components/CommentsButton";
 import ReportPostButton from "../components/ReportPostButton";
+
+const REPORTS_KEY = "lostFoundReports";
 
 const personsData = [
   {
@@ -34,6 +35,9 @@ const personsData = [
     reporterRelationship: "Father",
     image:
       "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
 
   {
@@ -53,6 +57,9 @@ const personsData = [
     reporterRelationship: "Citizen",
     image:
       "https://images.unsplash.com/photo-1516627145497-ae6968895b74?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
 
   {
@@ -71,6 +78,9 @@ const personsData = [
     reporterRelationship: "Brother",
     image:
       "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
 
   {
@@ -90,6 +100,9 @@ const personsData = [
     reporterRelationship: "NGO Worker",
     image:
       "https://images.unsplash.com/photo-1519457431-44ccd64a579b?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
 
   {
@@ -101,13 +114,15 @@ const personsData = [
     lastSeenLocation: "D-Ground Faisalabad",
     city: "Faisalabad",
     date: "2026-03-19",
-    description:
-      "Last seen wearing grey hoodie and black trousers.",
+    description: "Last seen wearing grey hoodie and black trousers.",
     reporterFullName: "Shahid Mehmood",
     reporterContactNumber: "03457778888",
     reporterRelationship: "Father",
     image:
       "https://images.unsplash.com/photo-1517588632672-9758d6acba04?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
 
   {
@@ -120,13 +135,15 @@ const personsData = [
     currentLocation: "District Hospital Rawalpindi",
     city: "Rawalpindi",
     date: "2026-04-09",
-    description:
-      "Found near hospital road. Carrying small purple backpack.",
+    description: "Found near hospital road. Carrying small purple backpack.",
     reporterFullName: "Nadia Khan",
     reporterContactNumber: "03016667777",
     reporterRelationship: "Citizen",
     image:
       "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
 
   {
@@ -138,13 +155,15 @@ const personsData = [
     lastSeenLocation: "Clock Tower, Sialkot",
     city: "Sialkot",
     date: "2026-05-20",
-    description:
-      "Lost during shopping rush. Wearing blue cap and white shirt.",
+    description: "Lost during shopping rush. Wearing blue cap and white shirt.",
     reporterFullName: "Tariq Ahmed",
     reporterContactNumber: "03078889999",
     reporterRelationship: "Father",
     image:
       "https://images.unsplash.com/photo-1472162072942-cd5147eb3902?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
 
   {
@@ -157,13 +176,15 @@ const personsData = [
     currentLocation: "Local Police Station Hyderabad",
     city: "Hyderabad",
     date: "2026-05-22",
-    description:
-      "Found near shopping area. Wearing green dress and white scarf.",
+    description: "Found near shopping area. Wearing green dress and white scarf.",
     reporterFullName: "Faisal Ahmed",
     reporterContactNumber: "03189990000",
     reporterRelationship: "Citizen",
     image:
       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
 
   {
@@ -175,15 +196,89 @@ const personsData = [
     lastSeenLocation: "University Road, Peshawar",
     city: "Peshawar",
     date: "2026-05-25",
-    description:
-      "Last seen wearing brown jacket and black shoes.",
+    description: "Last seen wearing brown jacket and black shoes.",
     reporterFullName: "Kamran Raza",
     reporterContactNumber: "03297776666",
     reporterRelationship: "Brother",
     image:
       "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    adminStatus: "Verified",
+    caseStatus: "Unsolved",
   },
 ];
+
+const readReports = () => {
+  try {
+    const savedReports = localStorage.getItem(REPORTS_KEY);
+    const parsedReports = savedReports ? JSON.parse(savedReports) : [];
+
+    return Array.isArray(parsedReports) ? parsedReports : [];
+  } catch {
+    return [];
+  }
+};
+
+const normalizePersonReport = (report) => {
+  const status = report.status || report.type || "Missing";
+
+  return {
+    ...report,
+    id: report.id,
+    status,
+    type: status,
+    name: report.name || report.title || "Unknown Person",
+    title: report.title || report.name || "Unknown Person",
+    age: report.age || "",
+    gender: report.gender || "Other",
+    lastSeenLocation:
+      report.lastSeenLocation || (status === "Missing" ? report.location : ""),
+    foundLocation:
+      report.foundLocation || (status === "Found" ? report.location : ""),
+    currentLocation: report.currentLocation || "",
+    city: report.city || "Unknown",
+    date: report.date || "",
+    description: report.description || "",
+    reporterFullName:
+      report.reporterFullName || report.reporterName || "Unknown Reporter",
+    reporterContactNumber:
+      report.reporterContactNumber || report.reporterContact || "",
+    reporterRelationship:
+      report.reporterRelationship || report.relation || "Reporter",
+    reporterEmail: report.reporterEmail || "",
+    image: report.image || "",
+    comments: Array.isArray(report.comments) ? report.comments : [],
+    adminStatus: report.adminStatus || "Pending Review",
+    caseStatus: report.caseStatus || "Unsolved",
+    flagCount: Number(report.flagCount || 0),
+    flags: Array.isArray(report.flags) ? report.flags : [],
+  };
+};
+
+const getPersonReportsFromStorage = () => {
+  return readReports()
+    .filter((report) => report.category === "Person")
+    .filter((report) =>
+      ["Missing", "Found"].includes(report.type || report.status)
+    )
+    .filter((report) => report.adminStatus !== "Rejected")
+    .map(normalizePersonReport);
+};
+
+const removeDuplicatePersons = (reports) => {
+  const seen = new Set();
+
+  return reports.filter((report) => {
+    const key = String(report.id);
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
 
 export default function Persons() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -192,16 +287,51 @@ export default function Persons() {
   const [city, setCity] = useState("All");
   const [gender, setGender] = useState("All");
   const [selectedPerson, setSelectedPerson] = useState(null);
+  const [storedPersons, setStoredPersons] = useState([]);
 
   const navigate = useNavigate();
 
-  const cities = ["All", ...new Set(personsData.map((p) => p.city))];
+  useEffect(() => {
+    const syncPersonReports = () => {
+      setStoredPersons(getPersonReportsFromStorage());
+    };
+
+    syncPersonReports();
+
+    window.addEventListener("storage", syncPersonReports);
+    window.addEventListener("lostFoundReportsUpdated", syncPersonReports);
+
+    return () => {
+      window.removeEventListener("storage", syncPersonReports);
+      window.removeEventListener("lostFoundReportsUpdated", syncPersonReports);
+    };
+  }, []);
+
+  const allPersons = useMemo(() => {
+    return removeDuplicatePersons([
+      ...storedPersons,
+      ...personsData.map(normalizePersonReport),
+    ]);
+  }, [storedPersons]);
+
+  const cities = useMemo(() => {
+    return [
+      "All",
+      ...new Set(allPersons.map((person) => person.city).filter(Boolean)),
+    ];
+  }, [allPersons]);
 
   const filteredPersons = useMemo(() => {
-    return personsData.filter((person) => {
-      const nameMatch = person.name
-        .toLowerCase()
-        .startsWith(search.toLowerCase());
+    return allPersons.filter((person) => {
+      const searchValue = search.trim().toLowerCase();
+
+      const nameMatch =
+        !searchValue ||
+        person.name.toLowerCase().includes(searchValue) ||
+        person.city.toLowerCase().includes(searchValue) ||
+        person.description.toLowerCase().includes(searchValue) ||
+        person.lastSeenLocation.toLowerCase().includes(searchValue) ||
+        person.foundLocation.toLowerCase().includes(searchValue);
 
       const caseMatch = caseType === "All" || person.status === caseType;
       const cityMatch = city === "All" || person.city === city;
@@ -209,7 +339,7 @@ export default function Persons() {
 
       return nameMatch && caseMatch && cityMatch && genderMatch;
     });
-  }, [search, caseType, city, gender]);
+  }, [allPersons, search, caseType, city, gender]);
 
   const resetFilters = () => {
     setSearch("");
@@ -225,6 +355,7 @@ export default function Persons() {
         : person.foundLocation;
 
     const text = `${person.status} Person: ${person.name}, Age: ${person.age}, Location: ${location}, Contact: ${person.reporterContactNumber}`;
+
     navigator.clipboard.writeText(text);
     alert("Person report copied for sharing!");
   };
@@ -261,12 +392,15 @@ export default function Persons() {
           <div className="persons-filters">
             <input
               type="text"
-              placeholder="Search by name..."
+              placeholder="Search by name, city or location..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
 
-            <select value={caseType} onChange={(e) => setCaseType(e.target.value)}>
+            <select
+              value={caseType}
+              onChange={(e) => setCaseType(e.target.value)}
+            >
               <option value="All">All Cases</option>
               <option value="Missing">Missing</option>
               <option value="Found">Found</option>
@@ -293,7 +427,7 @@ export default function Persons() {
           </div>
 
           <p className="result-count">
-            Showing {filteredPersons.length} of {personsData.length} reports
+            Showing {filteredPersons.length} of {allPersons.length} reports
           </p>
 
           {filteredPersons.length === 0 ? (
@@ -336,32 +470,30 @@ export default function Persons() {
                       <FaCalendarAlt /> Date: {person.date}
                     </p>
 
-                  <div className="card-buttons">
-  <button
-    className="view-details-btn"
-    onClick={() => setSelectedPerson(person)}
-  >
-    <FaEye /> View Details
-  </button>
+                    <div className="card-buttons">
+                      <button
+                        className="view-details-btn"
+                        onClick={() => setSelectedPerson(person)}
+                      >
+                        <FaEye /> View Details
+                      </button>
 
-   <CommentsButton
-    reportTitle={person.title || person.name}
-    initialComments={person.comments || []}
-    currentUser="John Doe"
-  />
-  
-  <ReportPostButton report={person} />
+                      <CommentsButton
+                        reportTitle={person.title || person.name}
+                        initialComments={person.comments || []}
+                        currentUser="John Doe"
+                      />
 
-  <button
-    className="share-btn"
-    onClick={() => handleShare(person)}
-  >
-    <FaShareAlt />
-    Share
-  </button>
-                        
- 
-</div>
+                      <ReportPostButton report={person} />
+
+                      <button
+                        className="share-btn"
+                        onClick={() => handleShare(person)}
+                      >
+                        <FaShareAlt />
+                        Share
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -369,8 +501,14 @@ export default function Persons() {
           )}
 
           {selectedPerson && (
-            <div className="modal-overlay" onClick={() => setSelectedPerson(null)}>
-              <div className="details-modal" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="modal-overlay"
+              onClick={() => setSelectedPerson(null)}
+            >
+              <div
+                className="details-modal"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button
                   className="close-modal"
                   onClick={() => setSelectedPerson(null)}
@@ -393,29 +531,72 @@ export default function Persons() {
                 <h2>{selectedPerson.name}</h2>
 
                 <div className="detail-grid">
-                  <p><b>Age:</b> {selectedPerson.age}</p>
-                  <p><b>Gender:</b> {selectedPerson.gender}</p>
-                  <p><b>City:</b> {selectedPerson.city}</p>
-                  <p><b>Date:</b> {selectedPerson.date}</p>
+                  <p>
+                    <b>Age:</b> {selectedPerson.age}
+                  </p>
+
+                  <p>
+                    <b>Gender:</b> {selectedPerson.gender}
+                  </p>
+
+                  <p>
+                    <b>City:</b> {selectedPerson.city}
+                  </p>
+
+                  <p>
+                    <b>Date:</b> {selectedPerson.date}
+                  </p>
+
+                  <p>
+                    <b>Case Status:</b>{" "}
+                    {selectedPerson.caseStatus || "Unsolved"}
+                  </p>
                 </div>
 
                 {selectedPerson.status === "Missing" ? (
-                  <p><b>Last Seen Location:</b> {selectedPerson.lastSeenLocation}</p>
+                  <p>
+                    <b>Last Seen Location:</b>{" "}
+                    {selectedPerson.lastSeenLocation}
+                  </p>
                 ) : (
                   <>
-                    <p><b>Found Location:</b> {selectedPerson.foundLocation}</p>
-                    <p><b>Currently Present At:</b> {selectedPerson.currentLocation}</p>
+                    <p>
+                      <b>Found Location:</b> {selectedPerson.foundLocation}
+                    </p>
+
+                    <p>
+                      <b>Currently Present At:</b>{" "}
+                      {selectedPerson.currentLocation}
+                    </p>
                   </>
                 )}
 
-                <p><b>Description:</b> {selectedPerson.description}</p>
+                <p>
+                  <b>Description:</b> {selectedPerson.description}
+                </p>
 
                 <hr />
 
                 <h3>Reporter Contact Details</h3>
-                <p><b>Reporter Name:</b> {selectedPerson.reporterFullName}</p>
-                <p><b>Relationship:</b> {selectedPerson.reporterRelationship}</p>
-                <p><b>Contact Number:</b> {selectedPerson.reporterContactNumber}</p>
+
+                <p>
+                  <b>Reporter Name:</b> {selectedPerson.reporterFullName}
+                </p>
+
+                <p>
+                  <b>Relationship:</b> {selectedPerson.reporterRelationship}
+                </p>
+
+                <p>
+                  <b>Contact Number:</b>{" "}
+                  {selectedPerson.reporterContactNumber}
+                </p>
+
+                {selectedPerson.reporterEmail && (
+                  <p>
+                    <b>Email:</b> {selectedPerson.reporterEmail}
+                  </p>
+                )}
 
                 <a
                   href={`tel:${selectedPerson.reporterContactNumber}`}

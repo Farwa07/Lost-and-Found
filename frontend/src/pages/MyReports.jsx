@@ -176,7 +176,7 @@ const initialReports = [
     image:
       "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=1200&auto=format&fit=crop",
   },
- ];
+];
 
 const REPORTS_KEY = "lostFoundReports";
 
@@ -198,9 +198,18 @@ const writeReports = (nextReports) => {
   window.dispatchEvent(new Event("lostFoundReportsUpdated"));
 };
 
+const getStatusClass = (status = "") => {
+  const normalized = String(status).toLowerCase();
+
+  if (normalized === "pending review") {
+    return "pending";
+  }
+
+  return normalized.replace(/\s+/g, "-");
+};
+
 export default function MyReports() {
   const navigate = useNavigate();
-
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -209,6 +218,9 @@ export default function MyReports() {
   const [editingReport, setEditingReport] = useState(null);
   const [message, setMessage] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
+
+  const [autoOpenCommentReportId, setAutoOpenCommentReportId] = useState("");
+  const [autoOpenCommentKey, setAutoOpenCommentKey] = useState("");
 
   const saveReports = (nextReports) => {
     setReports(nextReports);
@@ -240,8 +252,9 @@ export default function MyReports() {
   const stats = useMemo(() => {
     return {
       total: reports.length,
-      pending: reports.filter((report) => ["Pending", "Pending Review"].includes(report.adminStatus))
-        .length,
+      pending: reports.filter((report) =>
+        ["Pending", "Pending Review"].includes(report.adminStatus)
+      ).length,
       verified: reports.filter((report) => report.adminStatus === "Verified")
         .length,
       solved: reports.filter((report) => report.caseStatus === "Solved").length,
@@ -249,25 +262,28 @@ export default function MyReports() {
   }, [reports]);
 
   const filteredReports = useMemo(() => {
-  if (activeFilter === "pending") {
-    return reports.filter((report) => ["Pending", "Pending Review"].includes(report.adminStatus));
-  }
+    if (activeFilter === "pending") {
+      return reports.filter((report) =>
+        ["Pending", "Pending Review"].includes(report.adminStatus)
+      );
+    }
 
-  if (activeFilter === "verified") {
-    return reports.filter((report) => report.adminStatus === "Verified");
-  }
+    if (activeFilter === "verified") {
+      return reports.filter((report) => report.adminStatus === "Verified");
+    }
 
-  if (activeFilter === "solved") {
-    return reports.filter((report) => report.caseStatus === "Solved");
-  }
+    if (activeFilter === "solved") {
+      return reports.filter((report) => report.caseStatus === "Solved");
+    }
 
-  return reports;
-}, [reports, activeFilter]);
+    return reports;
+  }, [reports, activeFilter]);
 
   useEffect(() => {
     const reportId = searchParams.get("reportId");
+    const shouldOpenComments = searchParams.get("openComments") === "true";
 
-    if (!reportId) {
+    if (!reportId || reports.length === 0) {
       return;
     }
 
@@ -275,9 +291,33 @@ export default function MyReports() {
       (report) => String(report.id) === String(reportId)
     );
 
-    if (targetReport) {
-      setSelectedReport(targetReport);
+    if (!targetReport) {
+      return;
     }
+
+    if (shouldOpenComments) {
+      setActiveFilter("all");
+      setSelectedReport(null);
+      setEditingReport(null);
+
+      setAutoOpenCommentReportId(String(targetReport.id));
+      setAutoOpenCommentKey(`${targetReport.id}-${Date.now()}`);
+
+      setTimeout(() => {
+        const reportElement = document.getElementById(
+          `myreport-${targetReport.id}`
+        );
+
+        reportElement?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 150);
+
+      return;
+    }
+
+    setSelectedReport(targetReport);
   }, [searchParams, reports]);
 
   const openReportDetails = (report) => {
@@ -315,7 +355,8 @@ export default function MyReports() {
       report.id === id
         ? {
             ...report,
-            caseStatus: report.caseStatus === "Solved" ? "Unsolved" : "Solved",
+            caseStatus:
+              report.caseStatus === "Solved" ? "Unsolved" : "Solved",
           }
         : report
     );
@@ -413,74 +454,74 @@ export default function MyReports() {
           </section>
 
           <section className="myreports-stats">
-  <button
-    type="button"
-    className={`myreports-stat-card ${
-      activeFilter === "all" ? "myreports-stat-card--active" : ""
-    }`}
-    onClick={() => setActiveFilter("all")}
-  >
-    <div className="myreports-stat-icon">
-      <FaFileAlt />
-    </div>
+            <button
+              type="button"
+              className={`myreports-stat-card ${
+                activeFilter === "all" ? "myreports-stat-card--active" : ""
+              }`}
+              onClick={() => setActiveFilter("all")}
+            >
+              <div className="myreports-stat-icon">
+                <FaFileAlt />
+              </div>
 
-    <div>
-      <h3>{stats.total}</h3>
-      <p>Total Reports</p>
-    </div>
-  </button>
+              <div>
+                <h3>{stats.total}</h3>
+                <p>Total Reports</p>
+              </div>
+            </button>
 
-  <button
-    type="button"
-    className={`myreports-stat-card ${
-      activeFilter === "pending" ? "myreports-stat-card--active" : ""
-    }`}
-    onClick={() => setActiveFilter("pending")}
-  >
-    <div className="myreports-stat-icon">
-      <FaClock />
-    </div>
+            <button
+              type="button"
+              className={`myreports-stat-card ${
+                activeFilter === "pending" ? "myreports-stat-card--active" : ""
+              }`}
+              onClick={() => setActiveFilter("pending")}
+            >
+              <div className="myreports-stat-icon">
+                <FaClock />
+              </div>
 
-    <div>
-      <h3>{stats.pending}</h3>
-      <p>Pending Review</p>
-    </div>
-  </button>
+              <div>
+                <h3>{stats.pending}</h3>
+                <p>Pending Review</p>
+              </div>
+            </button>
 
-  <button
-    type="button"
-    className={`myreports-stat-card ${
-      activeFilter === "verified" ? "myreports-stat-card--active" : ""
-    }`}
-    onClick={() => setActiveFilter("verified")}
-  >
-    <div className="myreports-stat-icon">
-      <FaCheckCircle />
-    </div>
+            <button
+              type="button"
+              className={`myreports-stat-card ${
+                activeFilter === "verified" ? "myreports-stat-card--active" : ""
+              }`}
+              onClick={() => setActiveFilter("verified")}
+            >
+              <div className="myreports-stat-icon">
+                <FaCheckCircle />
+              </div>
 
-    <div>
-      <h3>{stats.verified}</h3>
-      <p>Verified</p>
-    </div>
-  </button>
+              <div>
+                <h3>{stats.verified}</h3>
+                <p>Verified</p>
+              </div>
+            </button>
 
-  <button
-    type="button"
-    className={`myreports-stat-card ${
-      activeFilter === "solved" ? "myreports-stat-card--active" : ""
-    }`}
-    onClick={() => setActiveFilter("solved")}
-  >
-    <div className="myreports-stat-icon">
-      <FaCheckCircle />
-    </div>
+            <button
+              type="button"
+              className={`myreports-stat-card ${
+                activeFilter === "solved" ? "myreports-stat-card--active" : ""
+              }`}
+              onClick={() => setActiveFilter("solved")}
+            >
+              <div className="myreports-stat-icon">
+                <FaCheckCircle />
+              </div>
 
-    <div>
-      <h3>{stats.solved}</h3>
-      <p>Solved</p>
-    </div>
-  </button>
-</section>
+              <div>
+                <h3>{stats.solved}</h3>
+                <p>Solved</p>
+              </div>
+            </button>
+          </section>
 
           {message && (
             <div className="myreports-message">
@@ -495,7 +536,11 @@ export default function MyReports() {
 
           <section className="myreports-list">
             {filteredReports.map((report) => (
-              <div className="myreports-card" key={report.id}>
+              <div
+                id={`myreport-${report.id}`}
+                className="myreports-card"
+                key={report.id}
+              >
                 <div className="myreports-card__image">
                   <img src={report.image} alt={report.title} />
 
@@ -518,7 +563,9 @@ export default function MyReports() {
 
                     <div className="myreports-badges">
                       <span
-                        className={`myreports-admin-status myreports-admin-status--${report.adminStatus.toLowerCase()}`}
+                        className={`myreports-admin-status myreports-admin-status--${getStatusClass(
+                          report.adminStatus
+                        )}`}
                       >
                         {getAdminIcon(report.adminStatus)}
                         {report.adminStatus}
@@ -564,30 +611,35 @@ export default function MyReports() {
                     </label>
 
                     <div className="myreports-actions">
-  <button onClick={() => openReportDetails(report)}>
-    <FaEye />
-    View
-  </button>
+                      <button onClick={() => openReportDetails(report)}>
+                        <FaEye />
+                        View
+                      </button>
 
-  <CommentsButton
-    reportTitle={report.title || report.name}
-    initialComments={report.comments || []}
-    currentUser="John Doe"
-  />
+                      <CommentsButton
+                        reportTitle={report.title || report.name}
+                        initialComments={report.comments || []}
+                        currentUser="John Doe"
+                        autoOpenKey={
+                          autoOpenCommentReportId === String(report.id)
+                            ? autoOpenCommentKey
+                            : ""
+                        }
+                      />
 
-  <button onClick={() => setEditingReport(report)}>
-    <FaEdit />
-    Edit
-  </button>
+                      <button onClick={() => setEditingReport(report)}>
+                        <FaEdit />
+                        Edit
+                      </button>
 
-  <button
-    className="myreports-delete"
-    onClick={() => handleDeleteReport(report.id)}
-  >
-    <FaTrash />
-    Delete
-  </button>
-</div>
+                      <button
+                        className="myreports-delete"
+                        onClick={() => handleDeleteReport(report.id)}
+                      >
+                        <FaTrash />
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

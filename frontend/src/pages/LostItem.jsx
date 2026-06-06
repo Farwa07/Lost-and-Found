@@ -7,6 +7,107 @@ import {
   FaIdCard,
 } from "react-icons/fa";
 
+const REPORTS_KEY = "lostFoundReports";
+
+const cityOptions = [
+  "Lahore",
+  "Karachi",
+  "Islamabad",
+  "Gujranwala",
+  "Sialkot",
+  "Faisalabad",
+  "Multan",
+  "Rawalpindi",
+  "Peshawar",
+  "Quetta",
+  "Hyderabad",
+];
+
+const readReports = () => {
+  try {
+    const savedReports = localStorage.getItem(REPORTS_KEY);
+    const parsedReports = savedReports ? JSON.parse(savedReports) : [];
+
+    return Array.isArray(parsedReports) ? parsedReports : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeReports = (nextReports) => {
+  localStorage.setItem(REPORTS_KEY, JSON.stringify(nextReports));
+  window.dispatchEvent(new Event("lostFoundReportsUpdated"));
+};
+
+const getCurrentUser = () => {
+  try {
+    const currentUser = localStorage.getItem("lostFoundCurrentUser");
+    const registeredUser = localStorage.getItem("lostFoundRegisteredUser");
+
+    if (currentUser) {
+      return JSON.parse(currentUser);
+    }
+
+    if (registeredUser) {
+      return JSON.parse(registeredUser);
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const fileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      resolve("");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      resolve(reader.result);
+    };
+
+    reader.onerror = () => {
+      reject(new Error("File could not be read"));
+    };
+
+    reader.readAsDataURL(file);
+  });
+};
+
+const inferCity = (...values) => {
+  const combinedValue = values
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const matchedCity = cityOptions.find((city) =>
+    combinedValue.includes(city.toLowerCase())
+  );
+
+  if (matchedCity) {
+    return matchedCity;
+  }
+
+  const locationValue = values.find(Boolean) || "";
+  const locationParts = locationValue
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return locationParts.length > 1
+    ? locationParts[locationParts.length - 1]
+    : "Unknown";
+};
+
+const createReportId = () => {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+};
+
 const LostItem = () => {
   const initialState = {
     itemName: "",
@@ -27,6 +128,7 @@ const LostItem = () => {
   };
 
   const [formData, setFormData] = useState(initialState);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -44,15 +146,76 @@ const LostItem = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log("Lost Item Report:", formData);
+    if (isSubmitting) {
+      return;
+    }
 
-    alert("Lost Item Report Submitted Successfully!");
+    try {
+      setIsSubmitting(true);
 
-    setFormData(initialState);
-    e.target.reset();
+      const currentUser = getCurrentUser();
+      const reportImage = await fileToBase64(formData.lostItemImage);
+
+      const newReport = {
+        id: createReportId(),
+        type: "Lost",
+        status: "Lost",
+        category: "Item",
+        title: formData.itemName.trim(),
+        age: "",
+        gender: "",
+        itemCategory: formData.itemCategory,
+        color: formData.itemColor.trim(),
+        brand: formData.itemBrand.trim(),
+        city: inferCity(formData.lostLocation, formData.reporterAddress),
+        location: formData.lostLocation.trim(),
+        currentLocation: "",
+        date: formData.lostDate,
+        adminStatus: "Pending Review",
+        caseStatus: "Unsolved",
+        description: formData.itemDescription.trim(),
+        reporterName: formData.reporterFullName.trim(),
+        reporterContact: formData.reporterContactNumber.trim(),
+        reporterEmail: formData.reporterEmail.trim(),
+        reporterAddress: formData.reporterAddress.trim(),
+        relation: "",
+        image: reportImage,
+        ownerName: currentUser?.fullName || formData.reporterFullName.trim(),
+        ownerEmail: currentUser?.email || formData.reporterEmail.trim(),
+        ownerId:
+          currentUser?.id ||
+          currentUser?.email ||
+          formData.reporterEmail.trim(),
+        flags: [],
+        flagCount: 0,
+        comments: [],
+        createdAt: new Date().toISOString(),
+        reporterIdCardFileName: formData.reporterIdCardImage?.name || "",
+        reportSource: "User Submitted",
+      };
+
+      const previousReports = readReports();
+      const nextReports = [newReport, ...previousReports];
+
+      writeReports(nextReports);
+
+      console.log("Lost Item Report Saved:", newReport);
+
+      alert(
+        "Lost Item Report Submitted Successfully! It is now pending admin review."
+      );
+
+      setFormData(initialState);
+      e.target.reset();
+    } catch (error) {
+      console.error("Lost Item Submit Error:", error);
+      alert("Something went wrong while saving the report. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -143,7 +306,7 @@ const LostItem = () => {
                 <input
                   type="text"
                   name="lostLocation"
-                  placeholder="Where was the item lost?"
+                  placeholder="Where was the item lost, city?"
                   value={formData.lostLocation}
                   onChange={handleChange}
                   required
@@ -291,8 +454,12 @@ const LostItem = () => {
               </div>
             </div>
 
-            <button type="submit" className="lost-item-submit-btn">
-              Submit Lost Item Report
+            <button
+              type="submit"
+              className="lost-item-submit-btn"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Submitting..." : "Submit Lost Item Report"}
             </button>
           </form>
         </div>

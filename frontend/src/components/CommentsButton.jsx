@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 
@@ -15,9 +15,10 @@ import { useAuth } from "../context/AuthContext";
 import "./CommentsButton.css";
 
 export default function CommentsButton({
-  reportTitle = "Report",
+  reportTitle,
   initialComments = [],
   currentUser = "John Doe",
+  autoOpenKey = "",
 }) {
   const navigate = useNavigate();
 
@@ -27,6 +28,14 @@ export default function CommentsButton({
     authUser?.fullName || currentUser || "John Doe";
 
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+  if (autoOpenKey) {
+    setOpen(true);
+  }
+}, [autoOpenKey]);
+
+
   const [comments, setComments] = useState(initialComments);
   const [commentText, setCommentText] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
