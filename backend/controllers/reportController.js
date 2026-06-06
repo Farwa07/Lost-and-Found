@@ -1,4 +1,5 @@
 const Report = require("../models/report");
+const ReportComplaint = require("../models/reportComplaint");
 
 // CREATE LOST ITEM REPORT
 const createLostItemReport = async (req, res) => {
@@ -18,6 +19,7 @@ const createLostItemReport = async (req, res) => {
     } = req.body;
 
     const newReport = new Report({
+      userId: req.user ? req.user.id : null,
       reportType: "lost",
       category: "item",
 
@@ -74,6 +76,7 @@ const createFoundItemReport = async (req, res) => {
     } = req.body;
 
     const newReport = new Report({
+      userId: req.user ? req.user.id : null,
       reportType: "found",
       category: "item",
 
@@ -129,6 +132,7 @@ const createMissingPersonReport = async (req, res) => {
     } = req.body;
 
     const newReport = new Report({
+      userId: req.user ? req.user.id : null,
       reportType: "lost",
       category: "person",
 
@@ -185,6 +189,7 @@ const createFoundPersonReport = async (req, res) => {
     } = req.body;
 
     const newReport = new Report({
+      userId: req.user ? req.user.id : null,
       reportType: "found",
       category: "person",
 
@@ -220,11 +225,146 @@ const createFoundPersonReport = async (req, res) => {
     });
   }
 };
+// GET ALL REPORTS
+const getAllReports = async (req, res) => {
+  try {
+    const reports = await Report.find().sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "Reports fetched successfully",
+      reports,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// GET ITEM REPORTS ONLY
+const getItemReports = async (req, res) => {
+  try {
+    const reports = await Report.find({ category: "item" }).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json({
+      message: "Item reports fetched successfully",
+      reports,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// GET PERSON REPORTS ONLY
+const getPersonReports = async (req, res) => {
+  try {
+    const reports = await Report.find({ category: "person" }).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json({
+      message: "Person reports fetched successfully",
+      reports,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// GET SINGLE REPORT BY ID
+const getReportById = async (req, res) => {
+  try {
+    const report = await Report.findById(req.params.id);
+
+    if (!report) {
+      return res.status(404).json({
+        message: "Report not found",
+      });
+    }
+
+    res.status(200).json({
+      message: "Report fetched successfully",
+      report,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// GET MY REPORTS
+const getMyReports = async (req, res) => {
+  try {
+    const reports = await Report.find({ userId: req.user.id }).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json({
+      message: "My reports fetched successfully",
+      reports,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// REPORT A POST
+const reportPost = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const reportId = req.params.id;
+
+    if (!reason) {
+      return res.status(400).json({
+        message: "Reason is required",
+      });
+    }
+
+    const report = await Report.findById(reportId);
+
+    if (!report) {
+      return res.status(404).json({
+        message: "Report not found",
+      });
+    }
+
+    const newComplaint = new ReportComplaint({
+      reportId,
+      userId: req.user ? req.user.id : null,
+      reason,
+    });
+
+    await newComplaint.save();
+
+    res.status(201).json({
+      message: "Post reported successfully. Admin will review it.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
 
 module.exports = {
   createLostItemReport,
   createFoundItemReport,
   createMissingPersonReport,
   createFoundPersonReport,
+  getAllReports,
+  getItemReports,
+  getPersonReports,
+  getReportById,
+  getMyReports,
+  reportPost,
 };
    
