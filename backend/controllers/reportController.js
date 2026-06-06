@@ -1,4 +1,5 @@
 const Report = require("../models/report");
+const ReportComplaint = require("../models/reportComplaint");
 
 // CREATE LOST ITEM REPORT
 const createLostItemReport = async (req, res) => {
@@ -316,6 +317,44 @@ const getMyReports = async (req, res) => {
   }
 };
 
+// REPORT A POST
+const reportPost = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const reportId = req.params.id;
+
+    if (!reason) {
+      return res.status(400).json({
+        message: "Reason is required",
+      });
+    }
+
+    const report = await Report.findById(reportId);
+
+    if (!report) {
+      return res.status(404).json({
+        message: "Report not found",
+      });
+    }
+
+    const newComplaint = new ReportComplaint({
+      reportId,
+      userId: req.user ? req.user.id : null,
+      reason,
+    });
+
+    await newComplaint.save();
+
+    res.status(201).json({
+      message: "Post reported successfully. Admin will review it.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createLostItemReport,
   createFoundItemReport,
@@ -326,5 +365,6 @@ module.exports = {
   getPersonReports,
   getReportById,
   getMyReports,
+  reportPost,
 };
    

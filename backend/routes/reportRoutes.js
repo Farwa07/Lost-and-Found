@@ -13,6 +13,7 @@ const {
   getPersonReports,
   getReportById,
   getMyReports,
+  reportPost,
 } = require("../controllers/reportController");
 
 // Multer storage setup
@@ -72,6 +73,9 @@ router.post(
   ]),
   createFoundPersonReport
 );
+
+// Report a post
+router.post("/:id/report-post", authMiddleware, reportPost);
 
 // Get all reports
 router.get("/", getAllReports);
