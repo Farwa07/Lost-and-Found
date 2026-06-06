@@ -493,11 +493,11 @@ export default function Items() {
                     </button>
 
                     <CommentsButton
-                      reportTitle={item.title || item.itemName}
-                      initialComments={item.comments || []}
-                      currentUser="John Doe"
-                    />
-
+  reportId={item.id}
+  reportTitle={item.title || item.itemName}
+  initialComments={item.comments || []}
+  currentUser="John Doe"
+/>
                     <ReportPostButton report={item} />
 
                     <button

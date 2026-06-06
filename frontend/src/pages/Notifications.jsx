@@ -100,7 +100,11 @@ const readNotifications = () => {
       return Array.isArray(parsed) ? parsed : initialNotifications;
     }
 
-    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(initialNotifications));
+    localStorage.setItem(
+      NOTIFICATIONS_KEY,
+      JSON.stringify(initialNotifications)
+    );
+
     return initialNotifications;
   } catch {
     return initialNotifications;
@@ -110,6 +114,50 @@ const readNotifications = () => {
 const writeNotifications = (nextNotifications) => {
   localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(nextNotifications));
   window.dispatchEvent(new Event("lostFoundNotificationsUpdated"));
+};
+
+const getRelativeTime = (createdAt, fallback = "") => {
+  if (!createdAt) {
+    return fallback || "Just now";
+  }
+
+  const createdDate = new Date(createdAt);
+
+  if (Number.isNaN(createdDate.getTime())) {
+    return fallback || "Just now";
+  }
+
+  const diffMs = Date.now() - createdDate.getTime();
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSeconds < 60) {
+    return "Just now";
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes > 1 ? "s" : ""} ago`;
+  }
+
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  }
+
+  if (diffDays === 1) {
+    return "Yesterday";
+  }
+
+  if (diffDays < 7) {
+    return `${diffDays} days ago`;
+  }
+
+  return createdDate.toLocaleDateString("en-PK", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 };
 
 export default function Notifications() {
@@ -184,78 +232,91 @@ export default function Notifications() {
     setSelectedNotification(null);
   };
 
- const openNotification = (notification) => {
-  const nextNotifications = notifications.map((item) =>
-    item.id === notification.id
-      ? {
-          ...item,
-          isRead: true,
-        }
-      : item
-  );
+  const openNotification = (notification) => {
+    const nextNotifications = notifications.map((item) =>
+      item.id === notification.id
+        ? {
+            ...item,
+            isRead: true,
+          }
+        : item
+    );
 
-  setNotifications(nextNotifications);
-  localStorage.setItem(
-    "lostFoundNotifications",
-    JSON.stringify(nextNotifications)
-  );
+    saveNotifications(nextNotifications);
 
-  const type = String(notification.type || "").toLowerCase();
+    const updatedNotification = {
+      ...notification,
+      isRead: true,
+    };
 
-  if (type === "match") {
+    const type = String(notification.type || "").toLowerCase();
+
+    if (type === "match") {
+      if (notification.actionUrl) {
+        navigate(notification.actionUrl);
+        return;
+      }
+
+      if (notification.matchId) {
+        navigate(`/match-alert/${notification.matchId}`);
+        return;
+      }
+
+      setSelectedNotification({
+        ...updatedNotification,
+        extraMessage:
+          "This match alert has no confirmed match comparison data yet. Confirm the match from Admin Panel first.",
+      });
+      return;
+    }
+
+    if (type === "comment") {
+      if (notification.actionUrl) {
+        navigate(notification.actionUrl);
+        return;
+      }
+
+      if (notification.reportId) {
+        navigate(`/reports?reportId=${notification.reportId}&openComments=true`);
+        return;
+      }
+
+      setSelectedNotification(updatedNotification);
+      return;
+    }
+
+    if (type === "verification" || type === "status") {
+      if (notification.reportId) {
+        navigate(`/reports?reportId=${notification.reportId}`);
+        return;
+      }
+
+      setSelectedNotification(updatedNotification);
+      return;
+    }
+
+    if (type === "alert") {
+      if (notification.reportId) {
+        navigate(`/reports?reportId=${notification.reportId}`);
+        return;
+      }
+
+      setSelectedNotification(updatedNotification);
+      return;
+    }
+
     if (notification.actionUrl) {
       navigate(notification.actionUrl);
       return;
     }
 
-    if (notification.matchId) {
-      navigate(`/match-alert/${notification.matchId}`);
-      return;
-    }
-
-    alert(
-      "This match alert has no confirmed match data yet. Confirm the match from Admin Panel first."
-    );
-    return;
-  }
-
-  if (type === "comment") {
-    if (notification.reportId) {
-      navigate(`/reports?reportId=${notification.reportId}&openComments=true`);
-      return;
-    }
-
-    alert(notification.message);
-    return;
-  }
-
-  if (type === "verification" || type === "status") {
     if (notification.reportId) {
       navigate(`/reports?reportId=${notification.reportId}`);
       return;
     }
 
-    alert(notification.message);
-    return;
-  }
-
-  if (type === "alert") {
-    if (notification.reportId) {
-      navigate(`/reports?reportId=${notification.reportId}`);
-      return;
-    }
-
-    alert(notification.message);
-    return;
-  }
-
-  if (notification.reportId) {
-    navigate(`/reports?reportId=${notification.reportId}`);
-    return;
-  }
-
-  alert(notification.message);
-};
+    setSelectedNotification(updatedNotification);
+  };
 
   const getNotificationIcon = (type) => {
     if (type === "Match") {
@@ -397,7 +458,10 @@ export default function Notifications() {
 
                       <span>
                         <FaClock />
-                        {notification.time || "Just now"}
+                        {getRelativeTime(
+                          notification.createdAt,
+                          notification.time
+                        )}
                       </span>
                     </div>
 
@@ -489,7 +553,10 @@ export default function Notifications() {
 
                   <span>
                     <FaClock />
-                    {selectedNotification.time || "Just now"}
+                    {getRelativeTime(
+                      selectedNotification.createdAt,
+                      selectedNotification.time
+                    )}
                   </span>
                 </div>
 

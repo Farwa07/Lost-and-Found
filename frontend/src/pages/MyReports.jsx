@@ -25,6 +25,8 @@ import {
   FaExclamationCircle,
 } from "react-icons/fa";
 
+const REPORTS_KEY = "lostFoundReports";
+
 const initialReports = [
   {
     id: 1,
@@ -46,10 +48,18 @@ const initialReports = [
       "Last seen wearing blue shirt and black trousers near Anarkali Bazaar.",
     reporterName: "John Doe",
     reporterContact: "03001234567",
+    reporterEmail: "john@example.com",
     reporterAddress: "Gujranwala",
     relation: "Father",
+    ownerName: "John Doe",
+    ownerEmail: "john@example.com",
+    ownerId: "john@example.com",
     image:
       "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    flags: [],
+    flagCount: 0,
+    createdAt: "2026-05-12T10:30:00.000Z",
   },
   {
     id: 2,
@@ -65,16 +75,24 @@ const initialReports = [
     location: "Satellite Town Market, Gujranwala",
     currentLocation: "",
     date: "2026-05-20",
-    adminStatus: "Pending",
+    adminStatus: "Pending Review",
     caseStatus: "Unsolved",
     description:
       "Black leather wallet with CNIC copy and some cash inside. Lost near market area.",
     reporterName: "John Doe",
     reporterContact: "03001234567",
+    reporterEmail: "john@example.com",
     reporterAddress: "Satellite Town, Gujranwala",
     relation: "",
+    ownerName: "John Doe",
+    ownerEmail: "john@example.com",
+    ownerId: "john@example.com",
     image:
       "https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    flags: [],
+    flagCount: 0,
+    createdAt: "2026-05-20T09:20:00.000Z",
   },
   {
     id: 3,
@@ -96,10 +114,18 @@ const initialReports = [
       "Samsung mobile found near roadside. Owner can contact with proof.",
     reporterName: "John Doe",
     reporterContact: "03001234567",
+    reporterEmail: "john@example.com",
     reporterAddress: "Gujranwala",
     relation: "",
+    ownerName: "John Doe",
+    ownerEmail: "john@example.com",
+    ownerId: "john@example.com",
     image:
       "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    flags: [],
+    flagCount: 0,
+    createdAt: "2026-05-22T13:10:00.000Z",
   },
   {
     id: 4,
@@ -121,10 +147,18 @@ const initialReports = [
       "Child found crying near market area. Wearing pink dress and white shoes.",
     reporterName: "John Doe",
     reporterContact: "03001234567",
+    reporterEmail: "john@example.com",
     reporterAddress: "Gujranwala",
     relation: "Citizen",
+    ownerName: "John Doe",
+    ownerEmail: "john@example.com",
+    ownerId: "john@example.com",
     image:
       "https://images.unsplash.com/photo-1516627145497-ae6968895b74?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    flags: [],
+    flagCount: 0,
+    createdAt: "2026-04-30T13:10:00.000Z",
   },
   {
     id: 5,
@@ -140,16 +174,24 @@ const initialReports = [
     location: "Liberty Market, Lahore",
     currentLocation: "",
     date: "2026-05-10",
-    adminStatus: "Pending",
+    adminStatus: "Pending Review",
     caseStatus: "Unsolved",
     description:
       "Blue school backpack lost near Liberty Market. It has books, notebooks and a cartoon keychain attached.",
     reporterName: "John Doe",
     reporterContact: "03001234567",
+    reporterEmail: "john@example.com",
     reporterAddress: "Johar Town, Lahore",
     relation: "",
+    ownerName: "John Doe",
+    ownerEmail: "john@example.com",
+    ownerId: "john@example.com",
     image:
       "https://images.unsplash.com/photo-1581605405669-fcdf81165afa?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    flags: [],
+    flagCount: 0,
+    createdAt: "2026-05-10T17:45:00.000Z",
   },
   {
     id: 6,
@@ -171,25 +213,122 @@ const initialReports = [
       "Black Dell laptop bag lost near D Ground Faisalabad. It contains charger, documents and some personal notes.",
     reporterName: "John Doe",
     reporterContact: "03001234567",
+    reporterEmail: "john@example.com",
     reporterAddress: "Peoples Colony, Faisalabad",
     relation: "",
+    ownerName: "John Doe",
+    ownerEmail: "john@example.com",
+    ownerId: "john@example.com",
     image:
       "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=1200&auto=format&fit=crop",
+    comments: [],
+    flags: [],
+    flagCount: 0,
+    createdAt: "2026-03-18T08:40:00.000Z",
   },
 ];
 
-const REPORTS_KEY = "lostFoundReports";
+const safeParse = (value, fallback = null) => {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const getCurrentUser = () => {
+  const currentUser = safeParse(localStorage.getItem("lostFoundCurrentUser"));
+  const registeredUser = safeParse(localStorage.getItem("lostFoundRegisteredUser"));
+
+  return currentUser || registeredUser || null;
+};
+
+const getSafeImage = (report) => {
+  if (report.image) {
+    return report.image;
+  }
+
+  if (report.category === "Person") {
+    return "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop";
+  }
+
+  return "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1200&auto=format&fit=crop";
+};
+
+const normalizeReport = (report) => {
+  const type = report.type || report.status || "Missing";
+  const category = report.category || "Person";
+
+  return {
+    ...report,
+    id: report.id,
+    type,
+    status: type,
+    category,
+    title: report.title || report.name || report.itemName || "Untitled Report",
+    age: report.age || "",
+    gender: report.gender || "",
+    itemCategory: report.itemCategory || "",
+    color: report.color || report.itemColor || "",
+    brand: report.brand || report.itemBrand || "",
+    city: report.city || "Unknown",
+    location:
+      report.location ||
+      report.lastSeenLocation ||
+      report.foundLocation ||
+      report.lostLocation ||
+      "",
+    currentLocation: report.currentLocation || "",
+    date: report.date || report.lostDate || report.foundDate || "",
+    adminStatus: report.adminStatus || "Pending Review",
+    caseStatus: report.caseStatus || "Unsolved",
+    description: report.description || report.itemDescription || "",
+    reporterName:
+      report.reporterName ||
+      report.reporterFullName ||
+      report.ownerName ||
+      "Unknown Reporter",
+    reporterContact:
+      report.reporterContact || report.reporterContactNumber || "",
+    reporterEmail: report.reporterEmail || report.ownerEmail || "",
+    reporterAddress: report.reporterAddress || "",
+    relation: report.relation || report.reporterRelationship || "",
+    ownerName:
+      report.ownerName ||
+      report.reporterName ||
+      report.reporterFullName ||
+      "",
+    ownerEmail:
+      report.ownerEmail ||
+      report.reporterEmail ||
+      "",
+    ownerId:
+      report.ownerId ||
+      report.ownerEmail ||
+      report.reporterEmail ||
+      "",
+    image: getSafeImage(report),
+    comments: Array.isArray(report.comments) ? report.comments : [],
+    flags: Array.isArray(report.flags) ? report.flags : [],
+    flagCount: Number(report.flagCount || 0),
+    createdAt: report.createdAt || new Date().toISOString(),
+  };
+};
 
 const readReports = () => {
   try {
     const savedReports = localStorage.getItem(REPORTS_KEY);
-    const parsedReports = savedReports ? JSON.parse(savedReports) : null;
 
-    return Array.isArray(parsedReports) && parsedReports.length > 0
-      ? parsedReports
-      : initialReports;
+    if (savedReports) {
+      const parsedReports = JSON.parse(savedReports);
+      return Array.isArray(parsedReports)
+        ? parsedReports.map(normalizeReport)
+        : initialReports.map(normalizeReport);
+    }
+
+    return initialReports.map(normalizeReport);
   } catch {
-    return initialReports;
+    return initialReports.map(normalizeReport);
   }
 };
 
@@ -208,12 +347,39 @@ const getStatusClass = (status = "") => {
   return normalized.replace(/\s+/g, "-");
 };
 
+const isOwnReport = (report, currentUser) => {
+  if (!currentUser) {
+    return true;
+  }
+
+  const userEmail = String(currentUser.email || "").trim().toLowerCase();
+  const userName = String(currentUser.fullName || currentUser.name || "")
+    .trim()
+    .toLowerCase();
+
+  const ownerEmail = String(report.ownerEmail || "").trim().toLowerCase();
+  const reporterEmail = String(report.reporterEmail || "").trim().toLowerCase();
+  const ownerName = String(report.ownerName || "").trim().toLowerCase();
+  const reporterName = String(report.reporterName || "").trim().toLowerCase();
+
+  if (userEmail && (ownerEmail === userEmail || reporterEmail === userEmail)) {
+    return true;
+  }
+
+  if (userName && !ownerEmail && !reporterEmail) {
+    return ownerName === userName || reporterName === userName;
+  }
+
+  return false;
+};
+
 export default function MyReports() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [reports, setReports] = useState([]);
+  const [allReports, setAllReports] = useState([]);
+  const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
   const [selectedReport, setSelectedReport] = useState(null);
   const [editingReport, setEditingReport] = useState(null);
   const [message, setMessage] = useState("");
@@ -222,32 +388,41 @@ export default function MyReports() {
   const [autoOpenCommentReportId, setAutoOpenCommentReportId] = useState("");
   const [autoOpenCommentKey, setAutoOpenCommentKey] = useState("");
 
-  const saveReports = (nextReports) => {
-    setReports(nextReports);
-    writeReports(nextReports);
+  const saveAllReports = (nextReports) => {
+    const normalizedReports = nextReports.map(normalizeReport);
+
+    setAllReports(normalizedReports);
+    writeReports(normalizedReports);
   };
 
   useEffect(() => {
     const syncReports = () => {
+      setCurrentUser(getCurrentUser());
+
       const latestReports = readReports();
-      setReports(latestReports);
+      setAllReports(latestReports);
+
+      if (!localStorage.getItem(REPORTS_KEY)) {
+        writeReports(latestReports);
+      }
     };
 
-    const latestReports = readReports();
-    setReports(latestReports);
-
-    if (!localStorage.getItem(REPORTS_KEY)) {
-      writeReports(latestReports);
-    }
+    syncReports();
 
     window.addEventListener("storage", syncReports);
+    window.addEventListener("authChanged", syncReports);
     window.addEventListener("lostFoundReportsUpdated", syncReports);
 
     return () => {
       window.removeEventListener("storage", syncReports);
+      window.removeEventListener("authChanged", syncReports);
       window.removeEventListener("lostFoundReportsUpdated", syncReports);
     };
   }, []);
+
+  const reports = useMemo(() => {
+    return allReports.filter((report) => isOwnReport(report, currentUser));
+  }, [allReports, currentUser]);
 
   const stats = useMemo(() => {
     return {
@@ -342,17 +517,37 @@ export default function MyReports() {
       return;
     }
 
-    const nextReports = reports.filter((report) => report.id !== id);
+    const targetReport = reports.find(
+      (report) => String(report.id) === String(id)
+    );
 
-    saveReports(nextReports);
+    if (!targetReport) {
+      setMessage("You can delete only your own reports.");
+      return;
+    }
+
+    const nextReports = allReports.filter(
+      (report) => String(report.id) !== String(id)
+    );
+
+    saveAllReports(nextReports);
     setMessage("Report deleted successfully.");
     setSelectedReport(null);
     setSearchParams({});
   };
 
   const handleSolvedToggle = (id) => {
-    const nextReports = reports.map((report) =>
-      report.id === id
+    const targetReport = reports.find(
+      (report) => String(report.id) === String(id)
+    );
+
+    if (!targetReport) {
+      setMessage("You can update only your own reports.");
+      return;
+    }
+
+    const nextReports = allReports.map((report) =>
+      String(report.id) === String(id)
         ? {
             ...report,
             caseStatus:
@@ -361,7 +556,7 @@ export default function MyReports() {
         : report
     );
 
-    saveReports(nextReports);
+    saveAllReports(nextReports);
     setMessage("Case status updated successfully.");
   };
 
@@ -401,11 +596,33 @@ export default function MyReports() {
   const handleSaveEdit = (e) => {
     e.preventDefault();
 
-    const nextReports = reports.map((report) =>
-      report.id === editingReport.id ? editingReport : report
+    if (!editingReport) {
+      return;
+    }
+
+    const targetReport = reports.find(
+      (report) => String(report.id) === String(editingReport.id)
     );
 
-    saveReports(nextReports);
+    if (!targetReport) {
+      setMessage("You can edit only your own reports.");
+      setEditingReport(null);
+      return;
+    }
+
+    const protectedAdminStatus = targetReport.adminStatus || "Pending Review";
+
+    const nextReports = allReports.map((report) =>
+      String(report.id) === String(editingReport.id)
+        ? normalizeReport({
+            ...report,
+            ...editingReport,
+            adminStatus: protectedAdminStatus,
+          })
+        : report
+    );
+
+    saveAllReports(nextReports);
     setMessage("Report updated successfully.");
     setEditingReport(null);
   };
@@ -535,115 +752,124 @@ export default function MyReports() {
           )}
 
           <section className="myreports-list">
-            {filteredReports.map((report) => (
-              <div
-                id={`myreport-${report.id}`}
-                className="myreports-card"
-                key={report.id}
-              >
-                <div className="myreports-card__image">
-                  <img src={report.image} alt={report.title} />
-
-                  <span
-                    className={`myreports-type ${
-                      report.type === "Found"
-                        ? "myreports-type--found"
-                        : "myreports-type--missing"
-                    }`}
-                  >
-                    {report.type}
-                  </span>
-                </div>
-
-                <div className="myreports-card__content">
-                  <div className="myreports-card__top">
-                    <span className="myreports-category">
-                      {report.category}
-                    </span>
-
-                    <div className="myreports-badges">
-                      <span
-                        className={`myreports-admin-status myreports-admin-status--${getStatusClass(
-                          report.adminStatus
-                        )}`}
-                      >
-                        {getAdminIcon(report.adminStatus)}
-                        {report.adminStatus}
-                      </span>
-
-                      <span
-                        className={`myreports-case-status ${
-                          report.caseStatus === "Solved"
-                            ? "myreports-case-status--solved"
-                            : "myreports-case-status--unsolved"
-                        }`}
-                      >
-                        {report.caseStatus}
-                      </span>
-                    </div>
-                  </div>
-
-                  <h2>{report.title}</h2>
-
-                  <p>
-                    <FaMapMarkerAlt />
-                    {report.location}
-                  </p>
-
-                  <p>
-                    <FaCalendarAlt />
-                    {report.date}
-                  </p>
-
-                  <p className="myreports-description">
-                    {report.description}
-                  </p>
-
-                  <div className="myreports-card__footer">
-                    <label className="myreports-solved-check">
-                      <input
-                        type="checkbox"
-                        checked={report.caseStatus === "Solved"}
-                        onChange={() => handleSolvedToggle(report.id)}
-                      />
-
-                      Mark as solved
-                    </label>
-
-                    <div className="myreports-actions">
-                      <button onClick={() => openReportDetails(report)}>
-                        <FaEye />
-                        View
-                      </button>
-
-                      <CommentsButton
-                        reportTitle={report.title || report.name}
-                        initialComments={report.comments || []}
-                        currentUser="John Doe"
-                        autoOpenKey={
-                          autoOpenCommentReportId === String(report.id)
-                            ? autoOpenCommentKey
-                            : ""
-                        }
-                      />
-
-                      <button onClick={() => setEditingReport(report)}>
-                        <FaEdit />
-                        Edit
-                      </button>
-
-                      <button
-                        className="myreports-delete"
-                        onClick={() => handleDeleteReport(report.id)}
-                      >
-                        <FaTrash />
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
+            {filteredReports.length === 0 ? (
+              <div className="empty-box">
+                <h3>No report found</h3>
+                <p>
+                  You have not submitted any report in this filter yet.
+                </p>
               </div>
-            ))}
+            ) : (
+              filteredReports.map((report) => (
+                <div
+                  id={`myreport-${report.id}`}
+                  className="myreports-card"
+                  key={report.id}
+                >
+                  <div className="myreports-card__image">
+                    <img src={report.image} alt={report.title} />
+
+                    <span
+                      className={`myreports-type ${
+                        report.type === "Found"
+                          ? "myreports-type--found"
+                          : "myreports-type--missing"
+                      }`}
+                    >
+                      {report.type}
+                    </span>
+                  </div>
+
+                  <div className="myreports-card__content">
+                    <div className="myreports-card__top">
+                      <span className="myreports-category">
+                        {report.category}
+                      </span>
+
+                      <div className="myreports-badges">
+                        <span
+                          className={`myreports-admin-status myreports-admin-status--${getStatusClass(
+                            report.adminStatus
+                          )}`}
+                        >
+                          {getAdminIcon(report.adminStatus)}
+                          {report.adminStatus}
+                        </span>
+
+                        <span
+                          className={`myreports-case-status ${
+                            report.caseStatus === "Solved"
+                              ? "myreports-case-status--solved"
+                              : "myreports-case-status--unsolved"
+                          }`}
+                        >
+                          {report.caseStatus}
+                        </span>
+                      </div>
+                    </div>
+
+                    <h2>{report.title}</h2>
+
+                    <p>
+                      <FaMapMarkerAlt />
+                      {report.location}
+                    </p>
+
+                    <p>
+                      <FaCalendarAlt />
+                      {report.date}
+                    </p>
+
+                    <p className="myreports-description">
+                      {report.description}
+                    </p>
+
+                    <div className="myreports-card__footer">
+                      <label className="myreports-solved-check">
+                        <input
+                          type="checkbox"
+                          checked={report.caseStatus === "Solved"}
+                          onChange={() => handleSolvedToggle(report.id)}
+                        />
+
+                        Mark as solved
+                      </label>
+
+                      <div className="myreports-actions">
+                        <button onClick={() => openReportDetails(report)}>
+                          <FaEye />
+                          View
+                        </button>
+<CommentsButton
+  reportId={report.id}
+  reportTitle={report.title || report.name}
+  initialComments={report.comments || []}
+  currentUser={currentUser?.fullName || "John Doe"}
+  autoOpenKey={
+    autoOpenCommentReportId === String(report.id)
+      ? autoOpenCommentKey
+      : ""
+  }
+/>
+
+                        <button onClick={() => setEditingReport(report)}>
+                          <FaEdit />
+                          Edit
+                        </button>
+
+                        <button
+                          className="myreports-delete"
+                          onClick={() => handleDeleteReport(report.id)}
+                        >
+                          <FaTrash />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </section>
 
           {selectedReport && (
@@ -759,6 +985,12 @@ export default function MyReports() {
                 {selectedReport.reporterAddress && (
                   <p>
                     <b>Address:</b> {selectedReport.reporterAddress}
+                  </p>
+                )}
+
+                {selectedReport.reporterEmail && (
+                  <p>
+                    <b>Email:</b> {selectedReport.reporterEmail}
                   </p>
                 )}
 
@@ -1008,6 +1240,17 @@ export default function MyReports() {
                         value={editingReport.reporterContact}
                         onChange={handleEditChange}
                         required
+                      />
+                    </div>
+
+                    <div className="myreports-field">
+                      <label>Reporter Email</label>
+
+                      <input
+                        type="email"
+                        name="reporterEmail"
+                        value={editingReport.reporterEmail}
+                        onChange={handleEditChange}
                       />
                     </div>
 

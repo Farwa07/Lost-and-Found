@@ -479,10 +479,11 @@ export default function Persons() {
                       </button>
 
                       <CommentsButton
-                        reportTitle={person.title || person.name}
-                        initialComments={person.comments || []}
-                        currentUser="John Doe"
-                      />
+  reportId={person.id}
+  reportTitle={person.title || person.name}
+  initialComments={person.comments || []}
+  currentUser="John Doe"
+/>
 
                       <ReportPostButton report={person} />
 

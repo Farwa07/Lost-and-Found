@@ -548,10 +548,11 @@ export default function Home() {
                       </button>
 
                       <CommentsButton
-                        reportTitle={report.title}
-                        initialComments={report.comments || []}
-                        currentUser="John Doe"
-                      />
+  reportId={report.id}
+  reportTitle={report.title}
+  initialComments={report.comments || []}
+  currentUser="John Doe"
+/>
 
                       <ReportPostButton report={report} />
 

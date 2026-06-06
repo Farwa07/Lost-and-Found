@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 
@@ -14,7 +14,47 @@ import { useAuth } from "../context/AuthContext";
 
 import "./CommentsButton.css";
 
+const REPORTS_KEY = "lostFoundReports";
+const NOTIFICATIONS_KEY = "lostFoundNotifications";
+
+const safeParse = (value, fallback = null) => {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const readReports = () => {
+  const reports = safeParse(localStorage.getItem(REPORTS_KEY), []);
+  return Array.isArray(reports) ? reports : [];
+};
+
+const writeReports = (reports) => {
+  localStorage.setItem(REPORTS_KEY, JSON.stringify(reports));
+  window.dispatchEvent(new Event("lostFoundReportsUpdated"));
+};
+
+const readNotifications = () => {
+  const notifications = safeParse(localStorage.getItem(NOTIFICATIONS_KEY), []);
+  return Array.isArray(notifications) ? notifications : [];
+};
+
+const writeNotifications = (notifications) => {
+  localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+  window.dispatchEvent(new Event("lostFoundNotificationsUpdated"));
+};
+
+const createId = () => {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+};
+
+const normalizeText = (value = "") => {
+  return String(value).trim().toLowerCase();
+};
+
 export default function CommentsButton({
+  reportId = "",
   reportTitle,
   initialComments = [],
   currentUser = "John Doe",
@@ -24,22 +64,133 @@ export default function CommentsButton({
 
   const { isLoggedIn, isRegistered, currentUser: authUser } = useAuth();
 
-  const activeUserName =
-    authUser?.fullName || currentUser || "John Doe";
+  const activeUserName = authUser?.fullName || currentUser || "John Doe";
+  const activeUserEmail = authUser?.email || "";
 
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-  if (autoOpenKey) {
-    setOpen(true);
-  }
-}, [autoOpenKey]);
-
-
   const [comments, setComments] = useState(initialComments);
   const [commentText, setCommentText] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState("");
+
+  const storageReport = useMemo(() => {
+    const reports = readReports();
+
+    if (reportId) {
+      return reports.find(
+        (report) => String(report.id) === String(reportId)
+      );
+    }
+
+    return reports.find(
+      (report) =>
+        normalizeText(report.title || report.name || report.itemName) ===
+        normalizeText(reportTitle)
+    );
+  }, [reportId, reportTitle, open]);
+
+  useEffect(() => {
+    const reports = readReports();
+
+    const matchedReport = reportId
+      ? reports.find((report) => String(report.id) === String(reportId))
+      : reports.find(
+          (report) =>
+            normalizeText(report.title || report.name || report.itemName) ===
+            normalizeText(reportTitle)
+        );
+
+    if (matchedReport && Array.isArray(matchedReport.comments)) {
+      setComments(matchedReport.comments);
+      return;
+    }
+
+    setComments(Array.isArray(initialComments) ? initialComments : []);
+  }, [reportId, reportTitle, initialComments]);
+
+  useEffect(() => {
+    if (autoOpenKey) {
+      setOpen(true);
+    }
+  }, [autoOpenKey]);
+
+  const syncCommentsToReport = (nextComments) => {
+    setComments(nextComments);
+
+    const reports = readReports();
+
+    const reportIndex = reports.findIndex((report) => {
+      if (reportId) {
+        return String(report.id) === String(reportId);
+      }
+
+      return (
+        normalizeText(report.title || report.name || report.itemName) ===
+        normalizeText(reportTitle)
+      );
+    });
+
+    if (reportIndex === -1) {
+      return;
+    }
+
+    const nextReports = reports.map((report, index) =>
+      index === reportIndex
+        ? {
+            ...report,
+            comments: nextComments,
+          }
+        : report
+    );
+
+    writeReports(nextReports);
+  };
+
+  const addCommentNotification = (actionType, text) => {
+    const reports = readReports();
+
+    const targetReport = reportId
+      ? reports.find((report) => String(report.id) === String(reportId))
+      : storageReport;
+
+    if (!targetReport) {
+      return;
+    }
+
+    const ownerEmail =
+      targetReport.ownerEmail ||
+      targetReport.reporterEmail ||
+      "";
+
+    if (
+      activeUserEmail &&
+      ownerEmail &&
+      normalizeText(activeUserEmail) === normalizeText(ownerEmail)
+    ) {
+      return;
+    }
+
+    const notifications = readNotifications();
+
+    const notification = {
+      id: createId(),
+      reportId: targetReport.id,
+      type: "Comment",
+      title: actionType === "reply" ? "New Reply on Your Report" : "New Comment on Your Report",
+      message:
+        actionType === "reply"
+          ? `${activeUserName} replied on your report "${targetReport.title || reportTitle}": ${text}`
+          : `${activeUserName} commented on your report "${targetReport.title || reportTitle}": ${text}`,
+      caseTitle: targetReport.title || reportTitle || "Report",
+      city: targetReport.city || "N/A",
+      time: "Just now",
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      actionUrl: `/reports?reportId=${targetReport.id}&openComments=true`,
+    };
+
+    writeNotifications([notification, ...notifications]);
+  };
 
   const showAuthPrompt = (actionText) => {
     alert(
@@ -67,9 +218,10 @@ export default function CommentsButton({
     });
   };
 
-  const getInitials = (name) => {
+  const getInitials = (name = "") => {
     return name
       .split(" ")
+      .filter(Boolean)
       .map((word) => word[0])
       .join("")
       .slice(0, 2)
@@ -104,14 +256,19 @@ export default function CommentsButton({
     }
 
     const newComment = {
-      id: Date.now(),
+      id: createId(),
       user: activeUserName,
+      userEmail: activeUserEmail,
       text,
       createdAt: new Date().toISOString(),
       replies: [],
     };
 
-    setComments((prev) => [...prev, newComment]);
+    const nextComments = [...comments, newComment];
+
+    syncCommentsToReport(nextComments);
+    addCommentNotification("comment", text);
+
     setCommentText("");
   };
 
@@ -121,13 +278,24 @@ export default function CommentsButton({
       return;
     }
 
+    const targetComment = comments.find(
+      (comment) => String(comment.id) === String(commentId)
+    );
+
+    if (!canDeleteComment(targetComment)) {
+      alert("You can delete only your own comment.");
+      return;
+    }
+
     const confirmDelete = window.confirm("Delete this comment?");
 
     if (!confirmDelete) return;
 
-    setComments((prev) =>
-      prev.filter((comment) => comment.id !== commentId)
+    const nextComments = comments.filter(
+      (comment) => String(comment.id) !== String(commentId)
     );
+
+    syncCommentsToReport(nextComments);
   };
 
   const handleReplyClick = (commentId) => {
@@ -155,22 +323,24 @@ export default function CommentsButton({
     }
 
     const newReply = {
-      id: Date.now(),
+      id: createId(),
       user: activeUserName,
+      userEmail: activeUserEmail,
       text,
       createdAt: new Date().toISOString(),
     };
 
-    setComments((prev) =>
-      prev.map((comment) =>
-        comment.id === commentId
-          ? {
-              ...comment,
-              replies: [...(comment.replies || []), newReply],
-            }
-          : comment
-      )
+    const nextComments = comments.map((comment) =>
+      String(comment.id) === String(commentId)
+        ? {
+            ...comment,
+            replies: [...(comment.replies || []), newReply],
+          }
+        : comment
     );
+
+    syncCommentsToReport(nextComments);
+    addCommentNotification("reply", text);
 
     setReplyText("");
     setReplyingTo(null);
@@ -182,26 +352,51 @@ export default function CommentsButton({
       return;
     }
 
+    const targetComment = comments.find(
+      (comment) => String(comment.id) === String(commentId)
+    );
+
+    const targetReply = targetComment?.replies?.find(
+      (reply) => String(reply.id) === String(replyId)
+    );
+
+    if (!canDeleteComment(targetReply)) {
+      alert("You can delete only your own reply.");
+      return;
+    }
+
     const confirmDelete = window.confirm("Delete this reply?");
 
     if (!confirmDelete) return;
 
-    setComments((prev) =>
-      prev.map((comment) =>
-        comment.id === commentId
-          ? {
-              ...comment,
-              replies: (comment.replies || []).filter(
-                (reply) => reply.id !== replyId
-              ),
-            }
-          : comment
-      )
+    const nextComments = comments.map((comment) =>
+      String(comment.id) === String(commentId)
+        ? {
+            ...comment,
+            replies: (comment.replies || []).filter(
+              (reply) => String(reply.id) !== String(replyId)
+            ),
+          }
+        : comment
     );
+
+    syncCommentsToReport(nextComments);
   };
 
-  const canDeleteComment = (commentUser) => {
-    return isLoggedIn && commentUser === activeUserName;
+  const canDeleteComment = (comment) => {
+    if (!isLoggedIn || !comment) {
+      return false;
+    }
+
+    if (
+      comment.userEmail &&
+      activeUserEmail &&
+      normalizeText(comment.userEmail) === normalizeText(activeUserEmail)
+    ) {
+      return true;
+    }
+
+    return normalizeText(comment.user) === normalizeText(activeUserName);
   };
 
   const modalContent = (
@@ -240,7 +435,7 @@ export default function CommentsButton({
                         <span>{formatDateTime(comment.createdAt)}</span>
                       </div>
 
-                      {canDeleteComment(comment.user) && (
+                      {canDeleteComment(comment) && (
                         <button
                           type="button"
                           className="comment-delete-btn"
@@ -279,7 +474,7 @@ export default function CommentsButton({
                               <span>{formatDateTime(reply.createdAt)}</span>
                             </div>
 
-                            {canDeleteComment(reply.user) && (
+                            {canDeleteComment(reply) && (
                               <button
                                 type="button"
                                 className="comment-delete-btn"
