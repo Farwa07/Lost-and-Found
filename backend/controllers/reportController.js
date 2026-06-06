@@ -220,11 +220,88 @@ const createFoundPersonReport = async (req, res) => {
     });
   }
 };
+// GET ALL REPORTS
+const getAllReports = async (req, res) => {
+  try {
+    const reports = await Report.find().sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "Reports fetched successfully",
+      reports,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// GET ITEM REPORTS ONLY
+const getItemReports = async (req, res) => {
+  try {
+    const reports = await Report.find({ category: "item" }).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json({
+      message: "Item reports fetched successfully",
+      reports,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// GET PERSON REPORTS ONLY
+const getPersonReports = async (req, res) => {
+  try {
+    const reports = await Report.find({ category: "person" }).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json({
+      message: "Person reports fetched successfully",
+      reports,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// GET SINGLE REPORT BY ID
+const getReportById = async (req, res) => {
+  try {
+    const report = await Report.findById(req.params.id);
+
+    if (!report) {
+      return res.status(404).json({
+        message: "Report not found",
+      });
+    }
+
+    res.status(200).json({
+      message: "Report fetched successfully",
+      report,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
 
 module.exports = {
   createLostItemReport,
   createFoundItemReport,
   createMissingPersonReport,
   createFoundPersonReport,
+  getAllReports,
+  getItemReports,
+  getPersonReports,
+  getReportById,
 };
    

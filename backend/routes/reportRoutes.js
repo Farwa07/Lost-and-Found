@@ -7,6 +7,10 @@ const {
   createFoundItemReport,
   createMissingPersonReport,
   createFoundPersonReport,
+  getAllReports,
+  getItemReports,
+  getPersonReports,
+  getReportById,
 } = require("../controllers/reportController");
 
 // Multer storage setup
@@ -62,5 +66,17 @@ router.post(
   ]),
   createFoundPersonReport
 );
+
+// Get all reports
+router.get("/", getAllReports);
+
+// Get item reports only
+router.get("/items", getItemReports);
+
+// Get person reports only
+router.get("/persons", getPersonReports);
+
+// Get single report by ID
+router.get("/:id", getReportById);
 
 module.exports = router;
