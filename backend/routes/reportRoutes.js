@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
+const authMiddleware = require("../middleware/authMiddleware");
 
 const {
   createLostItemReport,
@@ -11,6 +12,7 @@ const {
   getItemReports,
   getPersonReports,
   getReportById,
+  getMyReports,
 } = require("../controllers/reportController");
 
 // Multer storage setup
@@ -29,6 +31,7 @@ const upload = multer({ storage: storage });
 // Create Lost Item Report
 router.post(
   "/lost-item",
+  authMiddleware,
   upload.fields([
     { name: "lostItemImage", maxCount: 1 },
     { name: "reporterIdCardImage", maxCount: 1 },
@@ -39,6 +42,7 @@ router.post(
 // Create Found Item Report
 router.post(
   "/found-item",
+  authMiddleware,
   upload.fields([
     { name: "foundItemImage", maxCount: 1 },
     { name: "reporterIdCardImage", maxCount: 1 },
@@ -49,6 +53,7 @@ router.post(
 // Create Missing Person Report
 router.post(
   "/missing-person",
+  authMiddleware,
   upload.fields([
     { name: "missingPersonImage", maxCount: 1 },
     { name: "reporterIdCardImage", maxCount: 1 },
@@ -60,6 +65,7 @@ router.post(
 // Create Found Person Report
 router.post(
   "/found-person",
+  authMiddleware,
   upload.fields([
     { name: "foundPersonImage", maxCount: 1 },
     { name: "reporterIdCardImage", maxCount: 1 },
@@ -75,6 +81,9 @@ router.get("/items", getItemReports);
 
 // Get person reports only
 router.get("/persons", getPersonReports);
+
+// Get my reports
+router.get("/my-reports", authMiddleware, getMyReports);
 
 // Get single report by ID
 router.get("/:id", getReportById);

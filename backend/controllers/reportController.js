@@ -18,6 +18,7 @@ const createLostItemReport = async (req, res) => {
     } = req.body;
 
     const newReport = new Report({
+      userId: req.user ? req.user.id : null,
       reportType: "lost",
       category: "item",
 
@@ -74,6 +75,7 @@ const createFoundItemReport = async (req, res) => {
     } = req.body;
 
     const newReport = new Report({
+      userId: req.user ? req.user.id : null,
       reportType: "found",
       category: "item",
 
@@ -129,6 +131,7 @@ const createMissingPersonReport = async (req, res) => {
     } = req.body;
 
     const newReport = new Report({
+      userId: req.user ? req.user.id : null,
       reportType: "lost",
       category: "person",
 
@@ -185,6 +188,7 @@ const createFoundPersonReport = async (req, res) => {
     } = req.body;
 
     const newReport = new Report({
+      userId: req.user ? req.user.id : null,
       reportType: "found",
       category: "person",
 
@@ -294,6 +298,24 @@ const getReportById = async (req, res) => {
   }
 };
 
+// GET MY REPORTS
+const getMyReports = async (req, res) => {
+  try {
+    const reports = await Report.find({ userId: req.user.id }).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json({
+      message: "My reports fetched successfully",
+      reports,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createLostItemReport,
   createFoundItemReport,
@@ -303,5 +325,6 @@ module.exports = {
   getItemReports,
   getPersonReports,
   getReportById,
+  getMyReports,
 };
    
