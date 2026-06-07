@@ -6,13 +6,17 @@
 .statistics__layout {
   display: flex;
   width: 100%;
+  align-items: flex-start;
 }
 
 .statistics__main {
   flex: 1;
+  min-width: 0;
   padding: 34px;
-  overflow: hidden;
+  box-sizing: border-box;
 }
+
+/* HEADER */
 
 .statistics__header {
   display: flex;
@@ -31,18 +35,22 @@
   align-items: center;
   justify-content: center;
   font-size: 26px;
+  flex-shrink: 0;
 }
 
 .statistics__header h1 {
   font-size: 36px;
   color: #111827;
-  margin-bottom: 5px;
+  margin: 0 0 5px;
 }
 
 .statistics__header p {
   color: #64748b;
   font-size: 15px;
+  margin: 0;
 }
+
+/* TABS */
 
 .statistics__tabs {
   display: flex;
@@ -53,7 +61,7 @@
 
 .statistics__tabs button {
   border: none;
-  background: white;
+  background: #ffffff;
   color: #374151;
   padding: 12px 18px;
   border-radius: 12px;
@@ -63,18 +71,20 @@
   align-items: center;
   gap: 9px;
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.07);
-  transition: 0.25s;
+  transition: 0.25s ease;
 }
 
 .statistics__tabs button:hover,
 .statistics__tabs button.active {
   background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
-  color: white;
+  color: #ffffff;
   transform: translateY(-2px);
 }
 
+/* FILTERS */
+
 .statistics__filters {
-  background: white;
+  background: #ffffff;
   border-radius: 18px;
   padding: 22px;
   display: flex;
@@ -96,6 +106,7 @@
 
 .statistics__filterBox svg {
   color: #64748b;
+  flex-shrink: 0;
 }
 
 .statistics__filterBox select {
@@ -108,19 +119,21 @@
   color: #111827;
 }
 
+/* SUMMARY CARDS */
+
 .statistics__cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
-  margin-bottom: 26px;
+  margin-bottom: 28px;
 }
 
 .statistics__card {
-  background: white;
+  background: #ffffff;
   border-radius: 20px;
   padding: 24px;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.07);
-  transition: 0.25s;
+  transition: 0.25s ease;
   border: 1px solid #fdecc8;
 }
 
@@ -165,286 +178,167 @@
   color: #8b5cf6;
 }
 
-.statistics__up,
-.statistics__rate {
+.statistics__up {
   color: #22c55e;
-  font-weight: 800;
+  font-size: 18px;
 }
 
 .statistics__card h2 {
   font-size: 34px;
   color: #111827;
-  margin-bottom: 8px;
+  margin: 0 0 8px;
 }
 
 .statistics__card p {
   color: #64748b;
   font-size: 14px;
+  margin: 0;
 }
 
-.statistics__visuals {
+/* GRAPH SECTION */
+
+.statistics__graphs {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 26px;
-  margin-bottom: 26px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 24px;
+  margin-bottom: 28px;
 }
 
-.statistics__chartBox,
-.statistics__tableBox {
-  background: white;
-  border-radius: 20px;
-  padding: 26px;
+.statistics__graphCard {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 24px;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.07);
   border: 1px solid #fdecc8;
-}
-
-.statistics__chartBox h3,
-.statistics__tableBox h3 {
-  color: #111827;
-  margin-bottom: 18px;
-  font-size: 21px;
-}
-
-.lineChartWrap {
-  position: relative;
   overflow: hidden;
-  width: 100%;
+  min-width: 0;
 }
 
-.lineChart {
-  width: 100%;
-  height: 300px;
-  display: block;
+.statistics__graphHeader {
+  margin-bottom: 18px;
 }
 
-.lineChart line {
-  stroke: #94a3b8;
-  stroke-width: 1;
+.statistics__graphHeader h2 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  color: #111827;
 }
 
-.gridLine {
-  stroke: #e5e7eb !important;
-  stroke-dasharray: 4;
-}
-
-.line {
-  fill: none;
-  stroke-width: 3;
-}
-
-.redLine {
-  stroke: #ef4444;
-}
-
-.greenLine {
-  stroke: #10b981;
-}
-
-.blueLine {
-  stroke: #3b82f6;
-}
-
-.dot {
-  fill: white;
-  stroke-width: 3;
-  cursor: pointer;
-}
-
-.mainDotStroke {
-  stroke: #ef4444;
-}
-
-.foundDotStroke {
-  stroke: #10b981;
-}
-
-.recoveredDotStroke {
-  stroke: #3b82f6;
-}
-
-.lineChart text {
-  font-size: 13px;
-  fill: #64748b;
-}
-
-.chartTooltip {
-  position: absolute;
-  background: white;
-  border: 1px solid #d1d5db;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.13);
-  padding: 12px 16px;
-  border-radius: 8px;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-width: 130px;
-  font-size: 14px;
-  pointer-events: none;
-}
-
-.redText {
-  color: #ef4444;
-}
-
-.greenText {
-  color: #10b981;
-}
-
-.blueText {
-  color: #3b82f6;
-}
-
-.statistics__legend {
-  margin-top: 12px;
-  display: flex;
-  justify-content: center;
-  gap: 18px;
-  flex-wrap: wrap;
+.statistics__graphHeader p {
+  margin: 0;
   color: #64748b;
-  font-size: 14px;
+  font-size: 15px;
 }
 
-.statistics__legend span {
+/* CHART.JS WRAPPERS */
+
+.statistics__chartBox {
+  position: relative;
+  width: 100%;
+  height: 360px;
+  min-height: 360px;
+}
+
+.statistics__pieBox {
+  position: relative;
+  width: 100%;
+  height: 360px;
+  min-height: 360px;
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: center;
 }
 
-.statistics__legend b {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+.statistics__chartBox canvas,
+.statistics__pieBox canvas {
+  max-width: 100%;
 }
 
-.redDot {
-  background: #ef4444;
+/* SECTION HEADERS */
+
+.statistics__sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
 }
 
-.greenDot {
-  background: #10b981;
+.statistics__sectionHeader h2 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  color: #111827;
 }
 
-.blueDot {
-  background: #3b82f6;
+.statistics__sectionHeader p {
+  margin: 0;
+  color: #64748b;
+  font-size: 15px;
 }
 
-.purpleDot {
-  background: #8b5cf6;
+/* CITY WISE CASES */
+
+.statistics__citySection {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.07);
+  border: 1px solid #fdecc8;
+  margin-bottom: 28px;
 }
 
-.citySummaryCompact {
+.statistics__cityList {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 14px;
 }
 
-.citySummaryRow {
+.statistics__cityRow {
   display: grid;
-  grid-template-columns: 110px 1fr 45px;
+  grid-template-columns: 130px 1fr 45px;
   align-items: center;
   gap: 12px;
 }
 
-.citySummaryRow span {
+.statistics__cityRow span {
   font-weight: 700;
   color: #111827;
   font-size: 14px;
 }
 
-.citySummaryBar {
+.statistics__cityBar {
   height: 12px;
   background: #e5e7eb;
   border-radius: 30px;
   overflow: hidden;
 }
 
-.citySummaryBar div {
+.statistics__cityBar div {
   height: 100%;
   border-radius: 30px;
   background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
+  transition: 0.3s ease;
 }
 
-.citySummaryRow b {
+.statistics__cityRow strong {
   color: #111827;
+  text-align: right;
 }
 
-.ageBox {
-  margin-bottom: 26px;
-}
+/* TABLE */
 
-.ageChart {
-  height: 270px;
-  display: flex;
-  align-items: flex-end;
-  gap: 22px;
-  border-left: 2px solid #94a3b8;
-  border-bottom: 2px solid #94a3b8;
-  padding: 0 20px;
-}
-
-.ageBarItem {
-  flex: 1;
-  text-align: center;
-  position: relative;
-}
-
-.ageBar {
-  background: #8b5cf6;
-  border-radius: 4px 4px 0 0;
-  position: relative;
-  transition: 0.3s;
-}
-
-.ageBar:hover {
-  background: #7c3aed;
-}
-
-.agePopup {
-  display: none;
-  position: absolute;
-  top: 38%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: white;
-  color: #111827;
-  padding: 12px 16px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-  min-width: 105px;
-  line-height: 1.8;
-  z-index: 4;
-}
-
-.ageBar:hover .agePopup {
-  display: block;
-}
-
-.ageBarItem p {
-  margin-top: 10px;
-  color: #64748b;
-  font-size: 14px;
-}
-
-.statistics__tableBox {
-  overflow-x: auto;
+.statistics__tableSection {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.07);
+  border: 1px solid #fdecc8;
   margin-bottom: 30px;
 }
 
 .statistics__tableHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 20px;
-}
-
-.statistics__tableHeader h3 {
-  margin-bottom: 6px;
-}
-
-.statistics__tableHeader p {
-  color: #64748b;
-  font-size: 14px;
+  margin-bottom: 18px;
 }
 
 .statistics__showBtn {
@@ -452,42 +346,87 @@
   padding: 12px 22px;
   border-radius: 12px;
   background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
-  color: white;
+  color: #ffffff;
   font-weight: 700;
   cursor: pointer;
+  transition: 0.25s ease;
 }
 
-.statistics__tableBox table {
+.statistics__showBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(14, 165, 233, 0.25);
+}
+
+.statistics__tableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.statistics__table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 750px;
+  min-width: 760px;
 }
 
-.statistics__tableBox thead {
+.statistics__table thead {
   background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
-  color: white;
+  color: #ffffff;
 }
 
-.statistics__tableBox th,
-.statistics__tableBox td {
+.statistics__table th,
+.statistics__table td {
   padding: 16px;
   text-align: center;
   border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
 }
 
-.statistics__tableBox tbody tr:hover {
+.statistics__table th {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.statistics__table td {
+  color: #475569;
+}
+
+.statistics__table tbody tr:hover {
   background: #f8fafc;
 }
 
+/* EMPTY STATES */
+
+.statistics__empty {
+  width: 100%;
+  padding: 26px;
+  text-align: center;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 16px;
+  font-weight: 600;
+}
+
+/* RESPONSIVE */
+
 @media (max-width: 1100px) {
-  .statistics__visuals {
+  .statistics__graphs {
     grid-template-columns: 1fr;
+  }
+
+  .statistics__chartBox,
+  .statistics__pieBox {
+    height: 330px;
+    min-height: 330px;
   }
 }
 
 @media (max-width: 768px) {
   .statistics__main {
     padding: 20px;
+  }
+
+  .statistics__header {
+    align-items: flex-start;
   }
 
   .statistics__header h1 {
@@ -500,19 +439,51 @@
 
   .statistics__filterBox {
     width: 100%;
+    min-width: 0;
   }
 
-  .statistics__tableHeader {
+  .statistics__graphHeader h2,
+  .statistics__sectionHeader h2 {
+    font-size: 23px;
+  }
+
+  .statistics__chartBox,
+  .statistics__pieBox {
+    height: 300px;
+    min-height: 300px;
+  }
+
+  .statistics__cityRow {
+    grid-template-columns: 90px 1fr 35px;
+  }
+
+  .statistics__sectionHeader {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .citySummaryRow {
-    grid-template-columns: 90px 1fr 40px;
+  .statistics__table {
+    min-width: 700px;
+  }
+}
+
+@media (max-width: 520px) {
+  .statistics__cards {
+    grid-template-columns: 1fr;
   }
 
-  .ageChart {
-    gap: 12px;
-    padding: 0 12px;
+  .statistics__cityRow {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .statistics__cityRow strong {
+    text-align: left;
+  }
+
+  .statistics__chartBox,
+  .statistics__pieBox {
+    height: 280px;
+    min-height: 280px;
   }
 }

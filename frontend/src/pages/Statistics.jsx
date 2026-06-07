@@ -1,6 +1,6 @@
 import "./Statistics.css";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -16,178 +16,487 @@ import {
   FaCheckCircle,
 } from "react-icons/fa";
 
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+import { Line, Pie } from "react-chartjs-2";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Tooltip,
+  Legend
+);
+
+const REPORTS_KEY = "lostFoundReports";
+
+const monthOptions = [
+  "All Months",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const allMonths = monthOptions.filter((month) => month !== "All Months");
+
+const monthShortNames = {
+  January: "Jan",
+  February: "Feb",
+  March: "Mar",
+  April: "Apr",
+  May: "May",
+  June: "Jun",
+  July: "Jul",
+  August: "Aug",
+  September: "Sep",
+  October: "Oct",
+  November: "Nov",
+  December: "Dec",
+};
+
+const safeParse = (value, fallback = []) => {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const getMonthName = (dateValue) => {
+  if (!dateValue) {
+    return "Unknown";
+  }
+
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown";
+  }
+
+  return date.toLocaleString("en-US", {
+    month: "long",
+  });
+};
+
+const normalizeReport = (report) => {
+  const type = report.type || report.status || "Missing";
+
+  return {
+    ...report,
+    id: report.id,
+    type,
+    status: type,
+    category: report.category || "Person",
+    title: report.title || report.name || report.itemName || "Untitled Report",
+    city: report.city || "Unknown",
+    date: report.date || report.lostDate || report.foundDate || "",
+    month: getMonthName(report.date || report.lostDate || report.foundDate),
+    age: report.age || "",
+    itemCategory: report.itemCategory || report.category || "Other",
+    adminStatus: report.adminStatus || "Pending Review",
+    caseStatus: report.caseStatus || "Unsolved",
+  };
+};
+
+const readReports = () => {
+  const savedReports = safeParse(localStorage.getItem(REPORTS_KEY), []);
+
+  return Array.isArray(savedReports)
+    ? savedReports.map(normalizeReport)
+    : [];
+};
+
+const isResolvedReport = (report) => {
+  return (
+    report.caseStatus === "Solved" ||
+    report.caseStatus === "Closed" ||
+    report.adminStatus === "Matched" ||
+    report.adminStatus === "Resolved" ||
+    report.matchId
+  );
+};
+
+const getSuccessRate = (resolved, total) => {
+  if (!total) {
+    return 0;
+  }
+
+  return Math.round((resolved / total) * 100);
+};
+
+const getYAxisMax = (values) => {
+  const maxValue = Math.max(...values, 0);
+
+  return Math.max(30, Math.ceil(maxValue / 5) * 5);
+};
+
 export default function Statistics() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("persons");
   const [city, setCity] = useState("All Cities");
   const [month, setMonth] = useState("All Months");
-  const [tooltip, setTooltip] = useState(null);
+  const [reports, setReports] = useState([]);
   const [showAllRows, setShowAllRows] = useState(false);
 
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
-  const cityOptions = [
-    "All Cities",
-    "Lahore",
-    "Karachi",
-    "Islamabad",
-    "Gujranwala",
-    "Sialkot",
-    "Faisalabad",
-    "Multan",
-    "Rawalpindi",
-    "Peshawar",
-    "Quetta",
-  ];
-
-  const monthOptions = [
-    "All Months",
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  const cities = cityOptions.filter((item) => item !== "All Cities");
-  const months = monthOptions.filter((item) => item !== "All Months");
-
-  const personsData = [];
-
-  cities.forEach((cityName, cityIndex) => {
-    months.forEach((monthName, monthIndex) => {
-      personsData.push({
-        city: cityName,
-        month: monthName,
-        missing: 10 + cityIndex * 2 + monthIndex,
-        found: 7 + cityIndex + monthIndex,
-        resolved: 5 + cityIndex + Math.floor(monthIndex / 2),
-      });
-    });
-  });
-
-  const itemsData = [];
-
-  cities.forEach((cityName, cityIndex) => {
-    months.forEach((monthName, monthIndex) => {
-      itemsData.push({
-        city: cityName,
-        month: monthName,
-        lost: 25 + cityIndex * 3 + monthIndex * 2,
-        found: 18 + cityIndex * 2 + monthIndex,
-        returned: 12 + cityIndex + monthIndex,
-      });
-    });
-  });
-
-  const currentData = activeTab === "persons" ? personsData : itemsData;
-
-  const filteredData = currentData.filter((item) => {
-    return (
-      (city === "All Cities" || item.city === city) &&
-      (month === "All Months" || item.month === month)
-    );
-  });
-
-  const visibleTableData = showAllRows
-    ? filteredData
-    : filteredData.slice(0, 8);
-
-  const totalMain = filteredData.reduce((sum, item) => {
-    return sum + (activeTab === "persons" ? item.missing : item.lost);
-  }, 0);
-
-  const totalFound = filteredData.reduce((sum, item) => sum + item.found, 0);
-
-  const totalRecovered = filteredData.reduce((sum, item) => {
-    return sum + (activeTab === "persons" ? item.resolved : item.returned);
-  }, 0);
-
-  const rate =
-    totalMain > 0 ? Math.round((totalRecovered / totalMain) * 100) : 0;
-
-  const monthlyChartData = months.map((monthName) => {
-    const records = currentData.filter((item) => {
-      return (
-        item.month === monthName &&
-        (city === "All Cities" || item.city === city)
-      );
-    });
-
-    return {
-      month: monthName,
-      main: records.reduce(
-        (sum, item) =>
-          sum + (activeTab === "persons" ? item.missing : item.lost),
-        0
-      ),
-      found: records.reduce((sum, item) => sum + item.found, 0),
-      recovered: records.reduce(
-        (sum, item) =>
-          sum + (activeTab === "persons" ? item.resolved : item.returned),
-        0
-      ),
+  useEffect(() => {
+    const syncReports = () => {
+      setReports(readReports());
     };
-  });
 
-  const citySummaryData = cities.map((cityName) => {
-    const records = currentData.filter((item) => item.city === cityName);
+    syncReports();
 
-    return {
-      city: cityName,
-      total: records.reduce(
-        (sum, item) =>
-          sum + (activeTab === "persons" ? item.missing : item.lost),
-        0
-      ),
+    window.addEventListener("storage", syncReports);
+    window.addEventListener("lostFoundReportsUpdated", syncReports);
+
+    return () => {
+      window.removeEventListener("storage", syncReports);
+      window.removeEventListener("lostFoundReportsUpdated", syncReports);
     };
-  });
+  }, []);
 
-  const maxCityTotal =
-    Math.max(...citySummaryData.map((item) => item.total)) || 1;
-
-  const maxChartValue =
-    Math.max(
-      ...monthlyChartData.map((item) =>
-        Math.max(item.main, item.found, item.recovered)
+  const currentReports = useMemo(() => {
+    return reports
+      .filter((report) =>
+        activeTab === "persons"
+          ? report.category === "Person"
+          : report.category === "Item"
       )
-    ) || 1;
+      .filter((report) => report.adminStatus !== "Rejected");
+  }, [reports, activeTab]);
 
-  const makePoints = (key) => {
-    return monthlyChartData
-      .map((item, index) => {
-        const x = 55 + index * 62;
-        const y = 240 - (item[key] / maxChartValue) * 190;
-        return `${x},${y}`;
-      })
-      .join(" ");
+  const cityOptions = useMemo(() => {
+    const dynamicCities = [
+      ...new Set(currentReports.map((report) => report.city).filter(Boolean)),
+    ].sort();
+
+    return ["All Cities", ...dynamicCities];
+  }, [currentReports]);
+
+  const filteredReports = useMemo(() => {
+    return currentReports.filter((report) => {
+      const cityMatch = city === "All Cities" || report.city === city;
+      const monthMatch = month === "All Months" || report.month === month;
+
+      return cityMatch && monthMatch;
+    });
+  }, [currentReports, city, month]);
+
+  const mainType = activeTab === "persons" ? "Missing" : "Lost";
+  const mainLabel = activeTab === "persons" ? "Missing" : "Lost";
+  const foundLabel = "Found";
+  const resolvedLabel = "Resolved";
+
+  const totalMain = filteredReports.filter(
+    (report) => report.type === mainType
+  ).length;
+
+  const totalFound = filteredReports.filter(
+    (report) => report.type === "Found"
+  ).length;
+
+  const totalResolved = filteredReports.filter(isResolvedReport).length;
+  const totalCases = filteredReports.length;
+  const successRate = getSuccessRate(totalResolved, totalCases);
+
+  const chartMonths = month === "All Months" ? allMonths : [month];
+
+  const monthlyTrendData = useMemo(() => {
+    return chartMonths.map((monthName) => {
+      const records = currentReports.filter((report) => {
+        const cityMatch = city === "All Cities" || report.city === city;
+
+        return report.month === monthName && cityMatch;
+      });
+
+      return {
+        month: monthShortNames[monthName] || monthName,
+        fullMonth: monthName,
+        main: records.filter((report) => report.type === mainType).length,
+        found: records.filter((report) => report.type === "Found").length,
+        resolved: records.filter(isResolvedReport).length,
+      };
+    });
+  }, [chartMonths, currentReports, city, mainType]);
+
+  const yAxisMax = getYAxisMax(
+    monthlyTrendData.flatMap((item) => [
+      item.main,
+      item.found,
+      item.resolved,
+    ])
+  );
+
+  const lineChartData = {
+    labels: monthlyTrendData.map((item) => item.month),
+    datasets: [
+      {
+        label: mainLabel,
+        data: monthlyTrendData.map((item) => item.main),
+        borderColor: "#ef4444",
+        backgroundColor: "#ef4444",
+        pointBackgroundColor: "#ffffff",
+        pointBorderColor: "#ef4444",
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 3,
+        tension: 0.35,
+      },
+      {
+        label: foundLabel,
+        data: monthlyTrendData.map((item) => item.found),
+        borderColor: "#10b981",
+        backgroundColor: "#10b981",
+        pointBackgroundColor: "#ffffff",
+        pointBorderColor: "#10b981",
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 3,
+        tension: 0.35,
+      },
+      {
+        label: resolvedLabel,
+        data: monthlyTrendData.map((item) => item.resolved),
+        borderColor: "#3b82f6",
+        backgroundColor: "#3b82f6",
+        pointBackgroundColor: "#ffffff",
+        pointBorderColor: "#3b82f6",
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 3,
+        tension: 0.35,
+      },
+    ],
   };
 
-  const ageGroups =
-    activeTab === "persons"
-      ? [
-          { label: "0-12", count: 15 },
-          { label: "13-18", count: 22 },
-          { label: "19-35", count: 36 },
-          { label: "36-60", count: 29 },
-          { label: "60+", count: 18 },
-        ]
-      : [
-          { label: "Electronics", count: 36 },
-          { label: "Bags", count: 25 },
-          { label: "Wallets", count: 30 },
-          { label: "Documents", count: 18 },
-          { label: "Others", count: 22 },
-        ];
+  const lineChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: "index",
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: {
+          usePointStyle: true,
+          boxWidth: 8,
+          boxHeight: 8,
+          padding: 18,
+          font: {
+            size: 13,
+            weight: "600",
+          },
+        },
+      },
+      tooltip: {
+        backgroundColor: "#ffffff",
+        titleColor: "#111827",
+        bodyColor: "#111827",
+        borderColor: "#d1d5db",
+        borderWidth: 1,
+        padding: 12,
+        displayColors: true,
+        callbacks: {
+          title: (tooltipItems) => {
+            const index = tooltipItems[0]?.dataIndex || 0;
+            return monthlyTrendData[index]?.month || "";
+          },
+          label: (context) => {
+            return `${context.dataset.label.toLowerCase()} : ${context.parsed.y}`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          color: "#e5e7eb",
+          borderDash: [4, 4],
+        },
+        ticks: {
+          color: "#64748b",
+          font: {
+            size: 13,
+            weight: "600",
+          },
+        },
+      },
+      y: {
+  beginAtZero: true,
+  max: yAxisMax,
+  ticks: {
+    stepSize: 5,
+    precision: 0,
+    color: "#64748b",
+    font: {
+      size: 13,
+      weight: "600",
+    },
+  },
+  grid: {
+    color: "#d1d5db",
+    borderDash: [4, 4],
+  },
+},
+    },
+  };
 
-  const maxAge = Math.max(...ageGroups.map((item) => item.count));
+  const pieChartData = {
+    labels: [mainLabel, foundLabel, resolvedLabel],
+    datasets: [
+      {
+        data: [totalMain, totalFound, totalResolved],
+        backgroundColor: ["#ef4444", "#10b981", "#3b82f6"],
+        borderColor: "#ffffff",
+        borderWidth: 2,
+      },
+    ],
+  };
+
+  const pieChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: "bottom",
+        labels: {
+          usePointStyle: true,
+          boxWidth: 8,
+          boxHeight: 8,
+          padding: 18,
+          font: {
+            size: 13,
+            weight: "600",
+          },
+        },
+      },
+      tooltip: {
+        backgroundColor: "#ffffff",
+        titleColor: "#111827",
+        bodyColor: "#111827",
+        borderColor: "#d1d5db",
+        borderWidth: 1,
+        padding: 12,
+        callbacks: {
+          label: (context) => {
+            const total = context.dataset.data.reduce(
+              (sum, value) => sum + value,
+              0
+            );
+
+            const value = context.parsed || 0;
+            const percentage = total ? Math.round((value / total) * 100) : 0;
+
+            return `${context.label}: ${value} (${percentage}%)`;
+          },
+        },
+      },
+    },
+  };
+
+  const hasPieData = totalMain + totalFound + totalResolved > 0;
+
+  const cityWiseCases = useMemo(() => {
+    const grouped = {};
+
+    currentReports.forEach((report) => {
+      const cityMatch = city === "All Cities" || report.city === city;
+      const monthMatch = month === "All Months" || report.month === month;
+
+      if (!cityMatch || !monthMatch) {
+        return;
+      }
+
+      if (!grouped[report.city]) {
+        grouped[report.city] = 0;
+      }
+
+      grouped[report.city] += 1;
+    });
+
+    return Object.entries(grouped)
+      .map(([cityName, total]) => ({
+        city: cityName,
+        total,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [currentReports, city, month]);
+
+  const maxCityValue = Math.max(
+    ...cityWiseCases.map((item) => item.total),
+    1
+  );
+
+  const detailedStats = useMemo(() => {
+    const grouped = {};
+
+    filteredReports.forEach((report) => {
+      const key = `${report.city}-${report.month}`;
+
+      if (!grouped[key]) {
+        grouped[key] = {
+          city: report.city,
+          month: report.month,
+          main: 0,
+          found: 0,
+          resolved: 0,
+          total: 0,
+        };
+      }
+
+      if (report.type === mainType) {
+        grouped[key].main += 1;
+      }
+
+      if (report.type === "Found") {
+        grouped[key].found += 1;
+      }
+
+      if (isResolvedReport(report)) {
+        grouped[key].resolved += 1;
+      }
+
+      grouped[key].total += 1;
+    });
+
+    return Object.values(grouped).sort((a, b) => {
+      if (a.city === b.city) {
+        return allMonths.indexOf(a.month) - allMonths.indexOf(b.month);
+      }
+
+      return a.city.localeCompare(b.city);
+    });
+  }, [filteredReports, mainType]);
+
+  const visibleRows = showAllRows
+    ? detailedStats
+    : detailedStats.slice(0, 8);
 
   return (
     <div className="statistics">
@@ -204,7 +513,7 @@ export default function Statistics() {
 
             <div>
               <h1>Statistics & Analytics</h1>
-              <p>Comprehensive reports and data visualization</p>
+              <p>Real-time analytics based on submitted reports</p>
             </div>
           </section>
 
@@ -213,6 +522,8 @@ export default function Statistics() {
               className={activeTab === "persons" ? "active" : ""}
               onClick={() => {
                 setActiveTab("persons");
+                setCity("All Cities");
+                setMonth("All Months");
                 setShowAllRows(false);
               }}
             >
@@ -224,6 +535,8 @@ export default function Statistics() {
               className={activeTab === "items" ? "active" : ""}
               onClick={() => {
                 setActiveTab("items");
+                setCity("All Cities");
+                setMonth("All Months");
                 setShowAllRows(false);
               }}
             >
@@ -244,7 +557,9 @@ export default function Statistics() {
                 }}
               >
                 {cityOptions.map((cityName) => (
-                  <option key={cityName}>{cityName}</option>
+                  <option key={cityName} value={cityName}>
+                    {cityName}
+                  </option>
                 ))}
               </select>
             </div>
@@ -260,7 +575,9 @@ export default function Statistics() {
                 }}
               >
                 {monthOptions.map((monthName) => (
-                  <option key={monthName}>{monthName}</option>
+                  <option key={monthName} value={monthName}>
+                    {monthName}
+                  </option>
                 ))}
               </select>
             </div>
@@ -272,11 +589,15 @@ export default function Statistics() {
                 <span className="statistics__cardIcon red">
                   {activeTab === "persons" ? <FaUsers /> : <FaBoxOpen />}
                 </span>
+
                 <FaArrowUp className="statistics__up" />
               </div>
 
               <h2>{totalMain}</h2>
-              <p>{activeTab === "persons" ? "Missing Persons" : "Lost Items"}</p>
+
+              <p>
+                {activeTab === "persons" ? "Missing Persons" : "Lost Items"}
+              </p>
             </div>
 
             <div className="statistics__card">
@@ -284,11 +605,15 @@ export default function Statistics() {
                 <span className="statistics__cardIcon green">
                   {activeTab === "persons" ? <FaUsers /> : <FaBoxOpen />}
                 </span>
+
                 <FaArrowUp className="statistics__up" />
               </div>
 
               <h2>{totalFound}</h2>
-              <p>{activeTab === "persons" ? "Found Persons" : "Found Items"}</p>
+
+              <p>
+                {activeTab === "persons" ? "Found Persons" : "Found Items"}
+              </p>
             </div>
 
             <div className="statistics__card">
@@ -296,11 +621,17 @@ export default function Statistics() {
                 <span className="statistics__cardIcon blue">
                   <FaCheckCircle />
                 </span>
+
                 <FaArrowUp className="statistics__up" />
               </div>
 
-              <h2>{totalRecovered}</h2>
-              <p>{activeTab === "persons" ? "Reunited" : "Returned"}</p>
+              <h2>{totalResolved}</h2>
+
+              <p>
+                {activeTab === "persons"
+                  ? "Resolved Persons"
+                  : "Resolved Items"}
+              </p>
             </div>
 
             <div className="statistics__card">
@@ -308,222 +639,144 @@ export default function Statistics() {
                 <span className="statistics__cardIcon purple">
                   <FaChartBar />
                 </span>
-                <span className="statistics__rate">{rate}%</span>
+
+                <FaArrowUp className="statistics__up" />
               </div>
 
-              <h2>{rate}%</h2>
-              <p>{activeTab === "persons" ? "Success Rate" : "Recovery Rate"}</p>
+              <h2>{successRate}%</h2>
+
+              <p>Success Rate</p>
             </div>
           </section>
 
-          <section className="statistics__visuals">
-            <div className="statistics__chartBox">
-              <h3>Monthly Trends</h3>
+          <section className="statistics__graphs">
+            <div className="statistics__graphCard">
+              <div className="statistics__graphHeader">
+                <h2>Monthly Trends</h2>
 
-              <div className="lineChartWrap">
-                {tooltip && (
-                  <div
-                    className="chartTooltip"
-                    style={{ left: tooltip.x, top: tooltip.y }}
-                  >
-                    <b>{tooltip.month}</b>
-                    <span className="redText">
-                      {activeTab === "persons" ? "Missing" : "Lost"}:{" "}
-                      {tooltip.main}
-                    </span>
-                    <span className="greenText">Found: {tooltip.found}</span>
-                    <span className="blueText">
-                      {activeTab === "persons" ? "Resolved" : "Returned"}:{" "}
-                      {tooltip.recovered}
-                    </span>
-                  </div>
-                )}
-
-                <svg viewBox="0 0 800 300" className="lineChart">
-                  <line x1="55" y1="240" x2="750" y2="240" />
-                  <line x1="55" y1="40" x2="55" y2="240" />
-
-                  {[0, 1, 2, 3].map((num) => (
-                    <line
-                      key={num}
-                      x1="55"
-                      x2="750"
-                      y1={240 - num * 55}
-                      y2={240 - num * 55}
-                      className="gridLine"
-                    />
-                  ))}
-
-                  <polyline points={makePoints("main")} className="line redLine" />
-                  <polyline points={makePoints("found")} className="line greenLine" />
-                  <polyline
-                    points={makePoints("recovered")}
-                    className="line blueLine"
-                  />
-
-                  {monthlyChartData.map((item, index) => {
-                    const x = 55 + index * 62;
-
-                    return (
-                      <g key={item.month}>
-                        {["main", "found", "recovered"].map((key) => {
-                          const y = 240 - (item[key] / maxChartValue) * 190;
-
-                          return (
-                            <circle
-                              key={key}
-                              cx={x}
-                              cy={y}
-                              r="5"
-                              className={`dot ${key}DotStroke`}
-                              onMouseEnter={() =>
-                                setTooltip({
-                                  ...item,
-                                  x: Math.min(x + 8, 650),
-                                  y: 60,
-                                })
-                              }
-                              onMouseLeave={() => setTooltip(null)}
-                            />
-                          );
-                        })}
-
-                        <text x={x} y="275" textAnchor="middle">
-                          {item.month.slice(0, 3)}
-                        </text>
-                      </g>
-                    );
-                  })}
-                </svg>
+                <p>
+                  {activeTab === "persons"
+                    ? "Missing, found and resolved persons"
+                    : "Lost, found and resolved items"}
+                </p>
               </div>
 
-              <div className="statistics__legend">
-                <span>
-                  <b className="redDot"></b>
-                  {activeTab === "persons" ? "Missing" : "Lost"}
-                </span>
-                <span>
-                  <b className="greenDot"></b>Found
-                </span>
-                <span>
-                  <b className="blueDot"></b>
-                  {activeTab === "persons" ? "Resolved" : "Returned"}
-                </span>
+              <div className="statistics__chartBox">
+                <Line data={lineChartData} options={lineChartOptions} />
               </div>
             </div>
 
-            <div className="statistics__chartBox">
-              <h3>City Wise Summary</h3>
+            <div className="statistics__graphCard">
+              <div className="statistics__graphHeader">
+                <h2>Status Distribution</h2>
 
-              <div className="citySummaryCompact">
-                {citySummaryData.map((item) => (
-                  <div className="citySummaryRow" key={item.city}>
+                <p>
+                  {activeTab === "persons"
+                    ? "Missing, found and resolved persons"
+                    : "Lost, found and resolved items"}
+                </p>
+              </div>
+
+              <div className="statistics__pieBox">
+                {hasPieData ? (
+                  <Pie data={pieChartData} options={pieChartOptions} />
+                ) : (
+                  <div className="statistics__empty">
+                    No status distribution data available.
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="statistics__citySection">
+            <div className="statistics__sectionHeader">
+              <div>
+                <h2>City Wise Cases</h2>
+
+                <p>Total cases by city according to selected report type</p>
+              </div>
+            </div>
+
+            <div className="statistics__cityList">
+              {cityWiseCases.length > 0 ? (
+                cityWiseCases.map((item) => (
+                  <div className="statistics__cityRow" key={item.city}>
                     <span>{item.city}</span>
 
-                    <div className="citySummaryBar">
+                    <div className="statistics__cityBar">
                       <div
                         style={{
-                          width: `${(item.total / maxCityTotal) * 100}%`,
+                          width: `${(item.total / maxCityValue) * 100}%`,
                         }}
                       ></div>
                     </div>
 
-                    <b>{item.total}</b>
+                    <strong>{item.total}</strong>
                   </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="statistics__chartBox ageBox">
-            <h3>
-              {activeTab === "persons"
-                ? "Age Group Distribution"
-                : "Item Category Distribution"}
-            </h3>
-
-            <div className="ageChart">
-              {ageGroups.map((item) => (
-                <div className="ageBarItem" key={item.label}>
-                  <div
-                    className="ageBar"
-                    style={{ height: `${(item.count / maxAge) * 190}px` }}
-                  >
-                    <span className="agePopup">
-                      <b>{item.label}</b>
-                      count : {item.count}
-                    </span>
-                  </div>
-
-                  <p>{item.label}</p>
+                ))
+              ) : (
+                <div className="statistics__empty">
+                  No city data available.
                 </div>
-              ))}
-            </div>
-
-            <div className="statistics__legend">
-              <span>
-                <b className="purpleDot"></b>count
-              </span>
+              )}
             </div>
           </section>
 
-          <section className="statistics__tableBox">
-            <div className="statistics__tableHeader">
+          <section className="statistics__tableSection">
+            <div className="statistics__sectionHeader statistics__tableHeader">
               <div>
-                <h3>Detailed Statistics</h3>
-                <p>
-                  Showing {visibleTableData.length} of {filteredData.length} records
-                </p>
+                <h2>Detailed Statistics</h2>
+
+                <p>City and month wise report summary</p>
               </div>
 
-              {filteredData.length > 8 && (
+              {detailedStats.length > 8 && (
                 <button
+                  type="button"
                   className="statistics__showBtn"
-                  onClick={() => setShowAllRows(!showAllRows)}
+                  onClick={() => setShowAllRows((prev) => !prev)}
                 >
                   {showAllRows ? "Show Less" : "Show More"}
                 </button>
               )}
             </div>
 
-            <table>
-              <thead>
-                <tr>
-                  <th>City</th>
-                  <th>Month</th>
-                  <th>{activeTab === "persons" ? "Missing" : "Lost"}</th>
-                  <th>Found</th>
-                  <th>{activeTab === "persons" ? "Resolved" : "Returned"}</th>
-                  <th>Rate</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {visibleTableData.map((item, index) => {
-                  const firstValue =
-                    activeTab === "persons" ? item.missing : item.lost;
-
-                  const lastValue =
-                    activeTab === "persons" ? item.resolved : item.returned;
-
-                  const rowRate =
-                    firstValue > 0
-                      ? Math.round((lastValue / firstValue) * 100)
-                      : 0;
-
-                  return (
-                    <tr key={index}>
-                      <td>{item.city}</td>
-                      <td>{item.month}</td>
-                      <td>{firstValue}</td>
-                      <td>{item.found}</td>
-                      <td>{lastValue}</td>
-                      <td>{rowRate}%</td>
+            {visibleRows.length > 0 ? (
+              <div className="statistics__tableWrap">
+                <table className="statistics__table">
+                  <thead>
+                    <tr>
+                      <th>City</th>
+                      <th>Month</th>
+                      <th>{mainLabel}</th>
+                      <th>Found</th>
+                      <th>Resolved</th>
+                      <th>Total</th>
+                      <th>Success Rate</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+
+                  <tbody>
+                    {visibleRows.map((row) => (
+                      <tr key={`${row.city}-${row.month}`}>
+                        <td>{row.city}</td>
+                        <td>{row.month}</td>
+                        <td>{row.main}</td>
+                        <td>{row.found}</td>
+                        <td>{row.resolved}</td>
+                        <td>{row.total}</td>
+                        <td>{getSuccessRate(row.resolved, row.total)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="statistics__empty">
+                No statistics found for selected filters.
+              </div>
+            )}
           </section>
 
           <Footer />
