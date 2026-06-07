@@ -14,6 +14,9 @@ const {
   getReportById,
   getMyReports,
   reportPost,
+  deleteMyReport,
+  updateMyReportStatus,
+  updateMyReport,
 } = require("../controllers/reportController");
 
 // Multer storage setup
@@ -88,6 +91,15 @@ router.get("/persons", getPersonReports);
 
 // Get my reports
 router.get("/my-reports", authMiddleware, getMyReports);
+
+// Delete my report
+router.delete("/my-reports/:id", authMiddleware, deleteMyReport);
+
+// Update my report status
+router.patch("/my-reports/:id/status", authMiddleware, updateMyReportStatus);
+
+// Update my report details
+router.put("/my-reports/:id", authMiddleware, updateMyReport);
 
 // Get single report by ID
 router.get("/:id", getReportById);
