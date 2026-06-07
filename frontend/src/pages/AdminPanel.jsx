@@ -15,7 +15,6 @@ import {
   FaClipboardList,
   FaClock,
   FaEnvelope,
-  FaExclamationTriangle,
   FaEye,
   FaFileAlt,
   FaFlag,

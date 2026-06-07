@@ -2,6 +2,7 @@ import "./Settings.css";
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -14,12 +15,10 @@ import {
   FaCommentDots,
   FaDownload,
   FaEnvelope,
-  FaEye,
   FaKey,
   FaLock,
   FaMapMarkerAlt,
   FaRedo,
-  FaSave,
   FaShieldAlt,
   FaSignOutAlt,
   FaTimes,
@@ -27,29 +26,93 @@ import {
   FaUserShield,
 } from "react-icons/fa";
 
+const SETTINGS_KEY = "lostFoundSettings";
+const REGISTERED_USER_KEY = "lostFoundRegisteredUser";
+const CURRENT_USER_KEY = "lostFoundCurrentUser";
+const AUTH_TOKEN_KEY = "lostFoundAuthToken";
+const PROFILE_DATA_KEY = "lostFoundProfileData";
+const PROFILE_IMAGE_KEY = "lostFoundProfileImage";
+const USERS_KEY = "lostFoundUsers";
+const REPORTS_KEY = "lostFoundReports";
+
 const defaultSettings = {
   emailNotifications: true,
   matchAlerts: true,
   commentAlerts: true,
   verificationAlerts: true,
   weeklySummary: false,
-
-  
   showPhoneNumber: true,
   allowPostSharing: true,
-  allowPublicComments: true,
-
   defaultCity: "Gujranwala",
   defaultReportType: "Person",
 };
 
+const safeParse = (value, fallback = null) => {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const normalizeEmail = (email = "") => {
+  return String(email).trim().toLowerCase();
+};
+
+const getCurrentUserFromStorage = () => {
+  const currentUser = safeParse(localStorage.getItem(CURRENT_USER_KEY));
+  const registeredUser = safeParse(localStorage.getItem(REGISTERED_USER_KEY));
+
+  return currentUser || registeredUser || null;
+};
+
+const getRegisteredUser = () => {
+  return safeParse(localStorage.getItem(REGISTERED_USER_KEY));
+};
+
+const getUsers = () => {
+  const users = safeParse(localStorage.getItem(USERS_KEY), []);
+  return Array.isArray(users) ? users : [];
+};
+
+const getReports = () => {
+  const reports = safeParse(localStorage.getItem(REPORTS_KEY), []);
+  return Array.isArray(reports) ? reports : [];
+};
+
+const isOwnReport = (report, user) => {
+  const userEmail = normalizeEmail(user?.email);
+  const userName = String(user?.fullName || user?.name || "")
+    .trim()
+    .toLowerCase();
+
+  const ownerEmail = normalizeEmail(report.ownerEmail);
+  const reporterEmail = normalizeEmail(report.reporterEmail);
+  const ownerName = String(report.ownerName || "").trim().toLowerCase();
+  const reporterName = String(report.reporterName || report.reporterFullName || "")
+    .trim()
+    .toLowerCase();
+
+  if (userEmail && (ownerEmail === userEmail || reporterEmail === userEmail)) {
+    return true;
+  }
+
+  if (userName && (ownerName === userName || reporterName === userName)) {
+    return true;
+  }
+
+  return false;
+};
+
 export default function Settings() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settings, setSettings] = useState(defaultSettings);
   const [message, setMessage] = useState("");
   const [confirmAction, setConfirmAction] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => getCurrentUserFromStorage());
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -58,18 +121,28 @@ export default function Settings() {
   });
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem("lostFoundSettings");
+    const loadSettings = () => {
+      const savedSettings = safeParse(localStorage.getItem(SETTINGS_KEY));
 
-    if (savedSettings) {
-      try {
-        setSettings({
-          ...defaultSettings,
-          ...JSON.parse(savedSettings),
-        });
-      } catch {
-        setSettings(defaultSettings);
-      }
-    }
+      setSettings({
+        ...defaultSettings,
+        ...(savedSettings || {}),
+      });
+
+      setCurrentUser(getCurrentUserFromStorage());
+    };
+
+    loadSettings();
+
+    window.addEventListener("storage", loadSettings);
+    window.addEventListener("authChanged", loadSettings);
+    window.addEventListener("profileUpdated", loadSettings);
+
+    return () => {
+      window.removeEventListener("storage", loadSettings);
+      window.removeEventListener("authChanged", loadSettings);
+      window.removeEventListener("profileUpdated", loadSettings);
+    };
   }, []);
 
   const activeSettingsCount = useMemo(() => {
@@ -81,7 +154,6 @@ export default function Settings() {
       settings.weeklySummary,
       settings.showPhoneNumber,
       settings.allowPostSharing,
-      settings.allowPublicComments,
     ].filter(Boolean).length;
   }, [settings]);
 
@@ -95,9 +167,7 @@ export default function Settings() {
 
   const saveSettings = (nextSettings, text = "Settings saved successfully.") => {
     setSettings(nextSettings);
-
-    localStorage.setItem("lostFoundSettings", JSON.stringify(nextSettings));
-
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(nextSettings));
     showMessage(text);
   };
 
@@ -115,16 +185,6 @@ export default function Settings() {
     });
   };
 
-  const getRegisteredUser = () => {
-    try {
-      const savedUser = localStorage.getItem("lostFoundRegisteredUser");
-
-      return savedUser ? JSON.parse(savedUser) : null;
-    } catch {
-      return null;
-    }
-  };
-
   const handlePasswordChange = (e) => {
     setPasswordData({
       ...passwordData,
@@ -132,18 +192,48 @@ export default function Settings() {
     });
   };
 
+  const updatePasswordEverywhere = (updatedUser) => {
+    const users = getUsers();
+
+    const nextUsers = users.map((user) =>
+      normalizeEmail(user.email) === normalizeEmail(updatedUser.email)
+        ? {
+            ...user,
+            password: updatedUser.password,
+          }
+        : user
+    );
+
+    localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
+    localStorage.setItem(REGISTERED_USER_KEY, JSON.stringify(updatedUser));
+
+    window.dispatchEvent(new Event("authChanged"));
+  };
+
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
 
     const registeredUser = getRegisteredUser();
+    const users = getUsers();
 
-    if (!registeredUser) {
+    const activeEmail =
+      currentUser?.email ||
+      registeredUser?.email ||
+      "";
+
+    const userFromList = users.find(
+      (user) => normalizeEmail(user.email) === normalizeEmail(activeEmail)
+    );
+
+    const targetUser = userFromList || registeredUser;
+
+    if (!targetUser) {
       alert("No account found. Please create an account first.");
       navigate("/signup");
       return;
     }
 
-    if (registeredUser.password !== passwordData.currentPassword) {
+    if (targetUser.password !== passwordData.currentPassword) {
       alert("Current password is incorrect.");
       return;
     }
@@ -164,14 +254,11 @@ export default function Settings() {
     }
 
     const updatedUser = {
-      ...registeredUser,
+      ...targetUser,
       password: passwordData.newPassword,
     };
 
-    localStorage.setItem(
-      "lostFoundRegisteredUser",
-      JSON.stringify(updatedUser)
-    );
+    updatePasswordEverywhere(updatedUser);
 
     setPasswordData({
       currentPassword: "",
@@ -183,13 +270,18 @@ export default function Settings() {
   };
 
   const handleExportData = () => {
+    const user = getCurrentUserFromStorage();
+    const reports = getReports();
+    const ownReports = reports.filter((report) => isOwnReport(report, user));
+
     const exportData = {
       exportedAt: new Date().toISOString(),
+      currentUser: user,
       registeredUser: getRegisteredUser(),
-      profileData: JSON.parse(
-        localStorage.getItem("lostFoundProfileData") || "null"
-      ),
+      profileData: safeParse(localStorage.getItem(PROFILE_DATA_KEY)),
       settings,
+      myReportsCount: ownReports.length,
+      myReports: ownReports,
     };
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -214,10 +306,13 @@ export default function Settings() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("lostFoundAuthToken");
-    localStorage.removeItem("lostFoundCurrentUser");
-
-    window.dispatchEvent(new Event("authChanged"));
+    if (logout) {
+      logout();
+    } else {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      localStorage.removeItem(CURRENT_USER_KEY);
+      window.dispatchEvent(new Event("authChanged"));
+    }
 
     setConfirmAction(null);
 
@@ -226,12 +321,28 @@ export default function Settings() {
   };
 
   const handleDeleteAccount = () => {
-    localStorage.removeItem("lostFoundRegisteredUser");
-    localStorage.removeItem("lostFoundCurrentUser");
-    localStorage.removeItem("lostFoundAuthToken");
-    localStorage.removeItem("lostFoundProfileData");
-    localStorage.removeItem("lostFoundProfileImage");
-    localStorage.removeItem("lostFoundSettings");
+    const activeUser = getCurrentUserFromStorage();
+
+    if (activeUser?.role === "Admin") {
+      alert("Demo admin account cannot be deleted from settings.");
+      setConfirmAction(null);
+      return;
+    }
+
+    const users = getUsers();
+
+    const nextUsers = users.filter(
+      (user) => normalizeEmail(user.email) !== normalizeEmail(activeUser?.email)
+    );
+
+    localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
+
+    localStorage.removeItem(REGISTERED_USER_KEY);
+    localStorage.removeItem(CURRENT_USER_KEY);
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(PROFILE_DATA_KEY);
+    localStorage.removeItem(PROFILE_IMAGE_KEY);
+    localStorage.removeItem(SETTINGS_KEY);
 
     window.dispatchEvent(new Event("authChanged"));
     window.dispatchEvent(new Event("profileUpdated"));
@@ -291,12 +402,14 @@ export default function Settings() {
     return {
       icon: <FaTrash />,
       title: "Delete Account?",
-      text: "This will remove your account, profile picture, profile data and settings from frontend local storage.",
+      text: "This will remove your account, profile picture, profile data and settings from frontend localStorage.",
       buttonText: "Delete Account",
       action: handleDeleteAccount,
       danger: true,
     };
   };
+
+  const confirmData = confirmAction ? getConfirmData() : null;
 
   return (
     <div className="settings-page">
@@ -311,8 +424,8 @@ export default function Settings() {
               <h1>Settings</h1>
 
               <p>
-                Manage your account preferences, notifications, privacy,
-                security and report defaults.
+                Manage your account preferences, notifications, security and
+                report defaults.
               </p>
             </div>
 
@@ -355,93 +468,84 @@ export default function Settings() {
                 {renderSwitch(
                   "matchAlerts",
                   "Match Alerts",
-                  "Notify when a possible match is found.",
+                  "Notify when a possible match is found or confirmed.",
                   <FaShieldAlt />
                 )}
 
                 {renderSwitch(
                   "commentAlerts",
                   "Comment Alerts",
-                  "Notify when someone comments on your report.",
+                  "Notify when another user comments on your report.",
                   <FaCommentDots />
                 )}
 
                 {renderSwitch(
                   "verificationAlerts",
                   "Verification Alerts",
-                  "Notify when admin verifies or rejects your report.",
+                  "Notify when admin verifies, rejects or updates your report.",
                   <FaUserShield />
                 )}
 
                 {renderSwitch(
                   "weeklySummary",
                   "Weekly Summary",
-                  "Receive weekly report activity summary.",
+                  "Receive a weekly summary of your report activity.",
                   <FaBell />
                 )}
               </div>
             </div>
 
             <div className="settings-card">
-  <div className="settings-card__heading">
-    <div>
-      <h2>Privacy & Interaction</h2>
-      <p>Manage contact visibility, sharing and comments.</p>
-    </div>
+              <div className="settings-card__heading">
+                <div>
+                  <h2>Privacy & Sharing</h2>
+                  <p>Control basic public contact and sharing preferences.</p>
+                </div>
 
-    <FaLock />
-  </div>
+                <FaLock />
+              </div>
 
-  <div className="settings-options-list">
-    {renderSwitch(
-      "showPhoneNumber",
-      "Show Phone Number",
-      "Allow users to see your contact number on reports.",
-      <FaEye />
-    )}
+              <div className="settings-options-list">
+                {renderSwitch(
+                  "showPhoneNumber",
+                  "Show Phone Number",
+                  "Allow your contact number to appear on your own reports.",
+                  <FaKey />
+                )}
 
-    {renderSwitch(
-      "allowPostSharing",
-      "Allow Post Sharing",
-      "Let users copy and share your report details.",
-      <FaShieldAlt />
-    )}
-
-    {renderSwitch(
-      "allowPublicComments",
-      "Allow Comments",
-      "Let registered users comment on your reports.",
-      <FaCommentDots />
-    )}
-  </div>
-</div>
+                {renderSwitch(
+                  "allowPostSharing",
+                  "Allow Post Sharing",
+                  "Allow other users to share your public report details.",
+                  <FaDownload />
+                )}
+              </div>
+            </div>
 
             <div className="settings-card">
               <div className="settings-card__heading">
                 <div>
                   <h2>Report Defaults</h2>
-                  <p>Save default values for future report forms.</p>
+                  <p>Set default values used while creating reports.</p>
                 </div>
 
                 <FaMapMarkerAlt />
               </div>
 
-              <div className="settings-form-grid">
+              <div className="settings-form">
                 <div className="settings-field">
                   <label>Default City</label>
 
                   <input
                     type="text"
                     value={settings.defaultCity}
-                    onChange={(e) =>
-                      handleChange("defaultCity", e.target.value)
-                    }
+                    onChange={(e) => handleChange("defaultCity", e.target.value)}
                     placeholder="Enter default city"
                   />
                 </div>
 
                 <div className="settings-field">
-                  <label>Default Report Type</label>
+                  <label>Default Report Category</label>
 
                   <select
                     value={settings.defaultReportType}
@@ -449,8 +553,8 @@ export default function Settings() {
                       handleChange("defaultReportType", e.target.value)
                     }
                   >
-                    <option value="Person">Person</option>
-                    <option value="Item">Item</option>
+                    <option>Person</option>
+                    <option>Item</option>
                   </select>
                 </div>
               </div>
@@ -459,17 +563,14 @@ export default function Settings() {
             <div className="settings-card">
               <div className="settings-card__heading">
                 <div>
-                  <h2>Change Password</h2>
-                  <p>Update your password with strong validation.</p>
+                  <h2>Security</h2>
+                  <p>Change your account password.</p>
                 </div>
 
                 <FaKey />
               </div>
 
-              <form
-                className="settings-password-form"
-                onSubmit={handlePasswordSubmit}
-              >
+              <form className="settings-form" onSubmit={handlePasswordSubmit}>
                 <div className="settings-field">
                   <label>Current Password</label>
 
@@ -510,8 +611,7 @@ export default function Settings() {
                 </div>
 
                 <button type="submit" className="settings-save-btn">
-                  <FaSave />
-                  Update Password
+                  Change Password
                 </button>
               </form>
             </div>
@@ -520,46 +620,31 @@ export default function Settings() {
               <div className="settings-card__heading">
                 <div>
                   <h2>Account Actions</h2>
-                  <p>
-                    Export data, reset preferences, logout or remove account
-                    from frontend storage.
-                  </p>
+                  <p>Export your data, reset settings or manage your session.</p>
                 </div>
 
-                <FaShieldAlt />
+                <FaCog />
               </div>
 
-              <div className="settings-account-actions">
-                <button
-                  type="button"
-                  className="settings-action-btn settings-action-btn--primary"
-                  onClick={handleExportData}
-                >
+              <div className="settings-actions">
+                <button type="button" onClick={handleExportData}>
                   <FaDownload />
                   Export My Data
                 </button>
 
-                <button
-                  type="button"
-                  className="settings-action-btn"
-                  onClick={() => setConfirmAction("reset")}
-                >
+                <button type="button" onClick={() => setConfirmAction("reset")}>
                   <FaRedo />
                   Reset Settings
                 </button>
 
-                <button
-                  type="button"
-                  className="settings-action-btn"
-                  onClick={() => setConfirmAction("logout")}
-                >
+                <button type="button" onClick={() => setConfirmAction("logout")}>
                   <FaSignOutAlt />
                   Logout
                 </button>
 
                 <button
                   type="button"
-                  className="settings-action-btn settings-action-btn--danger"
+                  className="settings-danger-btn"
                   onClick={() => setConfirmAction("delete")}
                 >
                   <FaTrash />
@@ -569,61 +654,57 @@ export default function Settings() {
             </div>
           </section>
 
+          {confirmAction && confirmData && (
+            <div className="settings-confirm-overlay">
+              <div className="settings-confirm-box">
+                <button
+                  type="button"
+                  className="settings-confirm-close"
+                  onClick={() => setConfirmAction(null)}
+                >
+                  <FaTimes />
+                </button>
+
+                <div
+                  className={`settings-confirm-icon ${
+                    confirmData.danger ? "settings-confirm-icon--danger" : ""
+                  }`}
+                >
+                  {confirmData.icon}
+                </div>
+
+                <h2>{confirmData.title}</h2>
+
+                <p>{confirmData.text}</p>
+
+                <div className="settings-confirm-actions">
+                  <button
+                    type="button"
+                    className="settings-cancel-btn"
+                    onClick={() => setConfirmAction(null)}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      confirmData.danger
+                        ? "settings-delete-confirm-btn"
+                        : "settings-confirm-btn"
+                    }
+                    onClick={confirmData.action}
+                  >
+                    {confirmData.buttonText}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <Footer />
         </main>
       </div>
-
-      {confirmAction && (
-        <div
-          className="settings-confirm-overlay"
-          onClick={() => setConfirmAction(null)}
-        >
-          <div
-            className="settings-confirm-box"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="settings-confirm-close"
-              onClick={() => setConfirmAction(null)}
-            >
-              <FaTimes />
-            </button>
-
-            <div
-              className={`settings-confirm-icon ${
-                getConfirmData().danger ? "settings-confirm-icon--danger" : ""
-              }`}
-            >
-              {getConfirmData().icon}
-            </div>
-
-            <h2>{getConfirmData().title}</h2>
-
-            <p>{getConfirmData().text}</p>
-
-            <div className="settings-confirm-actions">
-              <button
-                type="button"
-                className="settings-cancel-btn"
-                onClick={() => setConfirmAction(null)}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className={`settings-confirm-btn ${
-                  getConfirmData().danger ? "settings-confirm-btn--danger" : ""
-                }`}
-                onClick={getConfirmData().action}
-              >
-                {getConfirmData().buttonText}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -3,13 +3,100 @@ import "./ForgotPassword.css";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const USERS_KEY = "lostFoundUsers";
+const REGISTERED_USER_KEY = "lostFoundRegisteredUser";
+const CURRENT_USER_KEY = "lostFoundCurrentUser";
+const AUTH_TOKEN_KEY = "lostFoundAuthToken";
+const PROFILE_DATA_KEY = "lostFoundProfileData";
+
+const safeParse = (value, fallback = null) => {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const normalizeEmail = (email = "") => {
+  return String(email).trim().toLowerCase();
+};
+
+const getUsers = () => {
+  const users = safeParse(localStorage.getItem(USERS_KEY), []);
+  return Array.isArray(users) ? users : [];
+};
+
+const getRegisteredUser = () => {
+  return safeParse(localStorage.getItem(REGISTERED_USER_KEY), null);
+};
+
+const findUserByEmail = (email) => {
+  const cleanEmail = normalizeEmail(email);
+  const users = getUsers();
+
+  const userFromList = users.find(
+    (user) => normalizeEmail(user.email) === cleanEmail
+  );
+
+  if (userFromList) {
+    return userFromList;
+  }
+
+  const registeredUser = getRegisteredUser();
+
+  if (
+    registeredUser &&
+    normalizeEmail(registeredUser.email) === cleanEmail
+  ) {
+    return registeredUser;
+  }
+
+  return null;
+};
+
+const updateUserPasswordEverywhere = (updatedUser) => {
+  const users = getUsers();
+
+  const existsInUsers = users.some(
+    (user) => normalizeEmail(user.email) === normalizeEmail(updatedUser.email)
+  );
+
+  const nextUsers = existsInUsers
+    ? users.map((user) =>
+        normalizeEmail(user.email) === normalizeEmail(updatedUser.email)
+          ? {
+              ...user,
+              password: updatedUser.password,
+            }
+          : user
+      )
+    : [updatedUser, ...users];
+
+  localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
+  localStorage.setItem(REGISTERED_USER_KEY, JSON.stringify(updatedUser));
+
+  localStorage.setItem(
+    PROFILE_DATA_KEY,
+    JSON.stringify({
+      fullName: updatedUser.fullName,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      role: updatedUser.role || "Registered User",
+    })
+  );
+
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(CURRENT_USER_KEY);
+
+  window.dispatchEvent(new Event("authChanged"));
+  window.dispatchEvent(new Event("profileUpdated"));
+};
+
 export default function ForgotPassword() {
   const navigate = useNavigate();
 
   const [step, setStep] = useState("email");
-
   const [email, setEmail] = useState("");
-
   const [verifiedUser, setVerifiedUser] = useState(null);
 
   const [passwordData, setPasswordData] = useState({
@@ -17,42 +104,35 @@ export default function ForgotPassword() {
     confirmPassword: "",
   });
 
-  const getRegisteredUser = () => {
-    try {
-      const savedUser = localStorage.getItem("lostFoundRegisteredUser");
-
-      return savedUser ? JSON.parse(savedUser) : null;
-    } catch {
-      return null;
-    }
-  };
-
   const handleEmailSubmit = (e) => {
     e.preventDefault();
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-    const enteredEmail = email.trim().toLowerCase();
+    const enteredEmail = normalizeEmail(email);
 
     if (!emailRegex.test(enteredEmail)) {
       alert("Enter valid email address");
       return;
     }
 
-    const registeredUser = getRegisteredUser();
+    const user = findUserByEmail(enteredEmail);
 
-    if (!registeredUser) {
-      alert("No account found. Please create an account first.");
-      navigate("/signup");
-      return;
-    }
-
-    if (registeredUser.email.toLowerCase() !== enteredEmail) {
+    if (!user) {
       alert("This email is not registered. Please enter your registered email.");
       return;
     }
 
-    setVerifiedUser(registeredUser);
+    if (user.role === "Admin") {
+      alert("Demo admin password cannot be reset from this screen.");
+      return;
+    }
+
+    if (user.status === "Blocked") {
+      alert("This account is blocked by admin.");
+      return;
+    }
+
+    setVerifiedUser(user);
 
     alert("Reset link verified. Now create your new password.");
     setStep("password");
@@ -94,26 +174,7 @@ export default function ForgotPassword() {
       password: passwordData.newPassword,
     };
 
-    const profileData = {
-      fullName: updatedUser.fullName,
-      email: updatedUser.email,
-      phone: updatedUser.phone,
-    };
-
-    localStorage.setItem(
-      "lostFoundRegisteredUser",
-      JSON.stringify(updatedUser)
-    );
-
-    localStorage.setItem(
-      "lostFoundProfileData",
-      JSON.stringify(profileData)
-    );
-
-    localStorage.removeItem("lostFoundAuthToken");
-    localStorage.removeItem("lostFoundCurrentUser");
-
-    window.dispatchEvent(new Event("authChanged"));
+    updateUserPasswordEverywhere(updatedUser);
 
     alert("Password reset successfully. Please login with your new password.");
 
@@ -222,15 +283,15 @@ export default function ForgotPassword() {
               </form>
 
               <p className="forgot__bottom">
-                Want to change email?{" "}
+                Want to use another email?{" "}
                 <span
                   onClick={() => {
                     setStep("email");
-                    setVerifiedUser(null);
                     setPasswordData({
                       newPassword: "",
                       confirmPassword: "",
                     });
+                    setVerifiedUser(null);
                   }}
                 >
                   Go Back

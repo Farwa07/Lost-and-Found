@@ -3,6 +3,57 @@ import "./SignUp.css";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const USERS_KEY = "lostFoundUsers";
+const REGISTERED_USER_KEY = "lostFoundRegisteredUser";
+
+const defaultAdminEmail = "admin@lostfound.com";
+
+const safeParse = (value, fallback = null) => {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const normalizeEmail = (email = "") => {
+  return String(email).trim().toLowerCase();
+};
+
+const getUsers = () => {
+  const users = safeParse(localStorage.getItem(USERS_KEY), []);
+  return Array.isArray(users) ? users : [];
+};
+
+const getRegisteredUser = () => {
+  return safeParse(localStorage.getItem(REGISTERED_USER_KEY), null);
+};
+
+const isEmailAlreadyRegistered = (email) => {
+  const cleanEmail = normalizeEmail(email);
+
+  if (cleanEmail === normalizeEmail(defaultAdminEmail)) {
+    return true;
+  }
+
+  const users = getUsers();
+
+  const existsInUsers = users.some(
+    (user) => normalizeEmail(user.email) === cleanEmail
+  );
+
+  if (existsInUsers) {
+    return true;
+  }
+
+  const registeredUser = getRegisteredUser();
+
+  return (
+    registeredUser &&
+    normalizeEmail(registeredUser.email) === cleanEmail
+  );
+};
+
 export default function SignUp() {
   const navigate = useNavigate();
 
@@ -31,15 +82,6 @@ export default function SignUp() {
     });
   };
 
-  const getRegisteredUser = () => {
-    try {
-      const savedUser = localStorage.getItem("lostFoundRegisteredUser");
-      return savedUser ? JSON.parse(savedUser) : null;
-    } catch {
-      return null;
-    }
-  };
-
   const generateOtp = () => {
     return String(Math.floor(100000 + Math.random() * 900000));
   };
@@ -52,12 +94,36 @@ export default function SignUp() {
     const passwordRegex =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
-    const cleanEmail = formData.email.trim().toLowerCase();
+    const cleanEmail = normalizeEmail(formData.email);
+
+    if (!formData.fullName.trim()) {
+      setMessage({
+        type: "error",
+        text: "Please enter your full name.",
+      });
+      return;
+    }
 
     if (!emailRegex.test(cleanEmail)) {
       setMessage({
         type: "error",
         text: "Please enter a valid email address.",
+      });
+      return;
+    }
+
+    if (cleanEmail === normalizeEmail(defaultAdminEmail)) {
+      setMessage({
+        type: "error",
+        text: "This email is reserved for admin. Please use another email.",
+      });
+      return;
+    }
+
+    if (isEmailAlreadyRegistered(cleanEmail)) {
+      setMessage({
+        type: "error",
+        text: "This email is already registered. Please login instead.",
       });
       return;
     }
@@ -86,24 +152,14 @@ export default function SignUp() {
       return;
     }
 
-    const registeredUser = getRegisteredUser();
-
-    if (
-      registeredUser &&
-      registeredUser.email?.toLowerCase() === cleanEmail
-    ) {
-      setMessage({
-        type: "error",
-        text: "This email is already registered. Please login instead.",
-      });
-      return;
-    }
-
     const userData = {
       fullName: formData.fullName.trim(),
       email: cleanEmail,
       phone: formData.phone.trim(),
       password: formData.password,
+      role: "Registered User",
+      status: "Active",
+      joinedAt: new Date().toISOString().slice(0, 10),
     };
 
     const otp = generateOtp();
@@ -123,6 +179,7 @@ export default function SignUp() {
       fullName: userData.fullName,
       email: userData.email,
       phone: userData.phone,
+      role: userData.role,
     });
 
     alert(`Demo OTP sent to your email: ${otp}`);
@@ -216,11 +273,9 @@ export default function SignUp() {
               <input
                 type="password"
                 name="password"
-                placeholder="Enter password"
+                placeholder="Create password"
                 value={formData.password}
                 onChange={handleChange}
-                pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$"
-                title="Password must contain uppercase, lowercase, number, special character and minimum 8 characters"
                 required
               />
             </div>
@@ -238,14 +293,12 @@ export default function SignUp() {
               />
             </div>
 
-            <button className="signup__btn" type="submit">
-              Send OTP
-            </button>
+            <button className="signup__btn">Create Account</button>
           </form>
 
           <p className="signup__bottom">
-            Already have an account?
-            <span onClick={() => navigate("/login")}> Log In</span>
+            Already have an account?{" "}
+            <span onClick={() => navigate("/login")}>Login</span>
           </p>
         </div>
       </div>

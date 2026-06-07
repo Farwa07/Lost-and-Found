@@ -13,7 +13,6 @@ import {
   FaMapMarkerAlt,
   FaEdit,
   FaCheckCircle,
-  FaFileAlt,
   FaShieldAlt,
   FaTrash,
 } from "react-icons/fa";
