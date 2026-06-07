@@ -1,20 +1,67 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-export default function ProtectedRoute({ children }) {
-  const { isLoggedIn, isRegistered } = useAuth();
+export default function ProtectedRoute({
+  children,
+  adminOnly = false,
+  allowedRole = "",
+}) {
+  const location = useLocation();
 
-  if (!isLoggedIn) {
-    alert(
-      isRegistered
-        ? "Please login to access this page."
-        : "Please create an account to access this page."
-    );
+  const { isLoggedIn, isRegistered, currentUser, isAdmin } = useAuth();
 
+  if (!isRegistered && !isLoggedIn) {
     return (
       <Navigate
-        to={isRegistered ? "/login" : "/signup"}
+        to="/signup"
         replace
+        state={{
+          from: location.pathname,
+          message: "Please create an account first.",
+        }}
+      />
+    );
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{
+          from: location.pathname,
+          message: "Please login first.",
+        }}
+      />
+    );
+  }
+
+  if (adminOnly && !isAdmin) {
+    return (
+      <Navigate
+        to="/"
+        replace
+        state={{
+          from: location.pathname,
+          message: "Only admin can access this page.",
+        }}
+      />
+    );
+  }
+
+  if (
+    allowedRole &&
+    String(currentUser?.role || "").toLowerCase() !==
+      String(allowedRole).toLowerCase()
+  ) {
+    return (
+      <Navigate
+        to="/"
+        replace
+        state={{
+          from: location.pathname,
+          message: "You are not allowed to access this page.",
+        }}
       />
     );
   }

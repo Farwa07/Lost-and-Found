@@ -1,6 +1,7 @@
 import "./Sidebar.css";
 
 import { useEffect, useState } from "react";
+import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 import {
@@ -15,27 +16,50 @@ import {
 } from "react-icons/fa";
 
 export default function Sidebar({ open }) {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, isAdmin, currentUser } = useAuth();
 
   const [profileImage, setProfileImage] = useState("");
-  const [profileName, setProfileName] = useState("John Doe");
+  const [profileName, setProfileName] = useState(
+    currentUser?.fullName || "John Doe"
+  );
 
   const loadProfileData = () => {
     const savedImage = localStorage.getItem("lostFoundProfileImage");
     const savedProfile = localStorage.getItem("lostFoundProfileData");
+    const savedCurrentUser = localStorage.getItem("lostFoundCurrentUser");
 
     setProfileImage(savedImage || "");
 
-    if (savedProfile) {
-      try {
+    try {
+      if (savedProfile) {
         const parsedProfile = JSON.parse(savedProfile);
 
-        setProfileName(parsedProfile.fullName || "John Doe");
-      } catch {
-        setProfileName("John Doe");
+        setProfileName(
+          parsedProfile.fullName ||
+            parsedProfile.name ||
+            currentUser?.fullName ||
+            "John Doe"
+        );
+
+        return;
       }
-    } else {
-      setProfileName("John Doe");
+
+      if (savedCurrentUser) {
+        const parsedUser = JSON.parse(savedCurrentUser);
+
+        setProfileName(
+          parsedUser.fullName ||
+            parsedUser.name ||
+            currentUser?.fullName ||
+            "John Doe"
+        );
+
+        return;
+      }
+
+      setProfileName(currentUser?.fullName || "John Doe");
+    } catch {
+      setProfileName(currentUser?.fullName || "John Doe");
     }
   };
 
@@ -51,7 +75,7 @@ export default function Sidebar({ open }) {
       window.removeEventListener("storage", loadProfileData);
       window.removeEventListener("authChanged", loadProfileData);
     };
-  }, []);
+  }, [currentUser]);
 
   if (!isLoggedIn) {
     return null;
@@ -59,69 +83,70 @@ export default function Sidebar({ open }) {
 
   const initials = profileName
     .split(" ")
+    .filter(Boolean)
     .map((name) => name[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
 
+  const getLinkClass = ({ isActive }) =>
+    `sidebar__link ${isActive ? "sidebar__link--active" : ""}`;
+
   return (
     <aside className={`sidebar ${open ? "" : "sidebar--closed"}`}>
       <div className="sidebar__links">
-        <a href="/" className="sidebar__link sidebar__link--active">
+        <NavLink to="/" end className={getLinkClass}>
           <FaTachometerAlt />
           Dashboard
-        </a>
+        </NavLink>
 
-        <a href="/admin-panel" className="sidebar__link">
-  <FaUserShield />
-  Admin Panel
-</a>
+        {isAdmin && (
+          <NavLink to="/admin-panel" className={getLinkClass}>
+            <FaUserShield />
+            Admin Panel
+          </NavLink>
+        )}
 
-        <a href="/persons" className="sidebar__link">
+        <NavLink to="/persons" className={getLinkClass}>
           <FaUsers />
           Persons
-        </a>
+        </NavLink>
 
-        <a href="/items" className="sidebar__link">
+        <NavLink to="/items" className={getLinkClass}>
           <FaBoxOpen />
           Items
-        </a>
+        </NavLink>
 
-        <a href="/statistics" className="sidebar__link">
+        <NavLink to="/statistics" className={getLinkClass}>
           <FaChartBar />
           Statistics
-        </a>
+        </NavLink>
 
-        <a href="/notifications" className="sidebar__link">
+        <NavLink to="/notifications" className={getLinkClass}>
           <FaBell />
           Notifications
-        </a>
+        </NavLink>
 
-        <a href="/reports" className="sidebar__link">
+        <NavLink to="/reports" className={getLinkClass}>
           <FaFileAlt />
           My Reports
-        </a>
+        </NavLink>
 
-        <a href="/settings" className="sidebar__link">
+        <NavLink to="/settings" className={getLinkClass}>
           <FaCog />
           Settings
-        </a>
+        </NavLink>
 
-        <a href="/profile" className="sidebar__profile">
+        <NavLink to="/profile" className="sidebar__profile">
           <div className="sidebar__avatar">
-            {profileImage ? (
-              <img src={profileImage} alt="Profile" />
-            ) : (
-              initials
-            )}
+            {profileImage ? <img src={profileImage} alt="Profile" /> : initials}
           </div>
 
           <div>
             <h4>{profileName}</h4>
-
             <p>View Profile</p>
           </div>
-        </a>
+        </NavLink>
       </div>
     </aside>
   );

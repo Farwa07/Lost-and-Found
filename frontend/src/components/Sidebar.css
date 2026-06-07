@@ -1,6 +1,7 @@
 .sidebar {
   width: 260px;
-  min-height: calc(100vh - 80px);
+  height: calc(100vh - 80px);
+  max-height: calc(100vh - 80px);
 
   background: white;
 
@@ -12,6 +13,29 @@
 
   position: sticky;
   top: 80px;
+
+  align-self: flex-start;
+  flex-shrink: 0;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  z-index: 50;
+
+  box-sizing: border-box;
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(14, 165, 233, 0.35);
+  border-radius: 20px;
 }
 
 .sidebar--closed {
@@ -47,6 +71,7 @@
 
 .sidebar__link svg {
   font-size: 18px;
+  flex-shrink: 0;
 }
 
 .sidebar__link:hover {
@@ -72,6 +97,7 @@
 }
 
 /* PROFILE CARD */
+
 .sidebar__profile {
   display: flex;
   align-items: center;
@@ -168,6 +194,23 @@
   white-space: nowrap;
 }
 
+/* PAGE LAYOUT FIX */
+
+.home__container,
+.persons-container,
+.items-layout,
+.statistics__layout,
+.notifications__container,
+.myreports__container,
+.profile__container,
+.settings__container,
+.contact-layout,
+.faqs-layout,
+.privacy-layout,
+.terms-layout {
+  align-items: flex-start;
+}
+
 /* RESPONSIVE */
 
 @media (max-width: 900px) {
@@ -178,8 +221,11 @@
     left: 0;
 
     height: calc(100vh - 80px);
+    max-height: calc(100vh - 80px);
 
     z-index: 998;
+
+    box-shadow: 12px 0 30px rgba(15, 23, 42, 0.12);
   }
 
   .sidebar--closed {

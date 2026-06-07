@@ -56,8 +56,17 @@ export default function App() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/settings" element={<Settings />} />
 
-          <Route path="/admin-panel" element={<AdminPanel />} />
+          
           <Route path="/match-alert/:matchId" element={<MatchAlertDetails />} />
+
+          <Route
+  path="/admin-panel"
+  element={
+    <ProtectedRoute adminOnly={true}>
+      <AdminPanel />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
             path="/reports"
