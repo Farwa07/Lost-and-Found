@@ -1,6 +1,6 @@
 import "./Profile.css";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -11,46 +11,216 @@ import {
   FaEnvelope,
   FaPhoneAlt,
   FaMapMarkerAlt,
-  FaUser,
   FaEdit,
   FaCheckCircle,
   FaFileAlt,
-  FaBell,
   FaShieldAlt,
   FaTrash,
 } from "react-icons/fa";
 
+const REPORTS_KEY = "lostFoundReports";
+const PROFILE_IMAGE_KEY = "lostFoundProfileImage";
+const PROFILE_DATA_KEY = "lostFoundProfileData";
+const CURRENT_USER_KEY = "lostFoundCurrentUser";
+const REGISTERED_USER_KEY = "lostFoundRegisteredUser";
+const USERS_KEY = "lostFoundUsers";
+
+const safeParse = (value, fallback = null) => {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const normalize = (value = "") => {
+  return String(value).trim().toLowerCase();
+};
+
+const getCurrentUser = () => {
+  const currentUser = safeParse(localStorage.getItem(CURRENT_USER_KEY));
+  const registeredUser = safeParse(localStorage.getItem(REGISTERED_USER_KEY));
+  const profileData = safeParse(localStorage.getItem(PROFILE_DATA_KEY));
+
+  return currentUser || registeredUser || profileData || null;
+};
+
+const getInitialProfileData = () => {
+  const savedProfile = safeParse(localStorage.getItem(PROFILE_DATA_KEY));
+  const currentUser = getCurrentUser();
+
+  return {
+    fullName:
+      savedProfile?.fullName ||
+      savedProfile?.name ||
+      currentUser?.fullName ||
+      currentUser?.name ||
+      "John Doe",
+    email:
+      savedProfile?.email ||
+      currentUser?.email ||
+      "johndoe@gmail.com",
+    phone:
+      savedProfile?.phone ||
+      currentUser?.phone ||
+      "+92 300 1234567",
+    city: savedProfile?.city || currentUser?.city || "Gujranwala",
+    address:
+      savedProfile?.address ||
+      currentUser?.address ||
+      "Satellite Town, Gujranwala",
+    bio:
+      savedProfile?.bio ||
+      "I am using Lost & Found to report and track missing persons and lost items.",
+    role:
+      savedProfile?.role ||
+      currentUser?.role ||
+      "Registered User",
+  };
+};
+
+const readReports = () => {
+  const reports = safeParse(localStorage.getItem(REPORTS_KEY), []);
+  return Array.isArray(reports) ? reports : [];
+};
+
+const isOwnReport = (report, profileData) => {
+  const userEmail = normalize(profileData.email);
+  const userName = normalize(profileData.fullName);
+
+  const ownerEmail = normalize(report.ownerEmail);
+  const reporterEmail = normalize(report.reporterEmail);
+  const ownerName = normalize(report.ownerName);
+  const reporterName = normalize(report.reporterName || report.reporterFullName);
+
+  if (userEmail && (ownerEmail === userEmail || reporterEmail === userEmail)) {
+    return true;
+  }
+
+  if (userName && (ownerName === userName || reporterName === userName)) {
+    return true;
+  }
+
+  return false;
+};
+
+const updateStoredUserData = (profileData) => {
+  const currentUser = safeParse(localStorage.getItem(CURRENT_USER_KEY));
+  const registeredUser = safeParse(localStorage.getItem(REGISTERED_USER_KEY));
+  const users = safeParse(localStorage.getItem(USERS_KEY), []);
+
+  const updatedPublicUser = {
+    ...(currentUser || {}),
+    fullName: profileData.fullName,
+    email: normalize(profileData.email),
+    phone: profileData.phone,
+    role: profileData.role || currentUser?.role || registeredUser?.role || "Registered User",
+    city: profileData.city,
+    address: profileData.address,
+  };
+
+  const updatedRegisteredUser = {
+    ...(registeredUser || updatedPublicUser),
+    fullName: profileData.fullName,
+    email: normalize(profileData.email),
+    phone: profileData.phone,
+    role: profileData.role || registeredUser?.role || currentUser?.role || "Registered User",
+    city: profileData.city,
+    address: profileData.address,
+  };
+
+  if (currentUser) {
+    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedPublicUser));
+  }
+
+  if (registeredUser) {
+    localStorage.setItem(REGISTERED_USER_KEY, JSON.stringify(updatedRegisteredUser));
+  }
+
+  if (Array.isArray(users) && users.length > 0) {
+    const nextUsers = users.map((user) => {
+      const sameUser =
+        normalize(user.email) === normalize(currentUser?.email || registeredUser?.email || profileData.email);
+
+      if (!sameUser) {
+        return user;
+      }
+
+      return {
+        ...user,
+        fullName: profileData.fullName,
+        email: normalize(profileData.email),
+        phone: profileData.phone,
+        role: profileData.role || user.role || "Registered User",
+        city: profileData.city,
+        address: profileData.address,
+      };
+    });
+
+    localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
+  }
+
+  window.dispatchEvent(new Event("authChanged"));
+  window.dispatchEvent(new Event("profileUpdated"));
+};
+
 export default function Profile() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
   const [profileImage, setProfileImage] = useState("");
-
   const [message, setMessage] = useState("");
-
-  const [profileData, setProfileData] = useState({
-    fullName: "John Doe",
-    email: "johndoe@gmail.com",
-    phone: "+92 300 1234567",
-    city: "Gujranwala",
-    address: "Satellite Town, Gujranwala",
-    bio: "I am using Lost & Found to report and track missing persons and lost items.",
-  });
+  const [profileData, setProfileData] = useState(() => getInitialProfileData());
+  const [reports, setReports] = useState([]);
 
   useEffect(() => {
-    const savedImage = localStorage.getItem("lostFoundProfileImage");
-    const savedProfile = localStorage.getItem("lostFoundProfileData");
+    const loadProfile = () => {
+      const savedImage = localStorage.getItem(PROFILE_IMAGE_KEY);
+      const latestProfile = getInitialProfileData();
 
-    if (savedImage) {
-      setProfileImage(savedImage);
-    }
+      setProfileImage(savedImage || "");
+      setProfileData(latestProfile);
+      setReports(readReports());
+    };
 
-    if (savedProfile) {
-      setProfileData(JSON.parse(savedProfile));
-    }
+    loadProfile();
+
+    window.addEventListener("storage", loadProfile);
+    window.addEventListener("authChanged", loadProfile);
+    window.addEventListener("profileUpdated", loadProfile);
+    window.addEventListener("lostFoundReportsUpdated", loadProfile);
+
+    return () => {
+      window.removeEventListener("storage", loadProfile);
+      window.removeEventListener("authChanged", loadProfile);
+      window.removeEventListener("profileUpdated", loadProfile);
+      window.removeEventListener("lostFoundReportsUpdated", loadProfile);
+    };
   }, []);
 
-  const updateSidebarProfile = () => {
-    window.dispatchEvent(new Event("profileUpdated"));
+  const ownReports = useMemo(() => {
+    return reports.filter((report) => isOwnReport(report, profileData));
+  }, [reports, profileData]);
+
+  const profileStats = useMemo(() => {
+    return {
+      total: ownReports.length,
+      matched: ownReports.filter(
+        (report) =>
+          report.adminStatus === "Matched" ||
+          report.matchDecision === "Confirmed" ||
+          report.matchId
+      ).length,
+      pending: ownReports.filter((report) =>
+        ["Pending", "Pending Review"].includes(report.adminStatus)
+      ).length,
+    };
+  }, [ownReports]);
+
+  const showMessage = (text) => {
+    setMessage(text);
+
+    setTimeout(() => {
+      setMessage("");
+    }, 3000);
   };
 
   const handleImageChange = (e) => {
@@ -61,12 +231,12 @@ export default function Profile() {
     }
 
     if (!file.type.startsWith("image/")) {
-      setMessage("Please upload a valid image file.");
+      showMessage("Please upload a valid image file.");
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      setMessage("Image size should be less than 2MB.");
+      showMessage("Image size should be less than 2MB.");
       return;
     }
 
@@ -76,12 +246,11 @@ export default function Profile() {
       const imageBase64 = reader.result;
 
       setProfileImage(imageBase64);
+      localStorage.setItem(PROFILE_IMAGE_KEY, imageBase64);
 
-      localStorage.setItem("lostFoundProfileImage", imageBase64);
+      showMessage("Profile picture updated successfully.");
 
-      setMessage("Profile picture updated successfully.");
-
-      updateSidebarProfile();
+      window.dispatchEvent(new Event("profileUpdated"));
     };
 
     reader.readAsDataURL(file);
@@ -91,12 +260,11 @@ export default function Profile() {
 
   const handleRemoveImage = () => {
     setProfileImage("");
+    localStorage.removeItem(PROFILE_IMAGE_KEY);
 
-    localStorage.removeItem("lostFoundProfileImage");
+    showMessage("Profile picture removed successfully.");
 
-    setMessage("Profile picture removed successfully.");
-
-    updateSidebarProfile();
+    window.dispatchEvent(new Event("profileUpdated"));
   };
 
   const handleChange = (e) => {
@@ -111,12 +279,32 @@ export default function Profile() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    localStorage.setItem("lostFoundProfileData", JSON.stringify(profileData));
+    const cleanProfile = {
+      ...profileData,
+      fullName: profileData.fullName.trim(),
+      email: normalize(profileData.email),
+      phone: profileData.phone.trim(),
+      city: profileData.city.trim(),
+      address: profileData.address.trim(),
+      bio: profileData.bio.trim(),
+      role: profileData.role || "Registered User",
+    };
 
-    setMessage("Profile updated successfully.");
+    localStorage.setItem(PROFILE_DATA_KEY, JSON.stringify(cleanProfile));
 
-    updateSidebarProfile();
+    setProfileData(cleanProfile);
+    updateStoredUserData(cleanProfile);
+
+    showMessage("Profile updated successfully.");
   };
+
+  const initials = profileData.fullName
+    .split(" ")
+    .filter(Boolean)
+    .map((name) => name[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <div className="profile">
@@ -138,7 +326,7 @@ export default function Profile() {
 
             <div className="profile-hero__badge">
               <FaShieldAlt />
-              Verified User
+              {profileData.role === "Admin" ? "Admin User" : "Verified User"}
             </div>
           </section>
 
@@ -149,14 +337,7 @@ export default function Profile() {
                   {profileImage ? (
                     <img src={profileImage} alt="Profile" />
                   ) : (
-                    <span>
-                      {profileData.fullName
-                        .split(" ")
-                        .map((name) => name[0])
-                        .join("")
-                        .slice(0, 2)
-                        .toUpperCase()}
-                    </span>
+                    <span>{initials || "U"}</span>
                   )}
                 </div>
 
@@ -187,7 +368,11 @@ export default function Profile() {
 
               <h2>{profileData.fullName}</h2>
 
-              <p className="profile-role">Lost & Found Member</p>
+              <p className="profile-role">
+                {profileData.role === "Admin"
+                  ? "Lost & Found Administrator"
+                  : "Lost & Found Member"}
+              </p>
 
               <div className="profile-info-list">
                 <p>
@@ -208,17 +393,17 @@ export default function Profile() {
 
               <div className="profile-stats">
                 <div>
-                  <h3>12</h3>
+                  <h3>{String(profileStats.total).padStart(2, "0")}</h3>
                   <p>Reports</p>
                 </div>
 
                 <div>
-                  <h3>04</h3>
+                  <h3>{String(profileStats.matched).padStart(2, "0")}</h3>
                   <p>Matched</p>
                 </div>
 
                 <div>
-                  <h3>03</h3>
+                  <h3>{String(profileStats.pending).padStart(2, "0")}</h3>
                   <p>Pending</p>
                 </div>
               </div>
@@ -265,7 +450,7 @@ export default function Profile() {
                       name="email"
                       value={profileData.email}
                       onChange={handleChange}
-                      placeholder="Enter email address"
+                      placeholder="Enter email"
                       required
                     />
                   </div>
@@ -306,6 +491,7 @@ export default function Profile() {
                     value={profileData.address}
                     onChange={handleChange}
                     placeholder="Enter address"
+                    required
                   />
                 </div>
 
@@ -316,52 +502,14 @@ export default function Profile() {
                     name="bio"
                     value={profileData.bio}
                     onChange={handleChange}
-                    placeholder="Write something about yourself"
+                    placeholder="Write short bio"
                   ></textarea>
                 </div>
 
-                <button className="profile-save-btn" type="submit">
+                <button type="submit" className="profile-save-btn">
                   Save Changes
                 </button>
               </form>
-            </div>
-          </section>
-
-          <section className="profile-quick">
-            <div className="profile-quick-card">
-              <div className="profile-quick-icon">
-                <FaFileAlt />
-              </div>
-
-              <div>
-                <h3>My Reports</h3>
-
-                <p>View and manage your submitted lost and found reports.</p>
-              </div>
-            </div>
-
-            <div className="profile-quick-card">
-              <div className="profile-quick-icon">
-                <FaBell />
-              </div>
-
-              <div>
-                <h3>Notifications</h3>
-
-                <p>Check case updates, admin alerts and possible matches.</p>
-              </div>
-            </div>
-
-            <div className="profile-quick-card">
-              <div className="profile-quick-icon">
-                <FaUser />
-              </div>
-
-              <div>
-                <h3>Account Security</h3>
-
-                <p>Keep your account information secure and updated.</p>
-              </div>
             </div>
           </section>
 
