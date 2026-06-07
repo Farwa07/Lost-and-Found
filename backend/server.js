@@ -6,6 +6,7 @@ require('dotenv').config();
 const authRoutes = require("./routes/authRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const statsRoutes = require("./routes/statsRoutes");
+const commentRoutes = require("./routes/commentRoutes");
 
 const app = express();
 
@@ -17,6 +18,8 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/comments", commentRoutes);
+
 
 // Database connection
 const port = process.env.PORT || 5000;
