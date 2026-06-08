@@ -355,6 +355,112 @@ const reportPost = async (req, res) => {
   }
 };
 
+// DELETE MY REPORT
+const deleteMyReport = async (req, res) => {
+  try {
+    const report = await Report.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.id,
+    });
+
+    if (!report) {
+      return res.status(404).json({
+        message: "Report not found or you are not allowed to delete it",
+      });
+    }
+
+    res.status(200).json({
+      message: "Report deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// UPDATE MY REPORT STATUS
+const updateMyReportStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    const allowedStatuses = ["pending", "verified", "matched", "closed"];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        message: "Invalid status value",
+      });
+    }
+
+    const report = await Report.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        userId: req.user.id,
+      },
+      {
+        status,
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!report) {
+      return res.status(404).json({
+        message: "Report not found or you are not allowed to update it",
+      });
+    }
+
+    res.status(200).json({
+      message: "Report status updated successfully",
+      report,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// UPDATE MY REPORT DETAILS
+const updateMyReport = async (req, res) => {
+  try {
+    const updateData = req.body;
+
+    delete updateData.userId;
+    delete updateData.status;
+    delete updateData.isVerified;
+
+    const report = await Report.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        userId: req.user.id,
+      },
+      updateData,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!report) {
+      return res.status(404).json({
+        message: "Report not found or you are not allowed to update it",
+      });
+    }
+
+    res.status(200).json({
+      message: "Report updated successfully",
+      report,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createLostItemReport,
   createFoundItemReport,
@@ -366,5 +472,8 @@ module.exports = {
   getReportById,
   getMyReports,
   reportPost,
+  deleteMyReport,
+  updateMyReportStatus,
+  updateMyReport,
 };
    
