@@ -121,9 +121,13 @@ const normalizeReport = (report) => {
 const readReports = () => {
   const savedReports = safeParse(localStorage.getItem(REPORTS_KEY), []);
 
-  return Array.isArray(savedReports)
-    ? savedReports.map(normalizeReport)
-    : [];
+  if (!Array.isArray(savedReports)) {
+    return [];
+  }
+
+  return savedReports
+    .filter((report) => report.reportSource === "User Submitted")
+    .map(normalizeReport);
 };
 
 const isResolvedReport = (report) => {
