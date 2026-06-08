@@ -15,6 +15,8 @@ const cityOptions = [
   "Karachi",
   "Islamabad",
   "Gujranwala",
+  "Kamoki",
+  "Kamoke",
   "Sialkot",
   "Faisalabad",
   "Multan",
@@ -22,7 +24,110 @@ const cityOptions = [
   "Peshawar",
   "Quetta",
   "Hyderabad",
+  "Wazirabad",
+  "Gujrat",
+  "Sheikhupura",
+  "Sargodha",
+  "Bahawalpur",
+  "Sahiwal",
+  "Okara",
+  "Kasur",
+  "Jhelum",
+  "Mardan",
+  "Abbottabad",
+  "Sukkur",
 ];
+
+const cityAliases = {
+  kamoki: "Kamoki",
+  kamoke: "Kamoki",
+  gujranwala: "Gujranwala",
+  grw: "Gujranwala",
+  lahore: "Lahore",
+  karachi: "Karachi",
+  islamabad: "Islamabad",
+  rawalpindi: "Rawalpindi",
+  pindi: "Rawalpindi",
+  faisalabad: "Faisalabad",
+  multan: "Multan",
+  sialkot: "Sialkot",
+  peshawar: "Peshawar",
+  quetta: "Quetta",
+  hyderabad: "Hyderabad",
+  wazirabad: "Wazirabad",
+  gujrat: "Gujrat",
+  sheikhupura: "Sheikhupura",
+  sargodha: "Sargodha",
+  bahawalpur: "Bahawalpur",
+  sahiwal: "Sahiwal",
+  okara: "Okara",
+  kasur: "Kasur",
+  jhelum: "Jhelum",
+  mardan: "Mardan",
+  abbottabad: "Abbottabad",
+  sukkur: "Sukkur",
+};
+
+const cleanCityName = (value = "") => {
+  return String(value)
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, " ");
+};
+
+const titleCaseCity = (value = "") => {
+  return cleanCityName(value)
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
+const inferCity = (...values) => {
+  const combinedValue = values
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const aliasKey = Object.keys(cityAliases).find((key) => {
+    const pattern = new RegExp(`\\b${key}\\b`, "i");
+    return pattern.test(combinedValue);
+  });
+
+  if (aliasKey) {
+    return cityAliases[aliasKey];
+  }
+
+  const matchedCity = cityOptions.find((city) => {
+    const pattern = new RegExp(`\\b${city.toLowerCase()}\\b`, "i");
+    return pattern.test(combinedValue);
+  });
+
+  if (matchedCity) {
+    return matchedCity === "Kamoke" ? "Kamoki" : matchedCity;
+  }
+
+  const locationValue = values.find(Boolean) || "";
+
+  const locationParts = locationValue
+    .split(",")
+    .map((part) => cleanCityName(part))
+    .filter(Boolean);
+
+  if (locationParts.length > 1) {
+    return titleCaseCity(locationParts[locationParts.length - 1]);
+  }
+
+  const words = cleanCityName(locationValue)
+    .split(" ")
+    .filter(Boolean);
+
+  if (words.length > 0) {
+    return titleCaseCity(words[words.length - 1]);
+  }
+
+  return "Unknown";
+};
 
 const readReports = () => {
   try {
@@ -78,31 +183,6 @@ const fileToBase64 = (file) => {
 
     reader.readAsDataURL(file);
   });
-};
-
-const inferCity = (...values) => {
-  const combinedValue = values
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const matchedCity = cityOptions.find((city) =>
-    combinedValue.includes(city.toLowerCase())
-  );
-
-  if (matchedCity) {
-    return matchedCity;
-  }
-
-  const locationValue = values.find(Boolean) || "";
-  const locationParts = locationValue
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  return locationParts.length > 1
-    ? locationParts[locationParts.length - 1]
-    : "Unknown";
 };
 
 const createReportId = () => {
@@ -226,23 +306,18 @@ const FoundItem = () => {
     <div className="found-item-page">
       <div className="found-item-overlay">
         <div className="found-item-container">
-          {/* HEADER */}
-
           <div className="found-item-header">
             <FaBoxOpen className="found-item-icon" />
 
-            <h2>
-              Report Found Item
-            </h2>
+            <h2>Report Found Item</h2>
 
             <p>
-              Submit details about the found item to help reconnect it with the rightful owner.
+              Submit details about the found item to help reconnect it with the
+              rightful owner.
             </p>
           </div>
 
           <form onSubmit={handleSubmit}>
-            {/* FOUND ITEM DETAILS */}
-
             <div className="section-title">
               <h3>Found Item Details</h3>
             </div>
@@ -270,23 +345,21 @@ const FoundItem = () => {
                   onChange={handleChange}
                   required
                 >
-                  <option value="">
-                    Select Category
-                  </option>
-
+                  <option value="">Select Category</option>
                   <option>Mobile</option>
                   <option>Wallet</option>
-                  <option>Laptop</option>
-                  <option>Documents</option>
-                  <option>Keys</option>
                   <option>Bag</option>
+                  <option>Laptop</option>
+                  <option>Keys</option>
                   <option>Watch</option>
+                  <option>Documents</option>
+                  <option>Jewelry</option>
                   <option>Other</option>
                 </select>
               </div>
 
               <div className="found-item-input">
-                <label>Item Color (Optional)</label>
+                <label>Item Color</label>
 
                 <input
                   type="text"
@@ -294,13 +367,11 @@ const FoundItem = () => {
                   placeholder="Enter item color"
                   value={formData.itemColor}
                   onChange={handleChange}
-                  pattern="[A-Za-z\s]+"
-                  title="Only alphabets are allowed"
                 />
               </div>
 
               <div className="found-item-input">
-                <label>Item Brand (Optional)</label>
+                <label>Item Brand</label>
 
                 <input
                   type="text"
@@ -317,7 +388,7 @@ const FoundItem = () => {
                 <input
                   type="text"
                   name="foundLocation"
-                  placeholder="Where was the item found, city?"
+                  placeholder="Enter found location, city"
                   value={formData.foundLocation}
                   onChange={handleChange}
                   required
@@ -335,19 +406,19 @@ const FoundItem = () => {
                   required
                 />
               </div>
-            </div>
 
-            <div className="found-item-input full-width">
-              <label>Current Item Location</label>
+              <div className="found-item-input">
+                <label>Current Location of Item</label>
 
-              <textarea
-                rows="4"
-                name="currentLocation"
-                placeholder="Enter where the item is currently kept, city"
-                value={formData.currentLocation}
-                onChange={handleChange}
-                required
-              ></textarea>
+                <textarea
+                  rows="4"
+                  name="currentLocation"
+                  placeholder="Enter current location where item is kept, city"
+                  value={formData.currentLocation}
+                  onChange={handleChange}
+                  required
+                ></textarea>
+              </div>
             </div>
 
             <div className="found-item-input full-width">
@@ -356,14 +427,12 @@ const FoundItem = () => {
               <textarea
                 rows="5"
                 name="itemDescription"
-                placeholder="Mention item condition, unique marks or important details."
+                placeholder="Mention item condition, marks, model, serial number, or any important details."
                 value={formData.itemDescription}
                 onChange={handleChange}
                 required
               ></textarea>
             </div>
-
-            {/* REPORTER DETAILS */}
 
             <div className="section-title">
               <h3>Reporter Details</h3>
@@ -376,10 +445,10 @@ const FoundItem = () => {
                 <input
                   type="text"
                   name="reporterFullName"
-                  placeholder="Enter full name"
+                  placeholder="Enter reporter full name"
                   value={formData.reporterFullName}
                   onChange={handleChange}
-                  pattern="[A-Za-z\s]{3,}"
+                  pattern="[A-Za-z\s]+"
                   title="Only alphabets are allowed"
                   required
                 />
@@ -396,7 +465,7 @@ const FoundItem = () => {
                   onChange={handleChange}
                   pattern="[0-9]{11}"
                   maxLength="11"
-                  title="Enter valid 11 digit number"
+                  title="Enter valid 11 digit phone number"
                   required
                 />
               </div>
@@ -407,11 +476,9 @@ const FoundItem = () => {
                 <input
                   type="email"
                   name="reporterEmail"
-                  placeholder="Enter email address"
+                  placeholder="Enter reporter email"
                   value={formData.reporterEmail}
                   onChange={handleChange}
-                  pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$"
-                  title="Enter valid email"
                   required
                 />
               </div>
@@ -419,18 +486,16 @@ const FoundItem = () => {
               <div className="found-item-input">
                 <label>Reporter Address</label>
 
-                <textarea
-                  rows="4"
+                <input
+                  type="text"
                   name="reporterAddress"
-                  placeholder="Enter complete address"
+                  placeholder="Enter reporter address, city"
                   value={formData.reporterAddress}
                   onChange={handleChange}
                   required
-                ></textarea>
+                />
               </div>
             </div>
-
-            {/* UPLOADS */}
 
             <div className="section-title">
               <h3>Required Uploads</h3>
@@ -473,7 +538,9 @@ const FoundItem = () => {
                 />
 
                 {formData.reporterIdCardImage && (
-                  <p className="file-name">{formData.reporterIdCardImage.name}</p>
+                  <p className="file-name">
+                    {formData.reporterIdCardImage.name}
+                  </p>
                 )}
               </div>
             </div>

@@ -14,6 +14,8 @@ const cityOptions = [
   "Karachi",
   "Islamabad",
   "Gujranwala",
+  "Kamoki",
+  "Kamoke",
   "Sialkot",
   "Faisalabad",
   "Multan",
@@ -21,7 +23,110 @@ const cityOptions = [
   "Peshawar",
   "Quetta",
   "Hyderabad",
+  "Wazirabad",
+  "Gujrat",
+  "Sheikhupura",
+  "Sargodha",
+  "Bahawalpur",
+  "Sahiwal",
+  "Okara",
+  "Kasur",
+  "Jhelum",
+  "Mardan",
+  "Abbottabad",
+  "Sukkur",
 ];
+
+const cityAliases = {
+  kamoki: "Kamoki",
+  kamoke: "Kamoki",
+  gujranwala: "Gujranwala",
+  grw: "Gujranwala",
+  lahore: "Lahore",
+  karachi: "Karachi",
+  islamabad: "Islamabad",
+  rawalpindi: "Rawalpindi",
+  pindi: "Rawalpindi",
+  faisalabad: "Faisalabad",
+  multan: "Multan",
+  sialkot: "Sialkot",
+  peshawar: "Peshawar",
+  quetta: "Quetta",
+  hyderabad: "Hyderabad",
+  wazirabad: "Wazirabad",
+  gujrat: "Gujrat",
+  sheikhupura: "Sheikhupura",
+  sargodha: "Sargodha",
+  bahawalpur: "Bahawalpur",
+  sahiwal: "Sahiwal",
+  okara: "Okara",
+  kasur: "Kasur",
+  jhelum: "Jhelum",
+  mardan: "Mardan",
+  abbottabad: "Abbottabad",
+  sukkur: "Sukkur",
+};
+
+const cleanCityName = (value = "") => {
+  return String(value)
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, " ");
+};
+
+const titleCaseCity = (value = "") => {
+  return cleanCityName(value)
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
+const inferCity = (...values) => {
+  const combinedValue = values
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const aliasKey = Object.keys(cityAliases).find((key) => {
+    const pattern = new RegExp(`\\b${key}\\b`, "i");
+    return pattern.test(combinedValue);
+  });
+
+  if (aliasKey) {
+    return cityAliases[aliasKey];
+  }
+
+  const matchedCity = cityOptions.find((city) => {
+    const pattern = new RegExp(`\\b${city.toLowerCase()}\\b`, "i");
+    return pattern.test(combinedValue);
+  });
+
+  if (matchedCity) {
+    return matchedCity === "Kamoke" ? "Kamoki" : matchedCity;
+  }
+
+  const locationValue = values.find(Boolean) || "";
+
+  const locationParts = locationValue
+    .split(",")
+    .map((part) => cleanCityName(part))
+    .filter(Boolean);
+
+  if (locationParts.length > 1) {
+    return titleCaseCity(locationParts[locationParts.length - 1]);
+  }
+
+  const words = cleanCityName(locationValue)
+    .split(" ")
+    .filter(Boolean);
+
+  if (words.length > 0) {
+    return titleCaseCity(words[words.length - 1]);
+  }
+
+  return "Unknown";
+};
 
 const readReports = () => {
   try {
@@ -77,31 +182,6 @@ const fileToBase64 = (file) => {
 
     reader.readAsDataURL(file);
   });
-};
-
-const inferCity = (...values) => {
-  const combinedValue = values
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const matchedCity = cityOptions.find((city) =>
-    combinedValue.includes(city.toLowerCase())
-  );
-
-  if (matchedCity) {
-    return matchedCity;
-  }
-
-  const locationValue = values.find(Boolean) || "";
-  const locationParts = locationValue
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  return locationParts.length > 1
-    ? locationParts[locationParts.length - 1]
-    : "Unknown";
 };
 
 const createReportId = () => {
@@ -264,18 +344,18 @@ const LostItem = () => {
                   <option value="">Select Category</option>
                   <option>Mobile</option>
                   <option>Wallet</option>
-                  <option>Laptop</option>
-                  <option>Documents</option>
-                  <option>Keys</option>
                   <option>Bag</option>
+                  <option>Laptop</option>
+                  <option>Keys</option>
                   <option>Watch</option>
-                  <option>Accessories</option>
+                  <option>Documents</option>
+                  <option>Jewelry</option>
                   <option>Other</option>
                 </select>
               </div>
 
               <div className="lost-item-input">
-                <label>Item Color (Optional)</label>
+                <label>Item Color</label>
 
                 <input
                   type="text"
@@ -283,13 +363,11 @@ const LostItem = () => {
                   placeholder="Enter item color"
                   value={formData.itemColor}
                   onChange={handleChange}
-                  pattern="[A-Za-z\s]+"
-                  title="Only alphabets are allowed"
                 />
               </div>
 
               <div className="lost-item-input">
-                <label>Item Brand (Optional)</label>
+                <label>Item Brand</label>
 
                 <input
                   type="text"
@@ -306,7 +384,7 @@ const LostItem = () => {
                 <input
                   type="text"
                   name="lostLocation"
-                  placeholder="Where was the item lost, city?"
+                  placeholder="Enter lost location, city"
                   value={formData.lostLocation}
                   onChange={handleChange}
                   required
@@ -332,7 +410,7 @@ const LostItem = () => {
               <textarea
                 rows="5"
                 name="itemDescription"
-                placeholder="Mention item condition, unique marks, serial number or any important details."
+                placeholder="Mention item condition, marks, model, serial number, or any important details."
                 value={formData.itemDescription}
                 onChange={handleChange}
                 required
@@ -350,10 +428,10 @@ const LostItem = () => {
                 <input
                   type="text"
                   name="reporterFullName"
-                  placeholder="Enter full name"
+                  placeholder="Enter reporter full name"
                   value={formData.reporterFullName}
                   onChange={handleChange}
-                  pattern="[A-Za-z\s]{3,}"
+                  pattern="[A-Za-z\s]+"
                   title="Only alphabets are allowed"
                   required
                 />
@@ -370,7 +448,7 @@ const LostItem = () => {
                   onChange={handleChange}
                   pattern="[0-9]{11}"
                   maxLength="11"
-                  title="Enter valid 11 digit number"
+                  title="Enter valid 11 digit phone number"
                   required
                 />
               </div>
@@ -381,11 +459,9 @@ const LostItem = () => {
                 <input
                   type="email"
                   name="reporterEmail"
-                  placeholder="Enter email address"
+                  placeholder="Enter reporter email"
                   value={formData.reporterEmail}
                   onChange={handleChange}
-                  pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$"
-                  title="Enter valid email"
                   required
                 />
               </div>
@@ -393,14 +469,14 @@ const LostItem = () => {
               <div className="lost-item-input">
                 <label>Reporter Address</label>
 
-                <textarea
-                  rows="4"
+                <input
+                  type="text"
                   name="reporterAddress"
-                  placeholder="Enter complete address"
+                  placeholder="Enter reporter address, city"
                   value={formData.reporterAddress}
                   onChange={handleChange}
                   required
-                ></textarea>
+                />
               </div>
             </div>
 
@@ -425,9 +501,7 @@ const LostItem = () => {
                 />
 
                 {formData.lostItemImage && (
-                  <p className="file-name">
-                    {formData.lostItemImage.name}
-                  </p>
+                  <p className="file-name">{formData.lostItemImage.name}</p>
                 )}
               </div>
 

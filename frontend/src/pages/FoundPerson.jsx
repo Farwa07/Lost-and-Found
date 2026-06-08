@@ -14,6 +14,8 @@ const cityOptions = [
   "Karachi",
   "Islamabad",
   "Gujranwala",
+  "Kamoki",
+  "Kamoke",
   "Sialkot",
   "Faisalabad",
   "Multan",
@@ -21,7 +23,110 @@ const cityOptions = [
   "Peshawar",
   "Quetta",
   "Hyderabad",
+  "Wazirabad",
+  "Gujrat",
+  "Sheikhupura",
+  "Sargodha",
+  "Bahawalpur",
+  "Sahiwal",
+  "Okara",
+  "Kasur",
+  "Jhelum",
+  "Mardan",
+  "Abbottabad",
+  "Sukkur",
 ];
+
+const cityAliases = {
+  kamoki: "Kamoki",
+  kamoke: "Kamoki",
+  gujranwala: "Gujranwala",
+  grw: "Gujranwala",
+  lahore: "Lahore",
+  karachi: "Karachi",
+  islamabad: "Islamabad",
+  rawalpindi: "Rawalpindi",
+  pindi: "Rawalpindi",
+  faisalabad: "Faisalabad",
+  multan: "Multan",
+  sialkot: "Sialkot",
+  peshawar: "Peshawar",
+  quetta: "Quetta",
+  hyderabad: "Hyderabad",
+  wazirabad: "Wazirabad",
+  gujrat: "Gujrat",
+  sheikhupura: "Sheikhupura",
+  sargodha: "Sargodha",
+  bahawalpur: "Bahawalpur",
+  sahiwal: "Sahiwal",
+  okara: "Okara",
+  kasur: "Kasur",
+  jhelum: "Jhelum",
+  mardan: "Mardan",
+  abbottabad: "Abbottabad",
+  sukkur: "Sukkur",
+};
+
+const cleanCityName = (value = "") => {
+  return String(value)
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, " ");
+};
+
+const titleCaseCity = (value = "") => {
+  return cleanCityName(value)
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
+const inferCity = (...values) => {
+  const combinedValue = values
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const aliasKey = Object.keys(cityAliases).find((key) => {
+    const pattern = new RegExp(`\\b${key}\\b`, "i");
+    return pattern.test(combinedValue);
+  });
+
+  if (aliasKey) {
+    return cityAliases[aliasKey];
+  }
+
+  const matchedCity = cityOptions.find((city) => {
+    const pattern = new RegExp(`\\b${city.toLowerCase()}\\b`, "i");
+    return pattern.test(combinedValue);
+  });
+
+  if (matchedCity) {
+    return matchedCity === "Kamoke" ? "Kamoki" : matchedCity;
+  }
+
+  const locationValue = values.find(Boolean) || "";
+
+  const locationParts = locationValue
+    .split(",")
+    .map((part) => cleanCityName(part))
+    .filter(Boolean);
+
+  if (locationParts.length > 1) {
+    return titleCaseCity(locationParts[locationParts.length - 1]);
+  }
+
+  const words = cleanCityName(locationValue)
+    .split(" ")
+    .filter(Boolean);
+
+  if (words.length > 0) {
+    return titleCaseCity(words[words.length - 1]);
+  }
+
+  return "Unknown";
+};
 
 const readReports = () => {
   try {
@@ -77,31 +182,6 @@ const fileToBase64 = (file) => {
 
     reader.readAsDataURL(file);
   });
-};
-
-const inferCity = (...values) => {
-  const combinedValue = values
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const matchedCity = cityOptions.find((city) =>
-    combinedValue.includes(city.toLowerCase())
-  );
-
-  if (matchedCity) {
-    return matchedCity;
-  }
-
-  const locationValue = values.find(Boolean) || "";
-  const locationParts = locationValue
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  return locationParts.length > 1
-    ? locationParts[locationParts.length - 1]
-    : "Unknown";
 };
 
 const createReportId = () => {
