@@ -15,6 +15,7 @@ import {
   FaClipboardList,
   FaClock,
   FaEnvelope,
+  FaExclamationTriangle,
   FaEye,
   FaFileAlt,
   FaFlag,
@@ -779,7 +780,7 @@ export default function AdminPanel() {
 
         const result = calculateMatchScore(lostReport, foundReport);
 
-        if (result.score >= 70) {
+        if (result.score >= 60) {
           usedVisualPairs.add(visualPairKey);
 
           matches.push({
@@ -985,7 +986,7 @@ export default function AdminPanel() {
       pairKey: match.pairKey,
       visualPairKey: match.visualPairKey,
       score: match.score,
-      threshold: 70,
+      threshold: 60,
       reasons: match.reasons,
       matchedFields: match.matchedFields,
       lostReport: updatedLostReport,
@@ -1547,7 +1548,7 @@ export default function AdminPanel() {
           <div>
             <h2>Rule-Based Match Comparison</h2>
             <p>
-              Only 70% or higher lost/missing vs found candidates are shown for admin decision.
+              Only 60% or higher lost/missing vs found candidates are shown for admin decision.
             </p>
           </div>
         </section>
@@ -1582,7 +1583,7 @@ export default function AdminPanel() {
                 </span>
 
                 <span>
-                  <b>Threshold:</b> 70%
+                  <b>Threshold:</b> 60%
                 </span>
               </div>
 
@@ -1616,7 +1617,7 @@ export default function AdminPanel() {
         ) : (
           <div className="admin-empty-box">
             <FaPeopleArrows />
-            <h3>No 70%+ potential matches</h3>
+            <h3>No 60%+ potential matches</h3>
             <p>
               New possible matches will appear here when lost/missing and found reports have strong similarity.
             </p>
@@ -1927,9 +1928,11 @@ export default function AdminPanel() {
               <FaBan /> Reject
             </button>
 
-            <button type="button" onClick={() => openAlertModal(selectedReport)}>
-              <FaBell /> Send Alert
-            </button>
+            {activeTab !== "matches" && (
+  <button type="button" onClick={() => openAlertModal(selectedReport)}>
+    <FaBell /> Send Alert
+  </button>
+)}
 
             <button
               type="button"
@@ -2052,7 +2055,7 @@ export default function AdminPanel() {
 
               <p>
                 Verify reports, review flagged content, manage users, update case status,
-                compare 70%+ rule-based matches and send alerts to users.
+                compare 60%+ rule-based matches and send alerts to users.
               </p>
             </div>
 
@@ -2128,7 +2131,7 @@ export default function AdminPanel() {
 
               <div>
                 <h3>{potentialMatches.length}</h3>
-                <p>70%+ Matches</p>
+                <p>60%+ Matches</p>
               </div>
             </button>
 
