@@ -54,6 +54,36 @@ const updateReportStatus = async (req, res) => {
       });
     }
 
+    // AUTO NOTIFICATION ON VERIFY / REJECT / MATCHED
+    if (report.userId && ["verified", "rejected", "matched"].includes(status)) {
+      let notificationTitle = "Report Status Updated";
+      let notificationMessage = `Your report status has been updated to ${status}.`;
+
+      if (status === "verified") {
+        notificationTitle = "Report Verified";
+        notificationMessage = "Admin has verified your report.";
+      }
+
+      if (status === "rejected") {
+        notificationTitle = "Report Rejected";
+        notificationMessage = "Admin has rejected your report.";
+      }
+
+      if (status === "matched") {
+        notificationTitle = "Report Matched";
+        notificationMessage = "Admin has marked your report as matched.";
+      }
+
+      await Notification.create({
+        userId: report.userId,
+        reportId: report._id,
+        type: "Status",
+        title: notificationTitle,
+        message: notificationMessage,
+        actionUrl: `/reports/${report._id}`,
+      });
+    }
+
     res.status(200).json({
       message: "Report status updated successfully",
       report,
@@ -64,6 +94,7 @@ const updateReportStatus = async (req, res) => {
     });
   }
 };
+   
 
 // DELETE FAKE OR INAPPROPRIATE REPORT
 const deleteAdminReport = async (req, res) => {
