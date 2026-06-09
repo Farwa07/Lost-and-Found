@@ -2,6 +2,7 @@ const Report = require("../models/report");
 const User = require("../models/user");
 const ReportComplaint = require("../models/reportComplaint");
 const Notification = require("../models/notification");
+const AdminLog = require("../models/adminLog");
 
 // GET ALL REPORTS FOR ADMIN
 const getAdminReports = async (req, res) => {
@@ -305,6 +306,25 @@ const sendAdminAlert = async (req, res) => {
   }
 };
 
+// GET ADMIN LOGS
+const getAdminLogs = async (req, res) => {
+  try {
+    const logs = await AdminLog.find()
+      .populate("adminId", "fullName email role")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "Admin logs fetched successfully",
+      count: logs.length,
+      logs,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getAdminReports,
   updateReportStatus,
@@ -316,4 +336,5 @@ module.exports = {
   blockUser,
   unblockUser,
   sendAdminAlert,
+  getAdminLogs,
 };

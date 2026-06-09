@@ -15,6 +15,7 @@ const {
   blockUser,
   unblockUser,
   sendAdminAlert,
+  getAdminLogs,
 } = require("../controllers/adminController");
 
 // Admin Reports
@@ -68,5 +69,8 @@ router.patch(
   adminMiddleware,
   updateComplaintStatus
 );
+
+// Admin Logs
+router.get("/logs", authMiddleware, adminMiddleware, getAdminLogs);
 
 module.exports = router;
