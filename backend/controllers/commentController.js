@@ -1,6 +1,8 @@
 const Comment = require("../models/comment");
 const Report = require("../models/report");
 const User = require("../models/user");
+const Notification = require("../models/notification");
+
 
 // ADD COMMENT
 const addComment = async (req, res) => {
@@ -34,6 +36,18 @@ const addComment = async (req, res) => {
 
     await newComment.save();
 
+    // AUTO NOTIFICATION ON COMMENT
+    if (report.userId && String(report.userId) !== String(req.user.id)) {
+      await Notification.create({
+        userId: report.userId,
+        reportId: report._id,
+        type: "Comment",
+        title: "New Comment",
+        message: "Someone commented on your report.",
+        actionUrl: `/reports/${report._id}`,
+      });
+    }
+
     res.status(201).json({
       message: "Comment added successfully",
       comment: newComment,
@@ -44,6 +58,7 @@ const addComment = async (req, res) => {
     });
   }
 };
+
 
 // GET COMMENTS BY REPORT
 const getCommentsByReport = async (req, res) => {
