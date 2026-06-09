@@ -194,6 +194,58 @@ const updateComplaintStatus = async (req, res) => {
   }
 };
 
+// BLOCK USER
+const blockUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { status: "blocked" },
+      { new: true, runValidators: true }
+    ).select("-password -resetOtp -resetOtpExpire");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      message: "User blocked successfully",
+      user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// UNBLOCK USER
+const unblockUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { status: "active" },
+      { new: true, runValidators: true }
+    ).select("-password -resetOtp -resetOtpExpire");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      message: "User unblocked successfully",
+      user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getAdminReports,
   updateReportStatus,
@@ -202,4 +254,6 @@ module.exports = {
   updateUserRole,
   getReportComplaints,
   updateComplaintStatus,
+  blockUser,
+  unblockUser,
 };

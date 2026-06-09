@@ -12,6 +12,8 @@ const {
   updateUserRole,
   getReportComplaints,
   updateComplaintStatus,
+  blockUser,
+  unblockUser,
 } = require("../controllers/adminController");
 
 // Admin Reports
@@ -40,6 +42,9 @@ router.patch(
   adminMiddleware,
   updateUserRole
 );
+router.patch("/users/:id/block", authMiddleware, adminMiddleware, blockUser);
+
+router.patch("/users/:id/unblock", authMiddleware, adminMiddleware, unblockUser);
 
 // Report Complaints
 router.get(
