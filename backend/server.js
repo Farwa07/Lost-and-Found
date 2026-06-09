@@ -8,12 +8,16 @@ const reportRoutes = require("./routes/reportRoutes");
 const statsRoutes = require("./routes/statsRoutes");
 const commentRoutes = require("./routes/commentRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const matchRoutes = require("./routes/matchRoutes");
+
 
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static("uploads"));
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -21,6 +25,8 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/matches", matchRoutes);
 
 
 
