@@ -177,10 +177,16 @@ foundPersonImage: {
     },
 
     status: {
-      type: String,
-      enum: ["pending", "verified", "matched", "closed"],
-      default: "pending",
-    },
+  type: String,
+  enum: ["pending", "verified", "matched", "closed", "rejected"],
+  default: "pending",
+},
+
+    caseStatus: {
+  type: String,
+  enum: ["Unsolved", "Solved", "Closed"],
+  default: "Unsolved",
+},
 
     isVerified: {
       type: Boolean,
