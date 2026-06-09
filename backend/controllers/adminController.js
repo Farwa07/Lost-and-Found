@@ -3,6 +3,7 @@ const User = require("../models/user");
 const ReportComplaint = require("../models/reportComplaint");
 const Notification = require("../models/notification");
 const AdminLog = require("../models/adminLog");
+const ReportMatch = require("../models/reportMatch");
 
 // GET ALL REPORTS FOR ADMIN
 const getAdminReports = async (req, res) => {
@@ -325,6 +326,252 @@ const getAdminLogs = async (req, res) => {
   }
 };
 
+// helper function to normalize text for comparison
+const normalizeText = (value = "") => {
+  return String(value).trim().toLowerCase();
+};
+
+const calculateMatchScore = (lostReport, foundReport) => {
+  let score = 0;
+  const reasons = [];
+
+  if (normalizeText(lostReport.category) === normalizeText(foundReport.category)) {
+    score += 25;
+    reasons.push("Same category");
+  }
+
+  if (normalizeText(lostReport.city) === normalizeText(foundReport.city)) {
+    score += 20;
+    reasons.push("Same city");
+  }
+
+  const lostTitle =
+    lostReport.itemName ||
+    lostReport.missingPersonName ||
+    lostReport.title ||
+    "";
+
+  const foundTitle =
+    foundReport.itemName ||
+    foundReport.foundPersonName ||
+    foundReport.title ||
+    "";
+
+  if (
+    normalizeText(lostTitle) &&
+    normalizeText(foundTitle) &&
+    normalizeText(lostTitle) === normalizeText(foundTitle)
+  ) {
+    score += 25;
+    reasons.push("Same title/name");
+  }
+
+  if (
+    lostReport.description &&
+    foundReport.description &&
+    normalizeText(foundReport.description).includes(normalizeText(lostReport.description).slice(0, 10))
+  ) {
+    score += 10;
+    reasons.push("Similar description");
+  }
+
+  const lostLocation =
+    lostReport.lostLocation ||
+    lostReport.missingPersonLastSeenLocation ||
+    lostReport.location ||
+    "";
+
+  const foundLocation =
+    foundReport.foundLocation ||
+    foundReport.location ||
+    "";
+
+  if (
+    normalizeText(lostLocation) &&
+    normalizeText(foundLocation) &&
+    normalizeText(lostLocation) === normalizeText(foundLocation)
+  ) {
+    score += 20;
+    reasons.push("Same location");
+  }
+
+  return {
+    score,
+    reasons,
+  };
+};
+
+// GET MATCH SUGGESTIONS
+const getMatchSuggestions = async (req, res) => {
+  try {
+    const lostReports = await Report.find({
+      reportType: { $in: ["lost", "missing"] },
+      status: { $ne: "matched" },
+    });
+
+    const foundReports = await Report.find({
+      reportType: "found",
+      status: { $ne: "matched" },
+    });
+
+    const suggestions = [];
+
+    for (const lostReport of lostReports) {
+      for (const foundReport of foundReports) {
+        const { score, reasons } = calculateMatchScore(lostReport, foundReport);
+
+        if (score >= 50) {
+          let match = await ReportMatch.findOne({
+            lostReportId: lostReport._id,
+            foundReportId: foundReport._id,
+          });
+
+          if (!match) {
+            match = await ReportMatch.create({
+              lostReportId: lostReport._id,
+              foundReportId: foundReport._id,
+              score,
+              reasons,
+              status: "suggested",
+            });
+          }
+
+          suggestions.push({
+            matchId: match._id,
+            score: match.score,
+            reasons: match.reasons,
+            status: match.status,
+            lostReport,
+            foundReport,
+          });
+        }
+      }
+    }
+
+    res.status(200).json({
+      message: "Match suggestions fetched successfully",
+      count: suggestions.length,
+      suggestions,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// CONFIRM MATCH
+const confirmMatch = async (req, res) => {
+  try {
+    const match = await ReportMatch.findById(req.params.matchId)
+      .populate("lostReportId")
+      .populate("foundReportId");
+
+    if (!match) {
+      return res.status(404).json({
+        message: "Match not found",
+      });
+    }
+
+    match.status = "confirmed";
+    match.confirmedBy = req.user.id;
+    match.confirmedAt = new Date();
+    await match.save();
+
+    await Report.findByIdAndUpdate(match.lostReportId._id, {
+      status: "matched",
+      caseStatus: "Solved",
+    });
+
+    await Report.findByIdAndUpdate(match.foundReportId._id, {
+      status: "matched",
+      caseStatus: "Solved",
+    });
+
+    if (match.lostReportId.userId) {
+      await Notification.create({
+        userId: match.lostReportId.userId,
+        reportId: match.lostReportId._id,
+        type: "Match",
+        title: "Match Confirmed",
+        message: "Admin has confirmed a match for your report.",
+        actionUrl: `/matches/${match._id}`,
+      });
+    }
+
+    if (match.foundReportId.userId) {
+      await Notification.create({
+        userId: match.foundReportId.userId,
+        reportId: match.foundReportId._id,
+        type: "Match",
+        title: "Match Confirmed",
+        message: "Admin has confirmed a match for your report.",
+        actionUrl: `/matches/${match._id}`,
+      });
+    }
+
+    res.status(200).json({
+      message: "Match confirmed successfully",
+      match,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// DISMISS MATCH
+const dismissMatch = async (req, res) => {
+  try {
+    const match = await ReportMatch.findByIdAndUpdate(
+      req.params.matchId,
+      { status: "dismissed" },
+      { new: true, runValidators: true }
+    );
+
+    if (!match) {
+      return res.status(404).json({
+        message: "Match not found",
+      });
+    }
+
+    res.status(200).json({
+      message: "Match dismissed successfully",
+      match,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// GET SINGLE MATCH DETAILS
+const getMatchById = async (req, res) => {
+  try {
+    const match = await ReportMatch.findById(req.params.matchId)
+      .populate("lostReportId")
+      .populate("foundReportId")
+      .populate("confirmedBy", "fullName email role");
+
+    if (!match) {
+      return res.status(404).json({
+        message: "Match not found",
+      });
+    }
+
+    res.status(200).json({
+      message: "Match fetched successfully",
+      match,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getAdminReports,
   updateReportStatus,
@@ -337,4 +584,8 @@ module.exports = {
   unblockUser,
   sendAdminAlert,
   getAdminLogs,
+  getMatchSuggestions,
+  confirmMatch,
+  dismissMatch,
+  getMatchById,
 };
