@@ -14,6 +14,7 @@ const {
   updateComplaintStatus,
   blockUser,
   unblockUser,
+  sendAdminAlert,
 } = require("../controllers/adminController");
 
 // Admin Reports
@@ -24,6 +25,13 @@ router.patch(
   authMiddleware,
   adminMiddleware,
   updateReportStatus
+);
+
+router.post(
+  "/reports/:id/alert",
+  authMiddleware,
+  adminMiddleware,
+  sendAdminAlert
 );
 
 router.delete(

@@ -1,6 +1,7 @@
 const Report = require("../models/report");
 const User = require("../models/user");
 const ReportComplaint = require("../models/reportComplaint");
+const Notification = require("../models/notification");
 
 // GET ALL REPORTS FOR ADMIN
 const getAdminReports = async (req, res) => {
@@ -246,6 +247,64 @@ const unblockUser = async (req, res) => {
   }
 };
 
+// SEND ADMIN ALERT FOR A REPORT
+const sendAdminAlert = async (req, res) => {
+  try {
+    const { title, message, type } = req.body;
+    const reportId = req.params.id;
+
+    if (!title || !message) {
+      return res.status(400).json({
+        message: "Title and message are required",
+      });
+    }
+
+    const report = await Report.findById(reportId);
+
+    if (!report) {
+      return res.status(404).json({
+        message: "Report not found",
+      });
+    }
+
+    if (!report.userId) {
+      return res.status(400).json({
+        message: "This report has no user attached",
+      });
+    }
+
+    const notification = new Notification({
+      userId: report.userId,
+      reportId: report._id,
+      type: type || "Alert",
+      title,
+      message,
+      caseTitle:
+        report.itemName ||
+        report.missingPersonName ||
+        report.foundPersonName ||
+        "Report Alert",
+      city:
+        report.lostLocation ||
+        report.foundLocation ||
+        report.missingPersonLastSeenLocation ||
+        "Unknown",
+      actionUrl: `/reports/${report._id}`,
+    });
+
+    await notification.save();
+
+    res.status(201).json({
+      message: "Admin alert sent successfully",
+      notification,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getAdminReports,
   updateReportStatus,
@@ -256,4 +315,5 @@ module.exports = {
   updateComplaintStatus,
   blockUser,
   unblockUser,
+  sendAdminAlert,
 };
