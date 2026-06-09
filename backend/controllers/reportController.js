@@ -277,6 +277,96 @@ const getPersonReports = async (req, res) => {
   }
 };
 
+// SEARCH AND FILTER REPORTS
+const searchReports = async (req, res) => {
+  try {
+    const {
+      keyword,
+      category,
+      reportType,
+      status,
+      gender,
+      itemCategory,
+    } = req.query;
+
+    const query = {};
+
+    if (category) {
+      query.category = category.toLowerCase();
+    }
+
+    if (reportType) {
+      query.reportType = reportType.toLowerCase();
+    }
+
+    if (status) {
+      query.status = status.toLowerCase();
+    }
+
+    if (itemCategory) {
+      query.itemCategory = { $regex: itemCategory, $options: "i" };
+    }
+
+    if (gender) {
+      query.$or = [
+        { missingPersonGender: { $regex: gender, $options: "i" } },
+        { foundPersonGender: { $regex: gender, $options: "i" } },
+      ];
+    }
+
+    if (keyword) {
+      const keywordSearch = [
+        { itemName: { $regex: keyword, $options: "i" } },
+        { itemCategory: { $regex: keyword, $options: "i" } },
+        { itemColor: { $regex: keyword, $options: "i" } },
+        { itemBrand: { $regex: keyword, $options: "i" } },
+        { itemDescription: { $regex: keyword, $options: "i" } },
+
+        { lostLocation: { $regex: keyword, $options: "i" } },
+        { foundLocation: { $regex: keyword, $options: "i" } },
+        { currentLocation: { $regex: keyword, $options: "i" } },
+
+        { missingPersonName: { $regex: keyword, $options: "i" } },
+        { missingPersonGender: { $regex: keyword, $options: "i" } },
+        {
+          missingPersonLastSeenLocation: {
+            $regex: keyword,
+            $options: "i",
+          },
+        },
+        { missingPersonDescription: { $regex: keyword, $options: "i" } },
+
+        { foundPersonName: { $regex: keyword, $options: "i" } },
+        { foundPersonGender: { $regex: keyword, $options: "i" } },
+        { foundPersonDescription: { $regex: keyword, $options: "i" } },
+
+        { reporterFullName: { $regex: keyword, $options: "i" } },
+        { reporterEmail: { $regex: keyword, $options: "i" } },
+        { reporterAddress: { $regex: keyword, $options: "i" } },
+      ];
+
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: keywordSearch }];
+        delete query.$or;
+      } else {
+        query.$or = keywordSearch;
+      }
+    }
+
+    const reports = await Report.find(query).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "Reports searched successfully",
+      count: reports.length,
+      reports,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 // GET SINGLE REPORT BY ID
 const getReportById = async (req, res) => {
   try {
@@ -475,5 +565,6 @@ module.exports = {
   deleteMyReport,
   updateMyReportStatus,
   updateMyReport,
+  searchReports,
 };
    

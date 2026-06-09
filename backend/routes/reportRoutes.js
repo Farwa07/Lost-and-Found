@@ -17,6 +17,7 @@ const {
   deleteMyReport,
   updateMyReportStatus,
   updateMyReport,
+  searchReports,
 } = require("../controllers/reportController");
 
 // Multer storage setup
@@ -91,6 +92,9 @@ router.get("/persons", getPersonReports);
 
 // Get my reports
 router.get("/my-reports", authMiddleware, getMyReports);
+
+// Search and filter reports
+router.get("/search", searchReports);
 
 // Delete my report
 router.delete("/my-reports/:id", authMiddleware, deleteMyReport);
