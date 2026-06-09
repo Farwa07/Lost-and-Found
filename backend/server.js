@@ -10,6 +10,7 @@ const commentRoutes = require("./routes/commentRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const matchRoutes = require("./routes/matchRoutes");
+const profileRoutes = require("./routes/profileRoutes");
 
 
 const app = express();
@@ -28,6 +29,7 @@ app.use("/api/comments", commentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/matches", matchRoutes);
+app.use("/api/profile", profileRoutes);
 
 
 
