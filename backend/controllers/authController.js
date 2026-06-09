@@ -340,7 +340,7 @@ const updateProfile = async (req, res) => {
     });
   }
 };
-
+//  change password
 const changePassword = async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
@@ -382,6 +382,40 @@ const changePassword = async (req, res) => {
   }
 };
 
+const updateProfileImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        message: "Profile image is required",
+      });
+    }
+
+    const imagePath = `/uploads/${req.file.filename}`;
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { profileImage: imagePath },
+      { new: true, runValidators: true }
+    ).select("-password -resetOtp -resetOtpExpire");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      message: "Profile image updated successfully",
+      profileImage: imagePath,
+      user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -392,4 +426,5 @@ module.exports = {
   getProfile,
   updateProfile,
   changePassword,
+  updateProfileImage,
 };
