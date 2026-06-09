@@ -78,8 +78,10 @@ router.post(
   createFoundPersonReport
 );
 
-// Report a post
+// Report a post/flag a post
 router.post("/:id/report-post", authMiddleware, reportPost);
+
+router.post("/:id/flags", authMiddleware, reportPost);
 
 // Get all reports
 router.get("/", getAllReports);
@@ -92,6 +94,8 @@ router.get("/persons", getPersonReports);
 
 // Get my reports
 router.get("/my-reports", authMiddleware, getMyReports);
+
+router.get("/my", authMiddleware, getMyReports);
 
 // Search and filter reports
 router.get("/search", searchReports);

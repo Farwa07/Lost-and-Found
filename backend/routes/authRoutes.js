@@ -24,6 +24,7 @@ router.post("/send-signup-otp", sendSignupOtp);
 router.post("/verify-signup-otp", verifySignupOtp);
 router.get("/profile", authMiddleware, getProfile);
 router.put("/profile", authMiddleware, updateProfile);
+router.get("/me", authMiddleware, getProfile);
 router.put("/change-password", authMiddleware, changePassword);
 
 module.exports = router;
