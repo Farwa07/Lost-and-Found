@@ -1,0 +1,36 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "created_at",
+      "found_report_id",
+      "is_confirmed",
+      "lost_report_id",
+      "matching_score"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": [
+          "objectId",
+          "string"
+        ]
+      },
+      "created_at": {
+        "bsonType": "date"
+      },
+      "found_report_id": {
+        "bsonType": "string"
+      },
+      "is_confirmed": {
+        "bsonType": "bool"
+      },
+      "lost_report_id": {
+        "bsonType": "string"
+      },
+      "matching_score": {
+        "bsonType": "double"
+      }
+    }
+  }
+}

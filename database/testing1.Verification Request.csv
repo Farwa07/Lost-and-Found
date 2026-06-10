@@ -1,0 +1,11 @@
+_id,user_id,document_type,document_image,status,admin_remarks,updated_at,created_at,report_id
+65f6f7a8b9c0000000000001,65f1a2b3c4d5e6f7a8b9c002,Student_ID,https://res.cloudinary.com/lostfound/image/upload/v1/proofs/farwa_card.jpg,approved,Student card matches University database roll numbers.,2026-02-16T09:00:00.000Z,2026-02-15T11:00:00.000Z,
+65f6f7a8b9c0000000000002,65f1a2b3c4d5e6f7a8b9c003,Police_FIR,https://res.cloudinary.com/lostfound/image/upload/v1/proofs/fir_scan.jpg,approved,FIR copy matches Gujranwala Police District registry serials.,2026-05-31T17:30:00.000Z,2026-05-31T16:15:00.000Z,65f2b3c4d5e6f7a8b9c00003
+65f6f7a8b9c0000000000003,65f1a2b3c4d5e6f7a8b9c004,CNIC,https://res.cloudinary.com/lostfound/image/upload/v1/proofs/kiran_cnic.jpg,pending,,,2026-06-02T11:15:00.000Z,
+65f6f7a8b9c0000000000004,65f1a2b3c4d5e6f7a8b9c005,Student_ID,https://res.cloudinary.com/lostfound/image/upload/v1/proofs/rizwan_bad_card.jpg,rejected,Uploaded image is blurry. Please re-upload a clear picture of your university ID card.,2026-04-06T10:00:00.000Z,2026-04-05T10:20:00.000Z,
+65f6f7a8b9c0000000000005,65f1a2b3c4d5e6f7a8b9c006,Student_ID,https://res.cloudinary.com/lostfound/image/upload/v1/proofs/zainab_id.jpg,approved,Verified cross-reference via CS/IT student roles records.,2026-04-13T09:15:00.000Z,2026-04-12T12:00:00.000Z,
+65f6f7a8b9c0000000000006,65f1a2b3c4d5e6f7a8b9c007,CNIC,https://res.cloudinary.com/lostfound/image/upload/v1/proofs/ali_cnic.jpg,pending,,,2026-06-01T09:50:00.000Z,65f2b3c4d5e6f7a8b9c00006
+65f6f7a8b9c0000000000007,65f1a2b3c4d5e6f7a8b9c008,Student_ID,https://res.cloudinary.com/lostfound/image/upload/v1/proofs/sana_card.jpg,approved,Verified card matches department archives.,2026-05-11T10:00:00.000Z,2026-05-10T10:30:00.000Z,
+65f6f7a8b9c0000000000008,65f1a2b3c4d5e6f7a8b9c009,Student_ID,https://res.cloudinary.com/lostfound/image/upload/v1/proofs/hamza_id.jpg,approved,Identity confirmed.,2026-05-19T08:45:00.000Z,2026-05-18T13:20:00.000Z,
+65f6f7a8b9c0000000000009,65f1a2b3c4d5e6f7a8b9c010,Student_ID,https://res.cloudinary.com/lostfound/image/upload/v1/proofs/ayesha_id.jpg,pending,,,2026-05-25T09:00:00.000Z,
+65f6f7a8b9c0000000000010,65f1a2b3c4d5e6f7a8b9c011,CNIC,https://res.cloudinary.com/lostfound/image/upload/v1/proofs/usman_cnic.jpg,pending,,,2026-06-03T10:10:00.000Z,

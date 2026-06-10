@@ -1,0 +1,12 @@
+_id,name,email,phone,password_hash,role,isVerified,created_at,otpToken,otpExpiry
+65f1a2b3c4d5e6f7a8b9c001,Prof Muhammad Asif Afzal,asif.afzal@gicgrw.edu.pk,+923006123456,$2b$10$X78dfyiuHIUHiuhihHIUHe09F7uIUhuhuiHIuhihHIUhuh,Admin,true,2026-01-10T08:00:00.000Z,,
+65f1a2b3c4d5e6f7a8b9c002,Farwa Izhar,farwa.izhar@student.edu.pk,+923217654321,$2b$10$Y89eghjkIJKIjkijkIJKIe10G8vIJKjkjkIJKjijkIJKjijk,User,true,2026-02-15T10:30:00.000Z,,
+65f1a2b3c4d5e6f7a8b9c003,Adeeba Khan,adeeba.khan@student.edu.pk,+923335554443,$2b$10$Z90fghklLKLKlklkLKLKf11H9wLKLklklLKLklklLKLklkl,User,true,2026-03-20T14:15:00.000Z,,
+65f1a2b3c4d5e6f7a8b9c004,Kiran Shehzadi,kiran.shehzadi@student.edu.pk,+923459998887,$2b$10$W67ceghiGHGHghghGHGHe08E6tGHGghghGHGghghGHGghgh,User,false,,521409,2026-06-02T11:00:00.000Z
+65f1a2b3c4d5e6f7a8b9c005,Muhammad Rizwan,rizwan.cs@gmail.com,+923124445556,$2b$10$M12abcdeFGHIjklmNOPQe05A1rSTUvwxyZabcdeFGHIjklm,User,true,2026-04-05T09:00:00.000Z,,
+65f1a2b3c4d5e6f7a8b9c006,Zainab Fatima,zainab.fatima@yahoo.com,+923015551122,$2b$10$N23bcdefGHIjklmnOPRSe06B2sTUVwxyzbcdefGHIjklmn,User,true,2026-04-12T11:20:00.000Z,,
+65f1a2b3c4d5e6f7a8b9c007,Ali Hamza,ali.hamza22@gmail.com,+923228889900,$2b$10$O34cdefgHIjklmnoPSTTe07C3tUVWxyzabcdefGHIjklmo,User,false,2026-05-01T15:45:00.000Z,,
+65f1a2b3c4d5e6f7a8b9c008,Sana Bilal,sana.bilal@student.edu.pk,+923341112233,$2b$10$P45defghIJklmnopTUUUe08D4uVWXyzabcdefGHIjklmp,User,true,2026-05-10T10:15:00.000Z,,
+65f1a2b3c4d5e6f7a8b9c009,Hamza Yousaf,hamza.yousaf@outlook.com,+923467776655,$2b$10$Q56efghiJKlmnopqUVVVe09E5vWXYzabcdefGHIjklmq,User,true,2026-05-18T13:00:00.000Z,,
+65f1a2b3c4d5e6f7a8b9c010,Ayesha Siddiqua,ayesha.s@student.edu.pk,+923053334455,$2b$10$R67fghijKLmnopqrWWWWe10F6wXYZabcdefGHIjklmr,User,true,2026-05-25T08:30:00.000Z,,
+65f1a2b3c4d5e6f7a8b9c011,Usman Ghani,usman.ghani@gmail.com,+923152229988,$2b$10$S78ghijkLmnopqrshXXXXe11G7xYZabcdefGHIjklms,User,false,,104938,2026-06-03T10:00:00.000Z

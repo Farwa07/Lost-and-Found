@@ -1,0 +1,86 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "category",
+      "city",
+      "created_at",
+      "description",
+      "images",
+      "incident_date",
+      "location",
+      "status",
+      "title",
+      "type",
+      "user_id"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": [
+          "objectId",
+          "string"
+        ]
+      },
+      "category": {
+        "bsonType": "string"
+      },
+      "city": {
+        "bsonType": "string"
+      },
+      "created_at": {
+        "anyOf": [
+          {
+            "bsonType": "date"
+          },
+          {
+            "bsonType": "array",
+            "items": {
+              "bsonType": "string"
+            }
+          }
+        ]
+      },
+      "description": {
+        "bsonType": "string"
+      },
+      "firDistrict": {
+        "bsonType": "string"
+      },
+      "firNumber": {
+        "bsonType": "string"
+      },
+      "images": {
+        "anyOf": [
+          {
+            "bsonType": "array",
+            "items": {
+              "bsonType": "string"
+            }
+          },
+          {
+            "bsonType": "string"
+          }
+        ]
+      },
+      "incident_date": {
+        "bsonType": "date"
+      },
+      "location": {
+        "bsonType": "string"
+      },
+      "status": {
+        "bsonType": "string"
+      },
+      "title": {
+        "bsonType": "string"
+      },
+      "type": {
+        "bsonType": "string"
+      },
+      "user_id": {
+        "bsonType": "string"
+      }
+    }
+  }
+}

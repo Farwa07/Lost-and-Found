@@ -1,0 +1,36 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "created_at",
+      "is_read",
+      "message",
+      "report_id",
+      "user_id"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": [
+          "objectId",
+          "string"
+        ]
+      },
+      "created_at": {
+        "bsonType": "date"
+      },
+      "is_read": {
+        "bsonType": "bool"
+      },
+      "message": {
+        "bsonType": "string"
+      },
+      "report_id": {
+        "bsonType": "string"
+      },
+      "user_id": {
+        "bsonType": "string"
+      }
+    }
+  }
+}

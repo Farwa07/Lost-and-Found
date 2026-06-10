@@ -1,0 +1,42 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "created_at",
+      "document_image",
+      "document_type",
+      "status",
+      "user_id"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "admin_remarks": {
+        "bsonType": "string"
+      },
+      "created_at": {
+        "bsonType": "date"
+      },
+      "document_image": {
+        "bsonType": "string"
+      },
+      "document_type": {
+        "bsonType": "string"
+      },
+      "report_id": {
+        "bsonType": "string"
+      },
+      "status": {
+        "bsonType": "string"
+      },
+      "updated_at": {
+        "bsonType": "date"
+      },
+      "user_id": {
+        "bsonType": "string"
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "$jsonSchema": {
+    "bsonType": "object",
+    "required": [
+      "_id",
+      "email",
+      "isVerified",
+      "name",
+      "password_hash",
+      "phone",
+      "role"
+    ],
+    "properties": {
+      "_id": {
+        "bsonType": "objectId"
+      },
+      "created_at": {
+        "bsonType": "date"
+      },
+      "email": {
+        "bsonType": "string"
+      },
+      "isVerified": {
+        "bsonType": "bool"
+      },
+      "name": {
+        "bsonType": "string"
+      },
+      "otpExpiry": {
+        "bsonType": "date"
+      },
+      "otpToken": {
+        "bsonType": "int"
+      },
+      "password_hash": {
+        "bsonType": "string"
+      },
+      "phone": {
+        "bsonType": "string"
+      },
+      "role": {
+        "bsonType": "string"
+      }
+    }
+  }
+}
