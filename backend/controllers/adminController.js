@@ -54,6 +54,30 @@ const updateReportStatus = async (req, res) => {
       });
     }
 
+    // VERIFY REPORT
+const verifyReport = async (req, res) => {
+  try {
+    req.body.status = "verified";
+    return updateReportStatus(req, res);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// REJECT REPORT
+const rejectReport = async (req, res) => {
+  try {
+    req.body.status = "rejected";
+    return updateReportStatus(req, res);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
     // AUTO NOTIFICATION ON VERIFY / REJECT / MATCHED
     if (report.userId && ["verified", "rejected", "matched"].includes(status)) {
       let notificationTitle = "Report Status Updated";
@@ -606,6 +630,8 @@ const getMatchById = async (req, res) => {
 module.exports = {
   getAdminReports,
   updateReportStatus,
+  verifyReport,
+  rejectReport,
   deleteAdminReport,
   getAdminUsers,
   updateUserRole,

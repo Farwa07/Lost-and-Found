@@ -7,6 +7,8 @@ const adminMiddleware = require("../middleware/adminMiddleware");
 const {
   getAdminReports,
   updateReportStatus,
+  verifyReport,
+  rejectReport,
   deleteAdminReport,
   getAdminUsers,
   updateUserRole,
@@ -31,6 +33,10 @@ router.patch(
   adminMiddleware,
   updateReportStatus
 );
+
+router.patch("/reports/:id/verify", authMiddleware, adminMiddleware, verifyReport);
+
+router.patch("/reports/:id/reject", authMiddleware, adminMiddleware, rejectReport);
 
 router.post(
   "/reports/:id/alert",
