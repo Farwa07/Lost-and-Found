@@ -24,6 +24,16 @@ const reportMatchSchema = new mongoose.Schema(
       default: [],
     },
 
+    matchedFields: {
+      type: [String],
+      default: [],
+    },
+
+    threshold: {
+      type: Number,
+      default: 60,
+    },
+
     status: {
       type: String,
       enum: ["suggested", "confirmed", "dismissed"],

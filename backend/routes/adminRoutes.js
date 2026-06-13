@@ -12,11 +12,13 @@ const {
   deleteAdminReport,
   getAdminUsers,
   updateUserRole,
+  deleteAdminUser,
   getReportComplaints,
   updateComplaintStatus,
   blockUser,
   unblockUser,
   sendAdminAlert,
+  sendGeneralAlert,
   getAdminLogs,
   getMatchSuggestions,
   confirmMatch,
@@ -24,7 +26,7 @@ const {
   getMatchById,
 } = require("../controllers/adminController");
 
-// Admin Reports
+// ================= ADMIN REPORTS =================
 router.get("/reports", authMiddleware, adminMiddleware, getAdminReports);
 
 router.patch(
@@ -34,9 +36,19 @@ router.patch(
   updateReportStatus
 );
 
-router.patch("/reports/:id/verify", authMiddleware, adminMiddleware, verifyReport);
+router.patch(
+  "/reports/:id/verify",
+  authMiddleware,
+  adminMiddleware,
+  verifyReport
+);
 
-router.patch("/reports/:id/reject", authMiddleware, adminMiddleware, rejectReport);
+router.patch(
+  "/reports/:id/reject",
+  authMiddleware,
+  adminMiddleware,
+  rejectReport
+);
 
 router.post(
   "/reports/:id/alert",
@@ -52,7 +64,15 @@ router.delete(
   deleteAdminReport
 );
 
-// Admin Users
+// ================= ADMIN GENERAL ALERT =================
+router.post(
+  "/alerts",
+  authMiddleware,
+  adminMiddleware,
+  sendGeneralAlert
+);
+
+// ================= ADMIN USERS =================
 router.get("/users", authMiddleware, adminMiddleware, getAdminUsers);
 
 router.patch(
@@ -61,11 +81,29 @@ router.patch(
   adminMiddleware,
   updateUserRole
 );
-router.patch("/users/:id/block", authMiddleware, adminMiddleware, blockUser);
 
-router.patch("/users/:id/unblock", authMiddleware, adminMiddleware, unblockUser);
+router.patch(
+  "/users/:id/block",
+  authMiddleware,
+  adminMiddleware,
+  blockUser
+);
 
-// Report Complaints
+router.patch(
+  "/users/:id/unblock",
+  authMiddleware,
+  adminMiddleware,
+  unblockUser
+);
+
+router.delete(
+  "/users/:id",
+  authMiddleware,
+  adminMiddleware,
+  deleteAdminUser
+);
+
+// ================= REPORT COMPLAINTS =================
 router.get(
   "/complaints",
   authMiddleware,
@@ -80,10 +118,10 @@ router.patch(
   updateComplaintStatus
 );
 
-// Admin Logs
+// ================= ADMIN LOGS =================
 router.get("/logs", authMiddleware, adminMiddleware, getAdminLogs);
 
-// ADMIN MATCHING ROUTES
+// ================= ADMIN MATCHING ROUTES =================
 router.get(
   "/matches/suggestions",
   authMiddleware,

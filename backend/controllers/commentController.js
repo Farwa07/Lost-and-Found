@@ -44,7 +44,7 @@ const addComment = async (req, res) => {
         type: "Comment",
         title: "New Comment",
         message: "Someone commented on your report.",
-        actionUrl: `/reports/${report._id}`,
+        actionUrl: `/reports?reportId=${report._id}&openComments=true`,
       });
     }
 

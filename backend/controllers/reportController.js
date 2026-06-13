@@ -1,5 +1,27 @@
 const Report = require("../models/report");
 const ReportComplaint = require("../models/reportComplaint");
+const User = require("../models/user");
+
+const publicStatuses = ["verified", "matched", "closed"];
+
+const getImageUrl = (req, filePath) => {
+  if (!filePath) return "";
+
+  const cleanPath = filePath.replace(/\\/g, "/").replace(/^\/+/, "");
+
+  return `${req.protocol}://${req.get("host")}/${cleanPath}`;
+};
+
+const getCity = (city, location = "") => {
+  if (city) return city;
+
+  const parts = String(location)
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return parts.length > 0 ? parts[parts.length - 1] : "";
+};
 
 // CREATE LOST ITEM REPORT
 const createLostItemReport = async (req, res) => {
@@ -12,6 +34,7 @@ const createLostItemReport = async (req, res) => {
       lostLocation,
       lostDate,
       itemDescription,
+      city,
       reporterFullName,
       reporterContactNumber,
       reporterEmail,
@@ -22,6 +45,7 @@ const createLostItemReport = async (req, res) => {
       userId: req.user ? req.user.id : null,
       reportType: "lost",
       category: "item",
+      city: getCity(city, lostLocation),
 
       itemName,
       itemCategory,
@@ -37,11 +61,11 @@ const createLostItemReport = async (req, res) => {
       reporterAddress,
 
       lostItemImage: req.files?.lostItemImage
-        ? req.files.lostItemImage[0].path
+        ? getImageUrl(req, req.files.lostItemImage[0].path)
         : "",
 
       reporterIdCardImage: req.files?.reporterIdCardImage
-        ? req.files.reporterIdCardImage[0].path
+        ? getImageUrl(req, req.files.reporterIdCardImage[0].path)
         : "",
     });
 
@@ -49,15 +73,16 @@ const createLostItemReport = async (req, res) => {
 
     res.status(201).json({
       message: "Lost item report submitted successfully",
+      report: newReport,
     });
-
   } catch (error) {
     res.status(500).json({
       message: error.message,
     });
   }
 };
-// createfounditemreport
+
+// CREATE FOUND ITEM REPORT
 const createFoundItemReport = async (req, res) => {
   try {
     const {
@@ -69,6 +94,7 @@ const createFoundItemReport = async (req, res) => {
       foundDate,
       currentLocation,
       itemDescription,
+      city,
       reporterFullName,
       reporterContactNumber,
       reporterEmail,
@@ -79,6 +105,7 @@ const createFoundItemReport = async (req, res) => {
       userId: req.user ? req.user.id : null,
       reportType: "found",
       category: "item",
+      city: getCity(city, foundLocation),
 
       itemName,
       itemCategory,
@@ -95,11 +122,11 @@ const createFoundItemReport = async (req, res) => {
       reporterAddress,
 
       foundItemImage: req.files?.foundItemImage
-        ? req.files.foundItemImage[0].path
+        ? getImageUrl(req, req.files.foundItemImage[0].path)
         : "",
 
       reporterIdCardImage: req.files?.reporterIdCardImage
-        ? req.files.reporterIdCardImage[0].path
+        ? getImageUrl(req, req.files.reporterIdCardImage[0].path)
         : "",
     });
 
@@ -107,8 +134,8 @@ const createFoundItemReport = async (req, res) => {
 
     res.status(201).json({
       message: "Found item report submitted successfully",
+      report: newReport,
     });
-
   } catch (error) {
     res.status(500).json({
       message: error.message,
@@ -126,8 +153,11 @@ const createMissingPersonReport = async (req, res) => {
       missingPersonLastSeenLocation,
       missingPersonLastSeenDate,
       missingPersonDescription,
+      city,
       reporterFullName,
       reporterContactNumber,
+      reporterEmail,
+      reporterAddress,
       reporterRelationship,
     } = req.body;
 
@@ -135,6 +165,7 @@ const createMissingPersonReport = async (req, res) => {
       userId: req.user ? req.user.id : null,
       reportType: "lost",
       category: "person",
+      city: getCity(city, missingPersonLastSeenLocation),
 
       missingPersonName,
       missingPersonAge,
@@ -145,18 +176,20 @@ const createMissingPersonReport = async (req, res) => {
 
       reporterFullName,
       reporterContactNumber,
+      reporterEmail,
+      reporterAddress,
       reporterRelationship,
 
       missingPersonImage: req.files?.missingPersonImage
-        ? req.files.missingPersonImage[0].path
+        ? getImageUrl(req, req.files.missingPersonImage[0].path)
         : "",
 
       reporterIdCardImage: req.files?.reporterIdCardImage
-        ? req.files.reporterIdCardImage[0].path
+        ? getImageUrl(req, req.files.reporterIdCardImage[0].path)
         : "",
 
       firReportImage: req.files?.firReportImage
-        ? req.files.firReportImage[0].path
+        ? getImageUrl(req, req.files.firReportImage[0].path)
         : "",
     });
 
@@ -164,6 +197,7 @@ const createMissingPersonReport = async (req, res) => {
 
     res.status(201).json({
       message: "Missing person report submitted successfully",
+      report: newReport,
     });
   } catch (error) {
     res.status(500).json({
@@ -183,8 +217,11 @@ const createFoundPersonReport = async (req, res) => {
       foundDate,
       currentLocation,
       foundPersonDescription,
+      city,
       reporterFullName,
       reporterContactNumber,
+      reporterEmail,
+      reporterAddress,
       reporterRelationship,
     } = req.body;
 
@@ -192,6 +229,7 @@ const createFoundPersonReport = async (req, res) => {
       userId: req.user ? req.user.id : null,
       reportType: "found",
       category: "person",
+      city: getCity(city, foundLocation),
 
       foundPersonName,
       estimatedAge,
@@ -203,14 +241,16 @@ const createFoundPersonReport = async (req, res) => {
 
       reporterFullName,
       reporterContactNumber,
+      reporterEmail,
+      reporterAddress,
       reporterRelationship,
 
       foundPersonImage: req.files?.foundPersonImage
-        ? req.files.foundPersonImage[0].path
+        ? getImageUrl(req, req.files.foundPersonImage[0].path)
         : "",
 
       reporterIdCardImage: req.files?.reporterIdCardImage
-        ? req.files.reporterIdCardImage[0].path
+        ? getImageUrl(req, req.files.reporterIdCardImage[0].path)
         : "",
     });
 
@@ -218,6 +258,7 @@ const createFoundPersonReport = async (req, res) => {
 
     res.status(201).json({
       message: "Found person report submitted successfully",
+      report: newReport,
     });
   } catch (error) {
     res.status(500).json({
@@ -225,10 +266,13 @@ const createFoundPersonReport = async (req, res) => {
     });
   }
 };
-// GET ALL REPORTS
+
+// GET ALL PUBLIC REPORTS
 const getAllReports = async (req, res) => {
   try {
-    const reports = await Report.find().sort({ createdAt: -1 });
+    const reports = await Report.find({
+      status: { $in: publicStatuses },
+    }).sort({ createdAt: -1 });
 
     res.status(200).json({
       message: "Reports fetched successfully",
@@ -244,9 +288,10 @@ const getAllReports = async (req, res) => {
 // GET ITEM REPORTS ONLY
 const getItemReports = async (req, res) => {
   try {
-    const reports = await Report.find({ category: "item" }).sort({
-      createdAt: -1,
-    });
+    const reports = await Report.find({
+      category: "item",
+      status: { $in: publicStatuses },
+    }).sort({ createdAt: -1 });
 
     res.status(200).json({
       message: "Item reports fetched successfully",
@@ -262,9 +307,10 @@ const getItemReports = async (req, res) => {
 // GET PERSON REPORTS ONLY
 const getPersonReports = async (req, res) => {
   try {
-    const reports = await Report.find({ category: "person" }).sort({
-      createdAt: -1,
-    });
+    const reports = await Report.find({
+      category: "person",
+      status: { $in: publicStatuses },
+    }).sort({ createdAt: -1 });
 
     res.status(200).json({
       message: "Person reports fetched successfully",
@@ -277,7 +323,7 @@ const getPersonReports = async (req, res) => {
   }
 };
 
-// SEARCH AND FILTER REPORTS
+// SEARCH AND FILTER PUBLIC REPORTS
 const searchReports = async (req, res) => {
   try {
     const {
@@ -287,9 +333,12 @@ const searchReports = async (req, res) => {
       status,
       gender,
       itemCategory,
+      city,
     } = req.query;
 
-    const query = {};
+    const query = {
+      status: { $in: publicStatuses },
+    };
 
     if (category) {
       query.category = category.toLowerCase();
@@ -299,8 +348,12 @@ const searchReports = async (req, res) => {
       query.reportType = reportType.toLowerCase();
     }
 
-    if (status) {
+    if (status && publicStatuses.includes(status.toLowerCase())) {
       query.status = status.toLowerCase();
+    }
+
+    if (city) {
+      query.city = { $regex: city, $options: "i" };
     }
 
     if (itemCategory) {
@@ -316,6 +369,8 @@ const searchReports = async (req, res) => {
 
     if (keyword) {
       const keywordSearch = [
+        { city: { $regex: keyword, $options: "i" } },
+
         { itemName: { $regex: keyword, $options: "i" } },
         { itemCategory: { $regex: keyword, $options: "i" } },
         { itemColor: { $regex: keyword, $options: "i" } },
@@ -427,13 +482,39 @@ const reportPost = async (req, res) => {
       });
     }
 
+    const alreadyFlagged = report.flags?.some(
+      (flag) => flag.userId?.toString() === req.user.id
+    );
+
+    if (alreadyFlagged) {
+      return res.status(400).json({
+        message: "You have already reported this post",
+      });
+    }
+
+    const user = await User.findById(req.user.id).select("fullName email");
+
     const newComplaint = new ReportComplaint({
       reportId,
-      userId: req.user ? req.user.id : null,
+      userId: req.user.id,
       reason,
     });
 
     await newComplaint.save();
+
+    await Report.findByIdAndUpdate(reportId, {
+      $push: {
+        flags: {
+          userId: req.user.id,
+          userName: user?.fullName || "",
+          reason,
+          date: new Date(),
+        },
+      },
+      $inc: {
+        flagCount: 1,
+      },
+    });
 
     res.status(201).json({
       message: "Post reported successfully. Admin will review it.",
@@ -469,16 +550,16 @@ const deleteMyReport = async (req, res) => {
   }
 };
 
-// UPDATE MY REPORT STATUS
+// UPDATE MY REPORT CASE STATUS
 const updateMyReportStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { caseStatus } = req.body;
 
-    const allowedStatuses = ["pending", "verified", "matched", "closed"];
+    const allowedCaseStatuses = ["Unsolved", "Solved", "Closed"];
 
-    if (!allowedStatuses.includes(status)) {
+    if (!allowedCaseStatuses.includes(caseStatus)) {
       return res.status(400).json({
-        message: "Invalid status value",
+        message: "Invalid case status value",
       });
     }
 
@@ -488,7 +569,7 @@ const updateMyReportStatus = async (req, res) => {
         userId: req.user.id,
       },
       {
-        status,
+        caseStatus,
       },
       {
         new: true,
@@ -503,7 +584,7 @@ const updateMyReportStatus = async (req, res) => {
     }
 
     res.status(200).json({
-      message: "Report status updated successfully",
+      message: "Case status updated successfully",
       report,
     });
   } catch (error) {
@@ -521,6 +602,8 @@ const updateMyReport = async (req, res) => {
     delete updateData.userId;
     delete updateData.status;
     delete updateData.isVerified;
+    delete updateData.flags;
+    delete updateData.flagCount;
 
     const report = await Report.findOneAndUpdate(
       {
@@ -567,4 +650,3 @@ module.exports = {
   updateMyReport,
   searchReports,
 };
-   

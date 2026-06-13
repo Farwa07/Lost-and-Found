@@ -314,18 +314,18 @@ const getProfile = async (req, res) => {
 // UPDATE USER PROFILE
 const updateProfile = async (req, res) => {
   try {
-    const { fullName, phone, city, address, bio, profileImage } = req.body;
+    const allowedFields = ["fullName", "phone", "city", "address", "bio", "profileImage"];
+    const updateData = {};
+
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
 
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
-      {
-        fullName,
-        phone,
-        city,
-        address,
-        bio,
-        profileImage,
-      },
+      updateData,
       {
         new: true,
         runValidators: true,
@@ -348,6 +348,7 @@ const updateProfile = async (req, res) => {
     });
   }
 };
+  
 //  change password
 const changePassword = async (req, res) => {
   try {

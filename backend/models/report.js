@@ -20,6 +20,12 @@ const reportSchema = new mongoose.Schema(
       required: true,
     },
 
+    city: {
+  type: String,
+  trim: true,
+  default: "",
+},
+
     // Common item fields
     itemName: {
       type: String,
@@ -186,6 +192,32 @@ foundPersonImage: {
   type: String,
   enum: ["Unsolved", "Solved", "Closed"],
   default: "Unsolved",
+},
+
+flags: [
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    userName: {
+      type: String,
+      default: "",
+    },
+    reason: {
+      type: String,
+      default: "",
+    },
+    date: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+],
+
+flagCount: {
+  type: Number,
+  default: 0,
 },
 
     isVerified: {

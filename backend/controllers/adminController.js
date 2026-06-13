@@ -5,11 +5,29 @@ const Notification = require("../models/notification");
 const AdminLog = require("../models/adminLog");
 const ReportMatch = require("../models/reportMatch");
 
+const MATCH_THRESHOLD = 60;
+
+const createAdminLog = async (adminId, action, targetType, targetId, details = "") => {
+  try {
+    if (!adminId) return;
+
+    await AdminLog.create({
+      adminId,
+      action,
+      targetType,
+      targetId,
+      details,
+    });
+  } catch (error) {
+    console.log("Admin log error:", error.message);
+  }
+};
+
 // GET ALL REPORTS FOR ADMIN
 const getAdminReports = async (req, res) => {
   try {
     const reports = await Report.find()
-      .populate("userId", "fullName email phone role")
+      .populate("userId", "fullName email phone role status")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -42,11 +60,10 @@ const updateReportStatus = async (req, res) => {
       isVerified: status === "verified" || status === "matched",
     };
 
-    const report = await Report.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    );
+    const report = await Report.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!report) {
       return res.status(404).json({
@@ -80,9 +97,17 @@ const updateReportStatus = async (req, res) => {
         type: "Status",
         title: notificationTitle,
         message: notificationMessage,
-        actionUrl: `/reports/${report._id}`,
+        actionUrl: `/reports?reportId=${report._id}`,
       });
     }
+
+    await createAdminLog(
+      req.user.id,
+      `Report status updated to ${status}`,
+      "report",
+      report._id,
+      `Admin updated report status to ${status}`
+    );
 
     res.status(200).json({
       message: "Report status updated successfully",
@@ -106,6 +131,7 @@ const rejectReport = async (req, res) => {
   req.body.status = "rejected";
   return updateReportStatus(req, res);
 };
+
 // DELETE FAKE OR INAPPROPRIATE REPORT
 const deleteAdminReport = async (req, res) => {
   try {
@@ -116,6 +142,14 @@ const deleteAdminReport = async (req, res) => {
         message: "Report not found",
       });
     }
+
+    await createAdminLog(
+      req.user.id,
+      "Report deleted",
+      "report",
+      report._id,
+      "Admin deleted a fake/inappropriate report"
+    );
 
     res.status(200).json({
       message: "Report deleted successfully by admin",
@@ -171,9 +205,54 @@ const updateUserRole = async (req, res) => {
       });
     }
 
+    await createAdminLog(
+      req.user.id,
+      `User role updated to ${role}`,
+      "user",
+      user._id,
+      `Admin changed user role to ${role}`
+    );
+
     res.status(200).json({
       message: "User role updated successfully",
       user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// DELETE USER BY ADMIN
+const deleteAdminUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    if (user.role === "admin") {
+      return res.status(403).json({
+        message: "Admin account cannot be deleted",
+      });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+
+    await createAdminLog(
+      req.user.id,
+      "User deleted",
+      "user",
+      user._id,
+      "Admin deleted a user account"
+    );
+
+    res.status(200).json({
+      message: "User deleted successfully",
     });
   } catch (error) {
     res.status(500).json({
@@ -227,6 +306,14 @@ const updateComplaintStatus = async (req, res) => {
       });
     }
 
+    await createAdminLog(
+      req.user.id,
+      `Complaint status updated to ${status}`,
+      "complaint",
+      complaint._id,
+      `Admin updated complaint status to ${status}`
+    );
+
     res.status(200).json({
       message: "Complaint status updated successfully",
       complaint,
@@ -253,6 +340,14 @@ const blockUser = async (req, res) => {
       });
     }
 
+    await createAdminLog(
+      req.user.id,
+      "User blocked",
+      "user",
+      user._id,
+      "Admin blocked a user"
+    );
+
     res.status(200).json({
       message: "User blocked successfully",
       user,
@@ -278,6 +373,14 @@ const unblockUser = async (req, res) => {
         message: "User not found",
       });
     }
+
+    await createAdminLog(
+      req.user.id,
+      "User unblocked",
+      "user",
+      user._id,
+      "Admin unblocked a user"
+    );
 
     res.status(200).json({
       message: "User unblocked successfully",
@@ -328,18 +431,76 @@ const sendAdminAlert = async (req, res) => {
         report.foundPersonName ||
         "Report Alert",
       city:
+        report.city ||
         report.lostLocation ||
         report.foundLocation ||
         report.missingPersonLastSeenLocation ||
         "Unknown",
-      actionUrl: `/reports/${report._id}`,
+      actionUrl: `/reports?reportId=${report._id}`,
     });
 
     await notification.save();
 
+    await createAdminLog(
+      req.user.id,
+      "Admin alert sent",
+      "alert",
+      report._id,
+      `Admin sent alert: ${title}`
+    );
+
     res.status(201).json({
       message: "Admin alert sent successfully",
       notification,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// SEND GENERAL ALERT TO ALL ACTIVE USERS
+const sendGeneralAlert = async (req, res) => {
+  try {
+    const { title, message, type } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({
+        message: "Title and message are required",
+      });
+    }
+
+    const users = await User.find({
+      role: "user",
+      status: "active",
+    });
+
+    const notifications = users.map((user) => ({
+      userId: user._id,
+      type: type || "Alert",
+      title,
+      message,
+      caseTitle: "System Alert",
+      city: "All Cities",
+      actionUrl: "/notifications",
+    }));
+
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications);
+    }
+
+    await createAdminLog(
+      req.user.id,
+      "General alert sent",
+      "alert",
+      null,
+      `Admin sent general alert to ${users.length} users`
+    );
+
+    res.status(201).json({
+      message: "General alert sent successfully",
+      count: notifications.length,
     });
   } catch (error) {
     res.status(500).json({
@@ -367,36 +528,68 @@ const getAdminLogs = async (req, res) => {
   }
 };
 
-// helper function to normalize text for comparison
+// HELPER FUNCTIONS FOR MATCHING
 const normalizeText = (value = "") => {
   return String(value).trim().toLowerCase();
+};
+
+const getReportDescription = (report) => {
+  return (
+    report.itemDescription ||
+    report.missingPersonDescription ||
+    report.foundPersonDescription ||
+    ""
+  );
+};
+
+const getReportTitle = (report) => {
+  return (
+    report.itemName ||
+    report.missingPersonName ||
+    report.foundPersonName ||
+    report.title ||
+    ""
+  );
+};
+
+const getReportLocation = (report) => {
+  return (
+    report.lostLocation ||
+    report.foundLocation ||
+    report.missingPersonLastSeenLocation ||
+    report.currentLocation ||
+    report.location ||
+    ""
+  );
 };
 
 const calculateMatchScore = (lostReport, foundReport) => {
   let score = 0;
   const reasons = [];
+  const matchedFields = [];
 
-  if (normalizeText(lostReport.category) === normalizeText(foundReport.category)) {
+  if (
+    normalizeText(lostReport.category) &&
+    normalizeText(foundReport.category) &&
+    normalizeText(lostReport.category) === normalizeText(foundReport.category)
+  ) {
     score += 25;
     reasons.push("Same category");
+    matchedFields.push("category");
   }
 
-  if (normalizeText(lostReport.city) === normalizeText(foundReport.city)) {
+  if (
+    normalizeText(lostReport.city) &&
+    normalizeText(foundReport.city) &&
+    normalizeText(lostReport.city) === normalizeText(foundReport.city)
+  ) {
     score += 20;
     reasons.push("Same city");
+    matchedFields.push("city");
   }
 
-  const lostTitle =
-    lostReport.itemName ||
-    lostReport.missingPersonName ||
-    lostReport.title ||
-    "";
-
-  const foundTitle =
-    foundReport.itemName ||
-    foundReport.foundPersonName ||
-    foundReport.title ||
-    "";
+  const lostTitle = getReportTitle(lostReport);
+  const foundTitle = getReportTitle(foundReport);
 
   if (
     normalizeText(lostTitle) &&
@@ -405,27 +598,26 @@ const calculateMatchScore = (lostReport, foundReport) => {
   ) {
     score += 25;
     reasons.push("Same title/name");
+    matchedFields.push("title/name");
   }
 
+  const lostDescription = getReportDescription(lostReport);
+  const foundDescription = getReportDescription(foundReport);
+
   if (
-    lostReport.description &&
-    foundReport.description &&
-    normalizeText(foundReport.description).includes(normalizeText(lostReport.description).slice(0, 10))
+    normalizeText(lostDescription) &&
+    normalizeText(foundDescription) &&
+    normalizeText(foundDescription).includes(
+      normalizeText(lostDescription).slice(0, 10)
+    )
   ) {
     score += 10;
     reasons.push("Similar description");
+    matchedFields.push("description");
   }
 
-  const lostLocation =
-    lostReport.lostLocation ||
-    lostReport.missingPersonLastSeenLocation ||
-    lostReport.location ||
-    "";
-
-  const foundLocation =
-    foundReport.foundLocation ||
-    foundReport.location ||
-    "";
+  const lostLocation = getReportLocation(lostReport);
+  const foundLocation = getReportLocation(foundReport);
 
   if (
     normalizeText(lostLocation) &&
@@ -434,11 +626,13 @@ const calculateMatchScore = (lostReport, foundReport) => {
   ) {
     score += 20;
     reasons.push("Same location");
+    matchedFields.push("location");
   }
 
   return {
     score,
     reasons,
+    matchedFields,
   };
 };
 
@@ -446,22 +640,25 @@ const calculateMatchScore = (lostReport, foundReport) => {
 const getMatchSuggestions = async (req, res) => {
   try {
     const lostReports = await Report.find({
-      reportType: { $in: ["lost", "missing"] },
-      status: { $ne: "matched" },
+      reportType: "lost",
+      status: { $nin: ["matched", "rejected"] },
     });
 
     const foundReports = await Report.find({
       reportType: "found",
-      status: { $ne: "matched" },
+      status: { $nin: ["matched", "rejected"] },
     });
 
     const suggestions = [];
 
     for (const lostReport of lostReports) {
       for (const foundReport of foundReports) {
-        const { score, reasons } = calculateMatchScore(lostReport, foundReport);
+        const { score, reasons, matchedFields } = calculateMatchScore(
+          lostReport,
+          foundReport
+        );
 
-        if (score >= 50) {
+        if (score >= MATCH_THRESHOLD) {
           let match = await ReportMatch.findOne({
             lostReportId: lostReport._id,
             foundReportId: foundReport._id,
@@ -473,6 +670,8 @@ const getMatchSuggestions = async (req, res) => {
               foundReportId: foundReport._id,
               score,
               reasons,
+              matchedFields,
+              threshold: MATCH_THRESHOLD,
               status: "suggested",
             });
           }
@@ -481,6 +680,8 @@ const getMatchSuggestions = async (req, res) => {
             matchId: match._id,
             score: match.score,
             reasons: match.reasons,
+            matchedFields: match.matchedFields,
+            threshold: match.threshold,
             status: match.status,
             lostReport,
             foundReport,
@@ -522,11 +723,13 @@ const confirmMatch = async (req, res) => {
     await Report.findByIdAndUpdate(match.lostReportId._id, {
       status: "matched",
       caseStatus: "Solved",
+      isVerified: true,
     });
 
     await Report.findByIdAndUpdate(match.foundReportId._id, {
       status: "matched",
       caseStatus: "Solved",
+      isVerified: true,
     });
 
     if (match.lostReportId.userId) {
@@ -536,7 +739,7 @@ const confirmMatch = async (req, res) => {
         type: "Match",
         title: "Match Confirmed",
         message: "Admin has confirmed a match for your report.",
-        actionUrl: `/matches/${match._id}`,
+        actionUrl: `/match-alert/${match._id}`,
       });
     }
 
@@ -547,9 +750,17 @@ const confirmMatch = async (req, res) => {
         type: "Match",
         title: "Match Confirmed",
         message: "Admin has confirmed a match for your report.",
-        actionUrl: `/matches/${match._id}`,
+        actionUrl: `/match-alert/${match._id}`,
       });
     }
+
+    await createAdminLog(
+      req.user.id,
+      "Match confirmed",
+      "match",
+      match._id,
+      "Admin confirmed a match between lost and found reports"
+    );
 
     res.status(200).json({
       message: "Match confirmed successfully",
@@ -576,6 +787,14 @@ const dismissMatch = async (req, res) => {
         message: "Match not found",
       });
     }
+
+    await createAdminLog(
+      req.user.id,
+      "Match dismissed",
+      "match",
+      match._id,
+      "Admin dismissed a match suggestion"
+    );
 
     res.status(200).json({
       message: "Match dismissed successfully",
@@ -621,11 +840,13 @@ module.exports = {
   deleteAdminReport,
   getAdminUsers,
   updateUserRole,
+  deleteAdminUser,
   getReportComplaints,
   updateComplaintStatus,
   blockUser,
   unblockUser,
   sendAdminAlert,
+  sendGeneralAlert,
   getAdminLogs,
   getMatchSuggestions,
   confirmMatch,
