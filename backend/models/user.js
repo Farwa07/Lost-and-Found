@@ -42,13 +42,19 @@ profileImage: {
   default: "",
 },
 
-  role: {
-    type: String,
-    enum: ['user', 'admin'],
-    default: 'user'
-  },
+role: {
+  type: String,
+  enum: ['user', 'admin'],
+  default: 'user'
+},
 
-  resetOtp: {
+status: {
+  type: String,
+  enum: ["active", "blocked"],
+  default: "active",
+},
+
+resetOtp: {
     type: String,
     default: "",
   },
