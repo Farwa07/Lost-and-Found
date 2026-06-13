@@ -54,30 +54,6 @@ const updateReportStatus = async (req, res) => {
       });
     }
 
-    // VERIFY REPORT
-const verifyReport = async (req, res) => {
-  try {
-    req.body.status = "verified";
-    return updateReportStatus(req, res);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-// REJECT REPORT
-const rejectReport = async (req, res) => {
-  try {
-    req.body.status = "rejected";
-    return updateReportStatus(req, res);
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
     // AUTO NOTIFICATION ON VERIFY / REJECT / MATCHED
     if (report.userId && ["verified", "rejected", "matched"].includes(status)) {
       let notificationTitle = "Report Status Updated";
@@ -118,8 +94,18 @@ const rejectReport = async (req, res) => {
     });
   }
 };
-   
 
+// VERIFY REPORT
+const verifyReport = async (req, res) => {
+  req.body.status = "verified";
+  return updateReportStatus(req, res);
+};
+
+// REJECT REPORT
+const rejectReport = async (req, res) => {
+  req.body.status = "rejected";
+  return updateReportStatus(req, res);
+};
 // DELETE FAKE OR INAPPROPRIATE REPORT
 const deleteAdminReport = async (req, res) => {
   try {
