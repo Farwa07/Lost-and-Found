@@ -162,6 +162,13 @@ const loginUser = async (req, res) => {
       });
     }
 
+    // BLOCKED USER CHECK
+    if (user.status === "blocked") {
+      return res.status(403).json({
+        message: "Your account has been blocked by admin",
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -190,6 +197,7 @@ const loginUser = async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        status: user.status,
       },
     });
   } catch (error) {
