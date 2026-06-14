@@ -1,5 +1,20 @@
 const Report = require("../models/report");
 
+// Helper: admin status readable text
+const getAdminStatus = (status) => {
+  if (status === "pending") return "Pending Review";
+  if (status === "verified") return "Verified";
+  if (status === "matched") return "Matched";
+  if (status === "closed") return "Closed";
+  if (status === "rejected") return "Rejected";
+  return "Pending Review";
+};
+
+// Helper: city from report.city first, then location
+const getCity = (report, fallbackLocation = "") => {
+  return report.city || fallbackLocation || "Unknown";
+};
+
 // GET STATISTICS REPORTS DATA
 const getStatistics = async (req, res) => {
   try {
@@ -8,7 +23,7 @@ const getStatistics = async (req, res) => {
     const normalizedReports = reports.map((report) => {
       let title = "Untitled Report";
       let city = "Unknown";
-      let date = "";
+      let date = report.createdAt;
       let type = "";
       let category = "";
 
@@ -18,14 +33,14 @@ const getStatistics = async (req, res) => {
         if (report.reportType === "lost") {
           type = "Lost";
           title = report.itemName || "Lost Item";
-          city = report.lostLocation || "Unknown";
+          city = getCity(report, report.lostLocation);
           date = report.lostDate || report.createdAt;
         }
 
         if (report.reportType === "found") {
           type = "Found";
           title = report.itemName || "Found Item";
-          city = report.foundLocation || "Unknown";
+          city = getCity(report, report.foundLocation);
           date = report.foundDate || report.createdAt;
         }
       }
@@ -36,14 +51,14 @@ const getStatistics = async (req, res) => {
         if (report.reportType === "lost") {
           type = "Missing";
           title = report.missingPersonName || "Missing Person";
-          city = report.missingPersonLastSeenLocation || "Unknown";
+          city = getCity(report, report.missingPersonLastSeenLocation);
           date = report.missingPersonLastSeenDate || report.createdAt;
         }
 
         if (report.reportType === "found") {
           type = "Found";
           title = report.foundPersonName || "Found Person";
-          city = report.foundLocation || "Unknown";
+          city = getCity(report, report.foundLocation);
           date = report.foundDate || report.createdAt;
         }
       }
@@ -51,26 +66,26 @@ const getStatistics = async (req, res) => {
       return {
         id: report._id,
         _id: report._id,
+
         type,
         status: type,
         category,
         title,
         city,
         date,
+
         itemCategory: report.itemCategory || "Other",
-        adminStatus:
-          report.status === "verified"
-            ? "Verified"
-            : report.status === "matched"
-            ? "Matched"
-            : report.status === "closed"
-            ? "Resolved"
-            : "Pending Review",
-        caseStatus:
-          report.status === "matched" || report.status === "closed"
-            ? "Solved"
-            : "Unsolved",
+
+        adminStatus: getAdminStatus(report.status),
+        reportStatus: report.status,
+
+        caseStatus: report.caseStatus || "Unsolved",
+
+        flagCount: report.flagCount || 0,
+        isVerified: report.isVerified || false,
+
         createdAt: report.createdAt,
+        updatedAt: report.updatedAt,
       };
     });
 
@@ -104,16 +119,46 @@ const getStatistics = async (req, res) => {
       (report) => report.status === "matched"
     ).length;
 
+    const closedReports = reports.filter(
+      (report) => report.status === "closed"
+    ).length;
+
+    const rejectedReports = reports.filter(
+      (report) => report.status === "rejected"
+    ).length;
+
+    const solvedCases = reports.filter(
+      (report) => report.caseStatus === "Solved"
+    ).length;
+
+    const unsolvedCases = reports.filter(
+      (report) => report.caseStatus === "Unsolved"
+    ).length;
+
+    const closedCases = reports.filter(
+      (report) => report.caseStatus === "Closed"
+    ).length;
+
     res.status(200).json({
       message: "Statistics fetched successfully",
+
       totalReports,
+
       lostItems,
       foundItems,
       missingPersons,
       foundPersons,
+
       pendingReports,
       verifiedReports,
       matchedReports,
+      closedReports,
+      rejectedReports,
+
+      solvedCases,
+      unsolvedCases,
+      closedCases,
+
       reports: normalizedReports,
     });
   } catch (error) {

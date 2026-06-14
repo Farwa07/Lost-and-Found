@@ -13,6 +13,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const matchRoutes = require("./routes/matchRoutes");
 const profileRoutes = require("./routes/profileRoutes");
+const seedAdmin = require("./utils/seedAdmin");
 
 
 const app = express();
@@ -59,13 +60,15 @@ mongoose
   .connect(uri, {
     serverSelectionTimeoutMS: 10000,
   })
-  .then(() => {
-    console.log("MongoDB connected");
+ .then(async () => {
+  console.log("MongoDB connected");
 
-    app.listen(port, () => {
-      console.log(`Server running on port ${port}`);
-    });
-  })
+  await seedAdmin();
+
+  app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });
+})
   .catch((err) => {
     console.log("MongoDB connection error:", err.message);
   });
