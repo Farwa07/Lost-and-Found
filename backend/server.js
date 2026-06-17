@@ -1,9 +1,10 @@
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
 const fs = require("fs");
-const path = require("path");
 
 const authRoutes = require("./routes/authRoutes");
 const reportRoutes = require("./routes/reportRoutes");
@@ -26,7 +27,7 @@ if (!fs.existsSync(uploadPath)) {
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(uploadPath));
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -54,7 +55,6 @@ if (!uri) {
   process.exit(1);
 }
 
-console.log("Connecting to MongoDB...");
 
 mongoose
   .connect(uri, {

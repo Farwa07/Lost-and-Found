@@ -27,6 +27,12 @@ const sendSignupOtp = async (req, res) => {
   try {
     const { fullName, email, phone, password } = req.body;
 
+    if (!fullName || !email || !phone || !password) {
+      return res.status(400).json({
+        message: "All fields are required",
+      });
+    }
+
     const cleanEmail = email.toLowerCase();
 
     const existingUser = await User.findOne({ email: cleanEmail });
@@ -38,7 +44,6 @@ const sendSignupOtp = async (req, res) => {
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await PendingSignup.findOneAndDelete({ email: cleanEmail });
@@ -80,6 +85,12 @@ const verifySignupOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
+    if (!email || !otp) {
+      return res.status(400).json({
+        message: "Email and OTP are required",
+      });
+    }
+
     const cleanEmail = email.toLowerCase();
 
     const pendingSignup = await PendingSignup.findOne({
@@ -99,6 +110,7 @@ const verifySignupOtp = async (req, res) => {
       email: pendingSignup.email,
       phone: pendingSignup.phone,
       password: pendingSignup.password,
+      status: "active",
     });
 
     await newUser.save();
@@ -120,7 +132,15 @@ const registerUser = async (req, res) => {
   try {
     const { fullName, email, phone, password } = req.body;
 
-    const existingUser = await User.findOne({ email });
+    if (!fullName || !email || !phone || !password) {
+      return res.status(400).json({
+        message: "All fields are required",
+      });
+    }
+
+    const cleanEmail = email.toLowerCase();
+
+    const existingUser = await User.findOne({ email: cleanEmail });
 
     if (existingUser) {
       return res.status(400).json({
@@ -132,15 +152,24 @@ const registerUser = async (req, res) => {
 
     const newUser = new User({
       fullName,
-      email,
+      email: cleanEmail,
       phone,
       password: hashedPassword,
+      status: "active",
     });
 
     await newUser.save();
 
     res.status(201).json({
       message: "User registered successfully",
+      user: {
+        id: newUser._id,
+        fullName: newUser.fullName,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: newUser.role,
+        status: newUser.status,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -154,6 +183,12 @@ const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
+    }
+
     const user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
@@ -162,7 +197,6 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // BLOCKED USER CHECK
     if (user.status === "blocked") {
       return res.status(403).json({
         message: "Your account has been blocked by admin",
@@ -212,6 +246,12 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required",
+      });
+    }
+
     const cleanEmail = email.toLowerCase();
 
     const user = await User.findOne({ email: cleanEmail });
@@ -254,6 +294,12 @@ const forgotPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        message: "Email, OTP and new password are required",
+      });
+    }
 
     const cleanEmail = email.toLowerCase();
 
@@ -314,7 +360,15 @@ const getProfile = async (req, res) => {
 // UPDATE USER PROFILE
 const updateProfile = async (req, res) => {
   try {
-    const allowedFields = ["fullName", "phone", "city", "address", "bio", "profileImage"];
+    const allowedFields = [
+      "fullName",
+      "phone",
+      "city",
+      "address",
+      "bio",
+      "profileImage",
+    ];
+
     const updateData = {};
 
     allowedFields.forEach((field) => {
@@ -323,14 +377,10 @@ const updateProfile = async (req, res) => {
       }
     });
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.id,
-      updateData,
-      {
-        new: true,
-        runValidators: true,
-      }
-    ).select("-password -resetOtp -resetOtpExpire");
+    const updatedUser = await User.findByIdAndUpdate(req.user.id, updateData, {
+      new: true,
+      runValidators: true,
+    }).select("-password -resetOtp -resetOtpExpire");
 
     if (!updatedUser) {
       return res.status(404).json({
@@ -348,8 +398,8 @@ const updateProfile = async (req, res) => {
     });
   }
 };
-  
-//  change password
+
+// CHANGE PASSWORD
 const changePassword = async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
@@ -391,6 +441,7 @@ const changePassword = async (req, res) => {
   }
 };
 
+// UPDATE PROFILE IMAGE
 const updateProfileImage = async (req, res) => {
   try {
     if (!req.file) {
@@ -399,7 +450,9 @@ const updateProfileImage = async (req, res) => {
       });
     }
 
-    const imagePath = `/uploads/${req.file.filename}`;
+    const imagePath = `${req.protocol}://${req.get("host")}/uploads/${
+      req.file.filename
+    }`;
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
