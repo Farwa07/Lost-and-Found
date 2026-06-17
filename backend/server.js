@@ -5,6 +5,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const fs = require("fs");
+const contactRoutes = require("./routes/contactRoutes");
 
 const authRoutes = require("./routes/authRoutes");
 const reportRoutes = require("./routes/reportRoutes");
@@ -39,6 +40,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/matches", matchRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/contact", contactRoutes);
 
 
 // Testing simple route
