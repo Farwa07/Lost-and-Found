@@ -32,7 +32,7 @@ router.post("/register", registerUser);
 router.post("/login", loginUser);
 
 router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
+router.post("/reset-password/:token", resetPassword);
 
 router.post("/send-signup-otp", sendSignupOtp);
 router.post("/verify-signup-otp", verifySignupOtp);

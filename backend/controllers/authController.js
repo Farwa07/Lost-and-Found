@@ -3,6 +3,7 @@ const PendingSignup = require("../models/pendingSignup");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 
 // Email sender setup
 const sendEmail = async (to, subject, html) => {
@@ -241,7 +242,7 @@ const loginUser = async (req, res) => {
   }
 };
 
-// FORGOT PASSWORD
+// FORGOT PASSWORD - SEND RESET LINK
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -258,30 +259,46 @@ const forgotPassword = async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        message: "No account found with this email",
+        message: "User not found with this email",
       });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    if (user.status === "blocked") {
+      return res.status(403).json({
+        message: "Your account is blocked by admin",
+      });
+    }
 
-    user.resetOtp = otp;
-    user.resetOtpExpire = Date.now() + 10 * 60 * 1000;
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
 
     await user.save();
 
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+
     await sendEmail(
-      cleanEmail,
-      "Lost & Found Password Reset OTP",
+      user.email,
+      "Password Reset Request",
       `
         <h2>Password Reset Request</h2>
-        <p>Your OTP for password reset is:</p>
-        <h1>${otp}</h1>
-        <p>This OTP will expire in 10 minutes.</p>
+        <p>You requested to reset your password.</p>
+        <p>Click the link below to reset your password:</p>
+        <a href="${resetUrl}" target="_blank">${resetUrl}</a>
+        <p>This link will expire in 15 minutes.</p>
+        <p>If you did not request this, please ignore this email.</p>
       `
     );
 
     res.status(200).json({
-      message: "OTP sent to your email successfully",
+      message: "Password reset link sent to your email",
     });
   } catch (error) {
     res.status(500).json({
@@ -290,36 +307,46 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// RESET PASSWORD
+
+// RESET PASSWORD USING RESET LINK TOKEN
 const resetPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { token } = req.params;
+    const { newPassword } = req.body;
 
-    if (!email || !otp || !newPassword) {
+    if (!token || !newPassword) {
       return res.status(400).json({
-        message: "Email, OTP and new password are required",
+        message: "Token and new password are required",
       });
     }
 
-    const cleanEmail = email.toLowerCase();
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        message: "Password must be at least 8 characters long",
+      });
+    }
+
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
 
     const user = await User.findOne({
-      email: cleanEmail,
-      resetOtp: otp,
-      resetOtpExpire: { $gt: Date.now() },
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() },
     });
 
     if (!user) {
       return res.status(400).json({
-        message: "Invalid or expired OTP",
+        message: "Invalid or expired reset link",
       });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     user.password = hashedPassword;
-    user.resetOtp = "";
-    user.resetOtpExpire = undefined;
+    user.resetPasswordToken = "";
+    user.resetPasswordExpire = undefined;
 
     await user.save();
 
