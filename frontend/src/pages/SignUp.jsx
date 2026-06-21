@@ -2,57 +2,11 @@ import "./SignUp.css";
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const USERS_KEY = "lostFoundUsers";
-const REGISTERED_USER_KEY = "lostFoundRegisteredUser";
+import { sendSignupOtp } from "../api/authApi";
 
 const defaultAdminEmail = "admin@lostfound.com";
 
-const safeParse = (value, fallback = null) => {
-  try {
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const normalizeEmail = (email = "") => {
-  return String(email).trim().toLowerCase();
-};
-
-const getUsers = () => {
-  const users = safeParse(localStorage.getItem(USERS_KEY), []);
-  return Array.isArray(users) ? users : [];
-};
-
-const getRegisteredUser = () => {
-  return safeParse(localStorage.getItem(REGISTERED_USER_KEY), null);
-};
-
-const isEmailAlreadyRegistered = (email) => {
-  const cleanEmail = normalizeEmail(email);
-
-  if (cleanEmail === normalizeEmail(defaultAdminEmail)) {
-    return true;
-  }
-
-  const users = getUsers();
-
-  const existsInUsers = users.some(
-    (user) => normalizeEmail(user.email) === cleanEmail
-  );
-
-  if (existsInUsers) {
-    return true;
-  }
-
-  const registeredUser = getRegisteredUser();
-
-  return (
-    registeredUser &&
-    normalizeEmail(registeredUser.email) === cleanEmail
-  );
-};
+const normalizeEmail = (email = "") => String(email).trim().toLowerCase();
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -65,28 +19,15 @@ export default function SignUp() {
     confirmPassword: "",
   });
 
-  const [message, setMessage] = useState({
-    type: "",
-    text: "",
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState({ type: "", text: "" });
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-
-    setMessage({
-      type: "",
-      text: "",
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setMessage({ type: "", text: "" });
   };
 
-  const generateOtp = () => {
-    return String(Math.floor(100000 + Math.random() * 900000));
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -97,18 +38,12 @@ export default function SignUp() {
     const cleanEmail = normalizeEmail(formData.email);
 
     if (!formData.fullName.trim()) {
-      setMessage({
-        type: "error",
-        text: "Please enter your full name.",
-      });
+      setMessage({ type: "error", text: "Please enter your full name." });
       return;
     }
 
     if (!emailRegex.test(cleanEmail)) {
-      setMessage({
-        type: "error",
-        text: "Please enter a valid email address.",
-      });
+      setMessage({ type: "error", text: "Please enter a valid email address." });
       return;
     }
 
@@ -120,19 +55,8 @@ export default function SignUp() {
       return;
     }
 
-    if (isEmailAlreadyRegistered(cleanEmail)) {
-      setMessage({
-        type: "error",
-        text: "This email is already registered. Please login instead.",
-      });
-      return;
-    }
-
     if (!phoneRegex.test(formData.phone)) {
-      setMessage({
-        type: "error",
-        text: "Please enter a valid phone number.",
-      });
+      setMessage({ type: "error", text: "Please enter a valid phone number." });
       return;
     }
 
@@ -145,55 +69,41 @@ export default function SignUp() {
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setMessage({
-        type: "error",
-        text: "Passwords do not match.",
-      });
+      setMessage({ type: "error", text: "Passwords do not match." });
       return;
     }
 
-    const userData = {
-      fullName: formData.fullName.trim(),
-      email: cleanEmail,
-      phone: formData.phone.trim(),
-      password: formData.password,
-      role: "Registered User",
-      status: "Active",
-      joinedAt: new Date().toISOString().slice(0, 10),
-    };
-
-    const otp = generateOtp();
-
     const pendingSignup = {
-      userData,
-      otp,
+      userData: {
+        fullName: formData.fullName.trim(),
+        email: cleanEmail,
+        phone: formData.phone.trim(),
+        password: formData.password,
+      },
       expiresAt: Date.now() + 5 * 60 * 1000,
     };
 
-    localStorage.setItem(
-      "lostFoundPendingSignup",
-      JSON.stringify(pendingSignup)
-    );
+    setIsSubmitting(true);
 
-    console.log("Signup Data:", {
-      fullName: userData.fullName,
-      email: userData.email,
-      phone: userData.phone,
-      role: userData.role,
-    });
+    try {
+      await sendSignupOtp(pendingSignup.userData);
 
-    alert(`Demo OTP sent to your email: ${otp}`);
+      localStorage.setItem("lostFoundPendingSignup", JSON.stringify(pendingSignup));
 
-    setMessage({
-      type: "success",
-      text: "OTP sent successfully. Please verify your email.",
-    });
+      setMessage({
+        type: "success",
+        text: "OTP sent successfully. Please verify your email.",
+      });
 
-    navigate("/verify-otp", {
-      state: {
-        email: userData.email,
-      },
-    });
+      navigate("/verify-otp", { state: { email: cleanEmail } });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: error.message || "Signup OTP could not be sent.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -202,7 +112,6 @@ export default function SignUp() {
         <div className="signup__overlay">
           <div className="signup__content">
             <h1>Lost & Found</h1>
-
             <p>
               Join our community and help reunite lost people and belongings
               safely.
@@ -214,7 +123,6 @@ export default function SignUp() {
       <div className="signup__right">
         <div className="signup__card">
           <h2>Create Account</h2>
-
           <p className="signup__subtitle">Sign up to continue</p>
 
           {message.text && (
@@ -226,7 +134,6 @@ export default function SignUp() {
           <form className="signup__form" onSubmit={handleSubmit}>
             <div className="signup__field">
               <label>Full Name</label>
-
               <input
                 type="text"
                 name="fullName"
@@ -241,7 +148,6 @@ export default function SignUp() {
 
             <div className="signup__field">
               <label>Email Address</label>
-
               <input
                 type="email"
                 name="email"
@@ -254,7 +160,6 @@ export default function SignUp() {
 
             <div className="signup__field">
               <label>Phone Number</label>
-
               <input
                 type="tel"
                 name="phone"
@@ -269,7 +174,6 @@ export default function SignUp() {
 
             <div className="signup__field">
               <label>Password</label>
-
               <input
                 type="password"
                 name="password"
@@ -282,7 +186,6 @@ export default function SignUp() {
 
             <div className="signup__field">
               <label>Confirm Password</label>
-
               <input
                 type="password"
                 name="confirmPassword"
@@ -293,12 +196,13 @@ export default function SignUp() {
               />
             </div>
 
-            <button className="signup__btn">Create Account</button>
+            <button className="signup__btn" disabled={isSubmitting}>
+              {isSubmitting ? "Sending OTP..." : "Create Account"}
+            </button>
           </form>
 
           <p className="signup__bottom">
-            Already have an account?{" "}
-            <span onClick={() => navigate("/login")}>Login</span>
+            Already have an account? <span onClick={() => navigate("/login")}>Login</span>
           </p>
         </div>
       </div>

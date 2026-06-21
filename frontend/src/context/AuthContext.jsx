@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { loginUser as loginUserApi, getProfile as getProfileApi } from "../api/authApi";
+import { setToken as saveApiToken } from "../api/apiClient";
 
 const AuthContext = createContext();
 
@@ -8,17 +10,6 @@ const CURRENT_USER_KEY = "lostFoundCurrentUser";
 const AUTH_TOKEN_KEY = "lostFoundAuthToken";
 const PROFILE_DATA_KEY = "lostFoundProfileData";
 
-const defaultAdminUser = {
-  id: "admin-001",
-  fullName: "System Admin",
-  email: "admin@lostfound.com",
-  phone: "03000000000",
-  password: "Admin@123",
-  role: "Admin",
-  status: "Active",
-  joinedAt: "2026-01-01",
-};
-
 const safeParse = (value, fallback = null) => {
   try {
     return value ? JSON.parse(value) : fallback;
@@ -27,214 +18,179 @@ const safeParse = (value, fallback = null) => {
   }
 };
 
-const normalizeEmail = (email = "") => {
-  return String(email).trim().toLowerCase();
+const normalizeEmail = (email = "") => String(email).trim().toLowerCase();
+
+const toFrontendRole = (role = "user") => {
+  return String(role).toLowerCase() === "admin" ? "Admin" : "Registered User";
 };
 
-const createUserId = () => {
-  return `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const toFrontendStatus = (status = "active") => {
+  return String(status).toLowerCase() === "blocked" ? "Blocked" : "Active";
 };
 
-const getTodayDate = () => {
-  return new Date().toISOString().slice(0, 10);
+const normalizeBackendUser = (user = {}) => {
+  if (!user) return null;
+
+  return {
+    id: user.id || user._id || "",
+    _id: user._id || user.id || "",
+    fullName: user.fullName || user.name || "Registered User",
+    email: normalizeEmail(user.email || ""),
+    phone: user.phone || "",
+    city: user.city || "",
+    address: user.address || "",
+    bio: user.bio || "",
+    profileImage: user.profileImage || "",
+    role: toFrontendRole(user.role),
+    backendRole: user.role || "user",
+    status: toFrontendStatus(user.status),
+    backendStatus: user.status || "active",
+    joinedAt: user.createdAt || user.joinedAt || "",
+  };
 };
 
-const getRegisteredUserFromStorage = () => {
-  return safeParse(localStorage.getItem(REGISTERED_USER_KEY));
-};
+const writeCurrentUser = (user, token = localStorage.getItem(AUTH_TOKEN_KEY)) => {
+  if (!user) return;
 
-const getUsersFromStorage = () => {
-  const users = safeParse(localStorage.getItem(USERS_KEY), []);
-
-  return Array.isArray(users) ? users : [];
-};
-
-const getCurrentUserFromStorage = () => {
-  return safeParse(localStorage.getItem(CURRENT_USER_KEY));
-};
-
-const getAuthTokenFromStorage = () => {
-  return localStorage.getItem(AUTH_TOKEN_KEY) || "";
-};
-
-const ensureDefaultAdmin = (users = []) => {
-  const hasAdmin = users.some(
-    (user) => normalizeEmail(user.email) === normalizeEmail(defaultAdminUser.email)
+  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+  localStorage.setItem(REGISTERED_USER_KEY, JSON.stringify(user));
+  localStorage.setItem(
+    PROFILE_DATA_KEY,
+    JSON.stringify({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      city: user.city,
+      address: user.address,
+      bio: user.bio,
+      profileImage: user.profileImage,
+      role: user.role,
+      status: user.status,
+    })
   );
 
-  if (hasAdmin) {
-    return users;
+  const users = safeParse(localStorage.getItem(USERS_KEY), []);
+  const validUsers = Array.isArray(users) ? users : [];
+  const exists = validUsers.some(
+    (item) => normalizeEmail(item.email) === normalizeEmail(user.email)
+  );
+
+  const nextUsers = exists
+    ? validUsers.map((item) =>
+        normalizeEmail(item.email) === normalizeEmail(user.email)
+          ? { ...item, ...user }
+          : item
+      )
+    : [user, ...validUsers];
+
+  localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
+
+  if (token) {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
   }
-
-  return [defaultAdminUser, ...users];
-};
-
-const writeUsersToStorage = (users) => {
-  const usersWithAdmin = ensureDefaultAdmin(users);
-
-  localStorage.setItem(USERS_KEY, JSON.stringify(usersWithAdmin));
-
-  return usersWithAdmin;
-};
-
-const findUserByEmail = (email, users = getUsersFromStorage()) => {
-  const cleanEmail = normalizeEmail(email);
-
-  return users.find((user) => normalizeEmail(user.email) === cleanEmail) || null;
-};
-
-const normalizeUserForStorage = (userData, existingUser = null) => {
-  return {
-    id: existingUser?.id || userData.id || createUserId(),
-    fullName: userData.fullName || userData.name || existingUser?.fullName || "",
-    email: normalizeEmail(userData.email || existingUser?.email || ""),
-    phone: userData.phone || existingUser?.phone || "",
-    password: userData.password || existingUser?.password || "",
-    role: userData.role || existingUser?.role || "Registered User",
-    status: userData.status || existingUser?.status || "Active",
-    joinedAt: existingUser?.joinedAt || userData.joinedAt || getTodayDate(),
-  };
-};
-
-const makePublicUser = (user) => {
-  if (!user) {
-    return null;
-  }
-
-  return {
-    id: user.id,
-    fullName: user.fullName,
-    email: user.email,
-    phone: user.phone,
-    role: user.role || "Registered User",
-    status: user.status || "Active",
-  };
 };
 
 export function AuthProvider({ children }) {
   const [registeredUser, setRegisteredUser] = useState(() =>
-    getRegisteredUserFromStorage()
+    safeParse(localStorage.getItem(REGISTERED_USER_KEY))
   );
-
   const [users, setUsers] = useState(() =>
-    writeUsersToStorage(getUsersFromStorage())
+    safeParse(localStorage.getItem(USERS_KEY), []) || []
   );
-
   const [currentUser, setCurrentUser] = useState(() =>
-    getCurrentUserFromStorage()
+    safeParse(localStorage.getItem(CURRENT_USER_KEY))
   );
+  const [authToken, setAuthToken] = useState(
+    () => localStorage.getItem(AUTH_TOKEN_KEY) || ""
+  );
+  const [authLoading, setAuthLoading] = useState(false);
 
-  const [authToken, setAuthToken] = useState(() => getAuthTokenFromStorage());
-
-  const loadAuthData = () => {
-    const latestUsers = writeUsersToStorage(getUsersFromStorage());
-
-    setUsers(latestUsers);
-    setRegisteredUser(getRegisteredUserFromStorage());
-    setCurrentUser(getCurrentUserFromStorage());
-    setAuthToken(getAuthTokenFromStorage());
+  const refreshStorageState = () => {
+    setRegisteredUser(safeParse(localStorage.getItem(REGISTERED_USER_KEY)));
+    setUsers(safeParse(localStorage.getItem(USERS_KEY), []) || []);
+    setCurrentUser(safeParse(localStorage.getItem(CURRENT_USER_KEY)));
+    setAuthToken(localStorage.getItem(AUTH_TOKEN_KEY) || "");
   };
 
   useEffect(() => {
-    loadAuthData();
-
-    window.addEventListener("authChanged", loadAuthData);
-    window.addEventListener("storage", loadAuthData);
+    window.addEventListener("authChanged", refreshStorageState);
+    window.addEventListener("storage", refreshStorageState);
 
     return () => {
-      window.removeEventListener("authChanged", loadAuthData);
-      window.removeEventListener("storage", loadAuthData);
+      window.removeEventListener("authChanged", refreshStorageState);
+      window.removeEventListener("storage", refreshStorageState);
     };
   }, []);
 
-  const register = (userData) => {
-    const previousUsers = writeUsersToStorage(getUsersFromStorage());
+  useEffect(() => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
-    const existingUser = findUserByEmail(userData.email, previousUsers);
+    if (!token || currentUser) return;
 
-    const registeredData = normalizeUserForStorage(userData, existingUser);
+    let mounted = true;
 
-    const nextUsers = existingUser
-      ? previousUsers.map((user) =>
-          normalizeEmail(user.email) === normalizeEmail(registeredData.email)
-            ? {
-                ...user,
-                ...registeredData,
-              }
-            : user
-        )
-      : [registeredData, ...previousUsers];
+    const loadProfile = async () => {
+      try {
+        const data = await getProfileApi();
+        const normalizedUser = normalizeBackendUser(data.user);
 
-    const savedUsers = writeUsersToStorage(nextUsers);
+        if (!mounted || !normalizedUser) return;
 
-    const profileData = {
-      fullName: registeredData.fullName,
-      email: registeredData.email,
-      phone: registeredData.phone,
-      role: registeredData.role,
+        writeCurrentUser(normalizedUser, token);
+        refreshStorageState();
+      } catch {
+        saveApiToken("");
+        localStorage.removeItem(CURRENT_USER_KEY);
+        localStorage.removeItem(REGISTERED_USER_KEY);
+        localStorage.removeItem(PROFILE_DATA_KEY);
+        refreshStorageState();
+      }
     };
 
-    localStorage.setItem(REGISTERED_USER_KEY, JSON.stringify(registeredData));
-    localStorage.setItem(PROFILE_DATA_KEY, JSON.stringify(profileData));
+    loadProfile();
 
-    setRegisteredUser(registeredData);
-    setUsers(savedUsers);
+    return () => {
+      mounted = false;
+    };
+  }, [currentUser]);
 
-    window.dispatchEvent(new Event("authChanged"));
+  const login = async (email, password) => {
+    setAuthLoading(true);
 
-    return registeredData;
-  };
+    try {
+      const data = await loginUserApi({ email, password });
+      const normalizedUser = normalizeBackendUser(data.user);
 
-  const login = (userData) => {
-    const previousUsers = writeUsersToStorage(getUsersFromStorage());
+      saveApiToken(data.token);
+      writeCurrentUser(normalizedUser, data.token);
 
-    const existingUser =
-      findUserByEmail(userData.email, previousUsers) ||
-      normalizeUserForStorage(userData);
+      setAuthToken(data.token || "");
+      setCurrentUser(normalizedUser);
+      setRegisteredUser(normalizedUser);
+      setUsers(safeParse(localStorage.getItem(USERS_KEY), []) || []);
 
-    if (existingUser.status === "Blocked") {
+      window.dispatchEvent(new Event("authChanged"));
+      window.dispatchEvent(new Event("profileUpdated"));
+
+      return {
+        success: true,
+        user: normalizedUser,
+        token: data.token,
+        message: data.message || "Login successful",
+      };
+    } catch (error) {
       return {
         success: false,
-        message: "This account is blocked by admin.",
+        message: error.message || "Login failed",
       };
+    } finally {
+      setAuthLoading(false);
     }
-
-    const currentUserData = makePublicUser(existingUser);
-
-    localStorage.setItem(AUTH_TOKEN_KEY, "lost-found-demo-token");
-
-    localStorage.setItem(
-      CURRENT_USER_KEY,
-      JSON.stringify(currentUserData)
-    );
-
-    localStorage.setItem(
-      PROFILE_DATA_KEY,
-      JSON.stringify({
-        fullName: currentUserData.fullName,
-        email: currentUserData.email,
-        phone: currentUserData.phone,
-        role: currentUserData.role,
-      })
-    );
-
-    localStorage.setItem(REGISTERED_USER_KEY, JSON.stringify(existingUser));
-
-    setAuthToken("lost-found-demo-token");
-    setCurrentUser(currentUserData);
-    setRegisteredUser(existingUser);
-
-    window.dispatchEvent(new Event("authChanged"));
-    window.dispatchEvent(new Event("profileUpdated"));
-
-    return {
-      success: true,
-      user: currentUserData,
-    };
   };
 
   const logout = () => {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
+    saveApiToken("");
     localStorage.removeItem(CURRENT_USER_KEY);
 
     setAuthToken("");
@@ -244,53 +200,40 @@ export function AuthProvider({ children }) {
   };
 
   const updateUserInList = (updatedUserData) => {
-    const previousUsers = writeUsersToStorage(getUsersFromStorage());
+    const updatedUser = {
+      ...(currentUser || {}),
+      ...updatedUserData,
+      email: normalizeEmail(updatedUserData.email || currentUser?.email || ""),
+    };
 
-    const updatedUser = normalizeUserForStorage(updatedUserData);
-
-    const exists = previousUsers.some(
-      (user) => normalizeEmail(user.email) === normalizeEmail(updatedUser.email)
-    );
-
-    const nextUsers = exists
-      ? previousUsers.map((user) =>
-          normalizeEmail(user.email) === normalizeEmail(updatedUser.email)
-            ? {
-                ...user,
-                ...updatedUser,
-              }
-            : user
-        )
-      : [updatedUser, ...previousUsers];
-
-    const savedUsers = writeUsersToStorage(nextUsers);
-
-    setUsers(savedUsers);
-
-    if (
-      currentUser &&
-      normalizeEmail(currentUser.email) === normalizeEmail(updatedUser.email)
-    ) {
-      const nextCurrentUser = makePublicUser(updatedUser);
-
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(nextCurrentUser));
-      localStorage.setItem(PROFILE_DATA_KEY, JSON.stringify(nextCurrentUser));
-
-      setCurrentUser(nextCurrentUser);
-    }
-
-    if (
-      registeredUser &&
-      normalizeEmail(registeredUser.email) === normalizeEmail(updatedUser.email)
-    ) {
-      localStorage.setItem(REGISTERED_USER_KEY, JSON.stringify(updatedUser));
-      setRegisteredUser(updatedUser);
-    }
-
+    writeCurrentUser(updatedUser, authToken);
+    refreshStorageState();
     window.dispatchEvent(new Event("authChanged"));
     window.dispatchEvent(new Event("profileUpdated"));
 
     return updatedUser;
+  };
+
+  const register = (userData) => {
+    const normalizedUser = normalizeBackendUser({
+      ...userData,
+      role: userData.role || "user",
+      status: userData.status || "active",
+    });
+
+    writeCurrentUser(normalizedUser, authToken);
+    refreshStorageState();
+    window.dispatchEvent(new Event("authChanged"));
+
+    return normalizedUser;
+  };
+
+  const findUserByEmail = (email) => {
+    const cleanEmail = normalizeEmail(email);
+    return (
+      users.find((user) => normalizeEmail(user.email) === cleanEmail) ||
+      (normalizeEmail(registeredUser?.email) === cleanEmail ? registeredUser : null)
+    );
   };
 
   const isRegistered = Boolean(registeredUser);
@@ -303,23 +246,30 @@ export function AuthProvider({ children }) {
       users,
       currentUser,
       authToken,
+      authLoading,
       isRegistered,
       isLoggedIn,
       isAdmin,
       register,
       login,
       logout,
-      findUserByEmail: (email) => findUserByEmail(email, users),
+      findUserByEmail,
       updateUserInList,
+      normalizeBackendUser,
     }),
-    [registeredUser, users, currentUser, authToken, isRegistered, isLoggedIn, isAdmin]
+    [
+      registeredUser,
+      users,
+      currentUser,
+      authToken,
+      authLoading,
+      isRegistered,
+      isLoggedIn,
+      isAdmin,
+    ]
   );
 
-  return (
-    <AuthContext.Provider value={authValue}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={authValue}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

@@ -6,23 +6,33 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 
 // Email sender setup
-const sendEmail = async (to, subject, html) => {
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+const sendEmail = async (to, subject, text) => {
+  try {
+    const cleanTo = String(to).trim().toLowerCase();
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to,
-    subject,
-    html,
-  });
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const info = await transporter.sendMail({
+      from: `"Lost and Found" <${process.env.EMAIL_USER}>`,
+      to: cleanTo,
+      subject,
+      text,
+    });
+
+    console.log("Email sent successfully");
+
+    return info;
+  } catch (error) {
+    console.error("Email sending failed:", error.message);
+    throw error;
+  }
 };
-
 // SEND SIGNUP OTP
 const sendSignupOtp = async (req, res) => {
   try {
@@ -34,7 +44,7 @@ const sendSignupOtp = async (req, res) => {
       });
     }
 
-    const cleanEmail = email.toLowerCase();
+    const cleanEmail = String(email).trim().toLowerCase();
 
     const existingUser = await User.findOne({ email: cleanEmail });
 
@@ -45,6 +55,7 @@ const sendSignupOtp = async (req, res) => {
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await PendingSignup.findOneAndDelete({ email: cleanEmail });
@@ -60,16 +71,15 @@ const sendSignupOtp = async (req, res) => {
 
     await pendingSignup.save();
 
-    await sendEmail(
-      cleanEmail,
-      "Lost & Found Signup OTP",
-      `
-        <h2>Email Verification</h2>
-        <p>Your OTP for Lost & Found account registration is:</p>
-        <h1>${otp}</h1>
-        <p>This OTP will expire in 5 minutes.</p>
-      `
-    );
+ await sendEmail(
+  cleanEmail,
+  "Verification code",
+  `Your verification code is ${otp}
+
+Use this code to verify your Lost and Found account.
+
+This code will expire in 5 minutes.`
+);
 
     res.status(200).json({
       message: "OTP sent to your email successfully",
@@ -285,17 +295,19 @@ const forgotPassword = async (req, res) => {
     const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
 
     await sendEmail(
-      user.email,
-      "Password Reset Request",
-      `
-        <h2>Password Reset Request</h2>
-        <p>You requested to reset your password.</p>
-        <p>Click the link below to reset your password:</p>
-        <a href="${resetUrl}" target="_blank">${resetUrl}</a>
-        <p>This link will expire in 15 minutes.</p>
-        <p>If you did not request this, please ignore this email.</p>
-      `
-    );
+  user.email,
+  "Password Reset Request",
+  `Password Reset Request
+
+You requested to reset your password.
+
+Click the link below to reset your password:
+${resetUrl}
+
+This link will expire in 15 minutes.
+
+If you did not request this, please ignore this email.`
+);
 
     res.status(200).json({
       message: "Password reset link sent to your email",

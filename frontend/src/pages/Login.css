@@ -218,3 +218,36 @@
     display: none;
   }
 }
+.login__message {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.login__message--success {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.login__message--error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.login__bottom {
+  margin-top: 16px;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.login__bottom span {
+  color: #2563eb;
+  font-weight: 700;
+  cursor: pointer;
+}
