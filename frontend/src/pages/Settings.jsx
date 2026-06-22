@@ -3,6 +3,7 @@ import "./Settings.css";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { changePassword } from "../api/authApi";
 
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -192,73 +193,39 @@ export default function Settings() {
     });
   };
 
-  const updatePasswordEverywhere = (updatedUser) => {
-    const users = getUsers();
+ 
+  const handlePasswordSubmit = async (e) => {
+  e.preventDefault();
 
-    const nextUsers = users.map((user) =>
-      normalizeEmail(user.email) === normalizeEmail(updatedUser.email)
-        ? {
-            ...user,
-            password: updatedUser.password,
-          }
-        : user
+  if (
+    !passwordData.currentPassword ||
+    !passwordData.newPassword ||
+    !passwordData.confirmPassword
+  ) {
+    alert("Please fill all password fields.");
+    return;
+  }
+
+  const passwordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+
+  if (!passwordRegex.test(passwordData.newPassword)) {
+    alert(
+      "Password must contain uppercase, lowercase, number, special character and minimum 8 characters."
     );
+    return;
+  }
 
-    localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
-    localStorage.setItem(REGISTERED_USER_KEY, JSON.stringify(updatedUser));
+  if (passwordData.newPassword !== passwordData.confirmPassword) {
+    alert("New password and confirm password do not match.");
+    return;
+  }
 
-    window.dispatchEvent(new Event("authChanged"));
-  };
-
-  const handlePasswordSubmit = (e) => {
-    e.preventDefault();
-
-    const registeredUser = getRegisteredUser();
-    const users = getUsers();
-
-    const activeEmail =
-      currentUser?.email ||
-      registeredUser?.email ||
-      "";
-
-    const userFromList = users.find(
-      (user) => normalizeEmail(user.email) === normalizeEmail(activeEmail)
-    );
-
-    const targetUser = userFromList || registeredUser;
-
-    if (!targetUser) {
-      alert("No account found. Please create an account first.");
-      navigate("/signup");
-      return;
-    }
-
-    if (targetUser.password !== passwordData.currentPassword) {
-      alert("Current password is incorrect.");
-      return;
-    }
-
-    const passwordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
-
-    if (!passwordRegex.test(passwordData.newPassword)) {
-      alert(
-        "Password must contain uppercase, lowercase, number, special character and minimum 8 characters."
-      );
-      return;
-    }
-
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert("New password and confirm password do not match.");
-      return;
-    }
-
-    const updatedUser = {
-      ...targetUser,
-      password: passwordData.newPassword,
-    };
-
-    updatePasswordEverywhere(updatedUser);
+  try {
+    const response = await changePassword({
+      oldPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword,
+    });
 
     setPasswordData({
       currentPassword: "",
@@ -266,8 +233,11 @@ export default function Settings() {
       confirmPassword: "",
     });
 
-    showMessage("Password changed successfully.");
-  };
+    showMessage(response?.message || "Password changed successfully.");
+  } catch (error) {
+    alert(error.message || "Failed to change password.");
+  }
+};
 
   const handleExportData = () => {
     const user = getCurrentUserFromStorage();
