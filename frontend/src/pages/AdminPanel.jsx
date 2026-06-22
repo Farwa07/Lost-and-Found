@@ -1,4 +1,23 @@
 import "./AdminPanel.css";
+import {
+  blockAdminUser,
+  confirmMatchSuggestion,
+  clearAdminReportFlags,
+  deleteAdminReport,
+  deleteAdminUser,
+  dismissMatchSuggestion,
+  getAdminReports,
+  getAdminUsers,
+  getMatchSuggestions,
+  rejectAdminReport,
+  sendGeneralAlert,
+  sendReportAlert,
+  unblockAdminUser,
+  updateAdminReportStatus,
+  updateAdminReportCaseStatus,
+  verifyAdminReport,
+} from "../api/adminApi";
+import { mapBackendReportToUi, mapBackendReportsToUi } from "../utils/reportMapper";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -328,6 +347,17 @@ const getStatusClass = (value = "") => {
   return normalize(value).replace(/\s+/g, "-");
 };
 
+const adminStatusToBackend = (status = "") => {
+  const normalized = String(status).trim().toLowerCase();
+
+  if (normalized === "verified") return "verified";
+  if (normalized === "rejected") return "rejected";
+  if (normalized === "matched") return "matched";
+  if (normalized === "closed") return "closed";
+
+  return "pending";
+};
+
 const readStorage = (key, fallback) => {
   try {
     const saved = localStorage.getItem(key);
@@ -528,6 +558,7 @@ export default function AdminPanel() {
   const [reports, setReports] = useState([]);
   const [users, setUsers] = useState([]);
   const [matchDecisions, setMatchDecisions] = useState([]);
+  const [apiMatchSuggestions, setApiMatchSuggestions] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [alertReport, setAlertReport] = useState(null);
   const [showAlertPopup, setShowAlertPopup] = useState(false);
@@ -548,29 +579,63 @@ export default function AdminPanel() {
     message: "",
   });
 
+  const normalizeAdminUser = (user = {}) => ({
+    ...user,
+    id: user._id || user.id,
+    name: user.fullName || user.name || "User",
+    email: user.email || "",
+    phone: user.phone || "",
+    role: user.role === "admin" ? "Admin" : "Registered User",
+    status: user.status === "blocked" ? "Blocked" : "Active",
+    joinedAt: user.createdAt || user.joinedAt || "",
+  });
+
+  const loadAdminData = async () => {
+    try {
+      const [reportsResponse, usersResponse, matchesResponse] = await Promise.all([
+        getAdminReports(),
+        getAdminUsers(),
+        getMatchSuggestions().catch(() => ({ suggestions: [] })),
+      ]);
+
+      setReports(removeDuplicateReports(mapBackendReportsToUi(reportsResponse?.reports || [])));
+      setUsers((usersResponse?.users || []).map(normalizeAdminUser));
+      setMatchDecisions([]);
+      setApiMatchSuggestions(
+        Array.isArray(matchesResponse?.suggestions)
+          ? matchesResponse.suggestions.map((suggestion) => {
+              const lostReport = mapBackendReportToUi(suggestion.lostReport || {});
+              const foundReport = mapBackendReportToUi(suggestion.foundReport || {});
+
+              return {
+                id: suggestion.matchId || suggestion._id,
+                matchId: suggestion.matchId || suggestion._id,
+                pairKey: getPairKey(lostReport.id, foundReport.id),
+                visualPairKey: getVisualPairKey(lostReport, foundReport),
+                score: suggestion.score || 0,
+                reasons: Array.isArray(suggestion.reasons) ? suggestion.reasons : [],
+                matchedFields: Array.isArray(suggestion.matchedFields)
+                  ? suggestion.matchedFields
+                  : [],
+                threshold: suggestion.threshold || 60,
+                status: suggestion.status || "suggested",
+                lostReport,
+                foundReport,
+              };
+            })
+          : []
+      );
+    } catch (error) {
+      console.error("Admin data load error:", error);
+      showMessage(error.message || "Unable to load admin data.");
+      setReports([]);
+      setUsers([]);
+      setApiMatchSuggestions([]);
+    }
+  };
+
   useEffect(() => {
-    const savedReports = readStorage(REPORTS_KEY, null);
-    const savedUsers = readStorage(USERS_KEY, null);
-    const savedDecisions = readStorage(MATCH_DECISIONS_KEY, []);
-
-    if (Array.isArray(savedReports) && savedReports.length > 0) {
-      const cleanReports = removeDuplicateReports(savedReports);
-      setReports(cleanReports);
-      writeStorage(REPORTS_KEY, cleanReports);
-    } else {
-      const cleanReports = removeDuplicateReports(defaultReports);
-      setReports(cleanReports);
-      writeStorage(REPORTS_KEY, cleanReports);
-    }
-
-    if (Array.isArray(savedUsers) && savedUsers.length > 0) {
-      setUsers(savedUsers);
-    } else {
-      setUsers(defaultUsers);
-      writeStorage(USERS_KEY, defaultUsers);
-    }
-
-    setMatchDecisions(Array.isArray(savedDecisions) ? savedDecisions : []);
+    loadAdminData();
   }, []);
 
   const showMessage = (text) => {
@@ -585,14 +650,11 @@ export default function AdminPanel() {
     const cleanReports = removeDuplicateReports(nextReports);
 
     setReports(cleanReports);
-    writeStorage(REPORTS_KEY, cleanReports);
-    dispatchReportsUpdate();
     showMessage(successMessage);
   };
 
   const saveUsers = (nextUsers, successMessage = "User changes saved.") => {
     setUsers(nextUsers);
-    writeStorage(USERS_KEY, nextUsers);
     showMessage(successMessage);
   };
 
@@ -654,7 +716,7 @@ export default function AdminPanel() {
         .length,
       matched: reports.filter((report) => report.adminStatus === "Matched")
         .length,
-      flagged: reports.filter((report) => Number(report.flagCount || 0) >= 5)
+      flagged: reports.filter((report) => Number(report.flagCount || 0) > 0)
         .length,
       solved: reports.filter((report) => report.caseStatus === "Solved").length,
     };
@@ -690,7 +752,7 @@ export default function AdminPanel() {
       const cityMatch = filters.city === "All" || report.city === filters.city;
 
       const flaggedMatch =
-        !filters.flaggedOnly || Number(report.flagCount || 0) >= 5;
+        !filters.flaggedOnly || Number(report.flagCount || 0) > 0;
 
       return (
         searchMatch &&
@@ -714,91 +776,10 @@ export default function AdminPanel() {
 
 
   const potentialMatches = useMemo(() => {
-    const dismissedPairKeys = new Set(
-      matchDecisions
-        .filter((decision) => decision.decision === "Not Matched")
-        .map((decision) => decision.pairKey)
-    );
-
-    const dismissedVisualKeys = new Set(
-      matchDecisions
-        .filter((decision) => decision.decision === "Not Matched")
-        .map((decision) => decision.visualPairKey)
-        .filter(Boolean)
-    );
-
-    const confirmedPairKeys = new Set(
-      matchDecisions
-        .filter((decision) => decision.decision === "Confirmed")
-        .map((decision) => decision.pairKey)
-    );
-
-    const confirmedVisualKeys = new Set(
-      matchDecisions
-        .filter((decision) => decision.decision === "Confirmed")
-        .map((decision) => decision.visualPairKey)
-        .filter(Boolean)
-    );
-
-    const lostReports = reports.filter(
-      (report) =>
-        ["Missing", "Lost"].includes(report.type) &&
-        report.adminStatus !== "Rejected" &&
-        report.adminStatus !== "Matched" &&
-        report.caseStatus !== "Solved"
-    );
-
-    const foundReports = reports.filter(
-      (report) =>
-        report.type === "Found" &&
-        report.adminStatus !== "Rejected" &&
-        report.adminStatus !== "Matched" &&
-        report.caseStatus !== "Solved"
-    );
-
-    const matches = [];
-    const usedVisualPairs = new Set();
-
-    lostReports.forEach((lostReport) => {
-      foundReports.forEach((foundReport) => {
-        if (lostReport.category !== foundReport.category) {
-          return;
-        }
-
-        const pairKey = getPairKey(lostReport.id, foundReport.id);
-        const visualPairKey = getVisualPairKey(lostReport, foundReport);
-
-        if (
-          dismissedPairKeys.has(pairKey) ||
-          dismissedVisualKeys.has(visualPairKey) ||
-          confirmedPairKeys.has(pairKey) ||
-          confirmedVisualKeys.has(visualPairKey) ||
-          usedVisualPairs.has(visualPairKey)
-        ) {
-          return;
-        }
-
-        const result = calculateMatchScore(lostReport, foundReport);
-
-        if (result.score >= 60) {
-          usedVisualPairs.add(visualPairKey);
-
-          matches.push({
-            id: pairKey,
-            pairKey,
-            visualPairKey,
-            lostReport,
-            foundReport,
-            score: result.score,
-            reasons: result.reasons,
-            matchedFields: result.matchedFields,
-          });
-        }
-      });
-    });
-
-    return matches.sort((a, b) => b.score - a.score);
-  }, [reports, matchDecisions]);
+    return apiMatchSuggestions
+      .filter((match) => match.status === "suggested")
+      .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+  }, [apiMatchSuggestions]);
 
   const resetFilters = () => {
     setFilters({
@@ -824,12 +805,18 @@ export default function AdminPanel() {
     });
   };
 
-  const updateAdminStatus = (reportId, nextStatus) => {
+  const updateAdminStatus = async (reportId, nextStatus) => {
     const targetReport = reports.find(
       (report) => String(report.id) === String(reportId)
     );
 
-    const nextReports = reports.map((report) =>
+    if (!targetReport) {
+      showMessage("Report not found on this page. Please refresh and try again.");
+      return;
+    }
+
+    const previousReports = reports;
+    const optimisticReports = reports.map((report) =>
       String(report.id) === String(reportId)
         ? {
             ...report,
@@ -838,25 +825,51 @@ export default function AdminPanel() {
         : report
     );
 
-    saveReports(nextReports, `Report marked as ${nextStatus}.`);
-    addAdminLog(`Report marked as ${nextStatus}`, targetReport?.title);
+    setReports(optimisticReports);
 
-    if (targetReport) {
-      addNotification(
-        targetReport,
-        "Verification",
-        `Report ${nextStatus}`,
-        `Your report "${targetReport.title}" has been marked as ${nextStatus} by admin.`
+    try {
+      const apiStatus = adminStatusToBackend(nextStatus);
+      const response = await updateAdminReportStatus(reportId, apiStatus);
+      const updatedReport = response?.report
+        ? mapBackendReportToUi(response.report)
+        : null;
+
+      const syncedReports = optimisticReports.map((report) =>
+        String(report.id) === String(reportId)
+          ? {
+              ...report,
+              ...(updatedReport || {}),
+              adminStatus: nextStatus,
+            }
+          : report
       );
+
+      saveReports(syncedReports, `Report marked as ${nextStatus}.`);
+      setSelectedReport((previousReport) =>
+        previousReport && String(previousReport.id) === String(reportId)
+          ? syncedReports.find((report) => String(report.id) === String(reportId)) || previousReport
+          : previousReport
+      );
+      addAdminLog(`Report marked as ${nextStatus}`, targetReport?.title);
+    } catch (error) {
+      console.error("Admin status update error:", error);
+      setReports(previousReports);
+      showMessage(error.message || "Unable to update report status.");
     }
   };
 
-  const updateCaseStatus = (reportId, nextCaseStatus) => {
+  const updateCaseStatus = async (reportId, nextCaseStatus) => {
     const targetReport = reports.find(
       (report) => String(report.id) === String(reportId)
     );
 
-    const nextReports = reports.map((report) =>
+    if (!targetReport) {
+      showMessage("Report not found on this page. Please refresh and try again.");
+      return;
+    }
+
+    const previousReports = reports;
+    const optimisticReports = reports.map((report) =>
       String(report.id) === String(reportId)
         ? {
             ...report,
@@ -865,25 +878,56 @@ export default function AdminPanel() {
         : report
     );
 
-    saveReports(nextReports, `Case status changed to ${nextCaseStatus}.`);
-    addAdminLog(`Case status changed to ${nextCaseStatus}`, targetReport?.title);
+    setReports(optimisticReports);
 
-    if (targetReport) {
-      addNotification(
-        targetReport,
-        "Status",
-        "Case Status Updated",
-        `Your report "${targetReport.title}" case status is now ${nextCaseStatus}.`
+    try {
+      const response = await updateAdminReportCaseStatus(reportId, nextCaseStatus);
+      const updatedReport = response?.report
+        ? mapBackendReportToUi(response.report)
+        : null;
+
+      const syncedReports = optimisticReports.map((report) =>
+        String(report.id) === String(reportId)
+          ? {
+              ...report,
+              ...(updatedReport || {}),
+              caseStatus: nextCaseStatus,
+            }
+          : report
       );
+
+      saveReports(syncedReports, `Case status changed to ${nextCaseStatus}.`);
+      setSelectedReport((previousReport) =>
+        previousReport && String(previousReport.id) === String(reportId)
+          ? syncedReports.find((report) => String(report.id) === String(reportId)) || previousReport
+          : previousReport
+      );
+      addAdminLog(`Case status changed to ${nextCaseStatus}`, targetReport?.title);
+    } catch (error) {
+      console.error("Admin case status update error:", error);
+      setReports(previousReports);
+      showMessage(error.message || "Unable to update case status.");
     }
   };
 
-  const clearFlags = (reportId) => {
+  const clearFlags = async (reportId) => {
     const targetReport = reports.find(
       (report) => String(report.id) === String(reportId)
     );
 
-    const nextReports = reports.map((report) =>
+    if (!targetReport) {
+      showMessage("Report not found on this page. Please refresh and try again.");
+      return;
+    }
+
+    const confirmClear = window.confirm(
+      `Mark all flags on "${targetReport.title}" as reviewed and clear them?`
+    );
+
+    if (!confirmClear) return;
+
+    const previousReports = reports;
+    const optimisticReports = reports.map((report) =>
       String(report.id) === String(reportId)
         ? {
             ...report,
@@ -893,11 +937,40 @@ export default function AdminPanel() {
         : report
     );
 
-    saveReports(nextReports, "Flags reviewed and cleared.");
-    addAdminLog("Flags cleared", targetReport?.title);
+    setReports(optimisticReports);
+
+    try {
+      const response = await clearAdminReportFlags(reportId);
+      const updatedReport = response?.report
+        ? mapBackendReportToUi(response.report)
+        : null;
+
+      const syncedReports = optimisticReports.map((report) =>
+        String(report.id) === String(reportId)
+          ? {
+              ...report,
+              ...(updatedReport || {}),
+              flags: [],
+              flagCount: 0,
+            }
+          : report
+      );
+
+      saveReports(syncedReports, "Flags reviewed and cleared.");
+      setSelectedReport((previousReport) =>
+        previousReport && String(previousReport.id) === String(reportId)
+          ? syncedReports.find((report) => String(report.id) === String(reportId)) || previousReport
+          : previousReport
+      );
+      addAdminLog("Flags cleared", targetReport?.title);
+    } catch (error) {
+      console.error("Clear flags error:", error);
+      setReports(previousReports);
+      showMessage(error.message || "Unable to clear flags.");
+    }
   };
 
-  const deleteReport = (reportId) => {
+  const deleteReport = async (reportId) => {
     const targetReport = reports.find(
       (report) => String(report.id) === String(reportId)
     );
@@ -908,26 +981,22 @@ export default function AdminPanel() {
 
     if (!confirmDelete) return;
 
-    const nextReports = reports.filter(
-      (report) => String(report.id) !== String(reportId)
-    );
+    try {
+      await deleteAdminReport(reportId);
 
-    saveReports(nextReports, "Report deleted by admin.");
-    addAdminLog("Report deleted", targetReport?.title);
-
-    if (targetReport) {
-      addNotification(
-        targetReport,
-        "Alert",
-        "Report Deleted by Admin",
-        `Your report "${targetReport.title}" was removed because it was fake, duplicate or inappropriate.`
+      const nextReports = reports.filter(
+        (report) => String(report.id) !== String(reportId)
       );
-    }
 
-    setSelectedReport(null);
+      saveReports(nextReports, "Report deleted by admin.");
+      addAdminLog("Report deleted", targetReport?.title);
+      setSelectedReport(null);
+    } catch (error) {
+      showMessage(error.message || "Unable to delete report.");
+    }
   };
 
-  const confirmMatch = (match) => {
+  const confirmMatch = async (match) => {
     const confirmAction = window.confirm(
       `Confirm match between "${match.lostReport.title}" and "${match.foundReport.title}"?`
     );
@@ -936,135 +1005,73 @@ export default function AdminPanel() {
       return;
     }
 
-    const matchId = `match-${match.lostReport.id}-${match.foundReport.id}-${Date.now()}`;
-    const matchedAt = new Date().toISOString();
+    if (!match.matchId) {
+      showMessage("Match id missing. Please refresh and try again.");
+      return;
+    }
 
-    let updatedLostReport = null;
-    let updatedFoundReport = null;
+    try {
+      const response = await confirmMatchSuggestion(match.matchId);
+      const confirmedMatch = response?.match || {};
+      const lostReport = confirmedMatch.lostReportId
+        ? mapBackendReportToUi(confirmedMatch.lostReportId)
+        : match.lostReport;
+      const foundReport = confirmedMatch.foundReportId
+        ? mapBackendReportToUi(confirmedMatch.foundReportId)
+        : match.foundReport;
 
-    const nextReports = reports.map((report) => {
-      if (String(report.id) === String(match.lostReport.id)) {
-        updatedLostReport = {
-          ...report,
-          adminStatus: "Matched",
-          caseStatus: "Solved",
-          matchedWith: match.foundReport.id,
-          matchId,
-          matchScore: match.score,
-          matchedFields: match.matchedFields,
-          matchedAt,
-          matchedBy: "Admin",
-          matchDecision: "Confirmed",
-        };
+      const nextReports = reports.map((report) => {
+        if (String(report.id) === String(lostReport.id)) {
+          return {
+            ...report,
+            ...lostReport,
+            adminStatus: "Matched",
+            caseStatus: "Solved",
+            matchId: confirmedMatch._id || match.matchId,
+            matchScore: confirmedMatch.score || match.score,
+          };
+        }
 
-        return updatedLostReport;
-      }
+        if (String(report.id) === String(foundReport.id)) {
+          return {
+            ...report,
+            ...foundReport,
+            adminStatus: "Matched",
+            caseStatus: "Solved",
+            matchId: confirmedMatch._id || match.matchId,
+            matchScore: confirmedMatch.score || match.score,
+          };
+        }
 
-      if (String(report.id) === String(match.foundReport.id)) {
-        updatedFoundReport = {
-          ...report,
-          adminStatus: "Matched",
-          caseStatus: "Solved",
-          matchedWith: match.lostReport.id,
-          matchId,
-          matchScore: match.score,
-          matchedFields: match.matchedFields,
-          matchedAt,
-          matchedBy: "Admin",
-          matchDecision: "Confirmed",
-        };
+        return report;
+      });
 
-        return updatedFoundReport;
-      }
+      setApiMatchSuggestions((previousSuggestions) =>
+        previousSuggestions.filter(
+          (item) => String(item.matchId) !== String(match.matchId)
+        )
+      );
 
-      return report;
-    });
+      saveReports(
+        nextReports,
+        response?.message || "Match confirmed. Both reports are Matched and Solved."
+      );
 
-    const matchRecord = {
-      id: matchId,
-      matchId,
-      pairKey: match.pairKey,
-      visualPairKey: match.visualPairKey,
-      score: match.score,
-      threshold: 60,
-      reasons: match.reasons,
-      matchedFields: match.matchedFields,
-      lostReport: updatedLostReport,
-      foundReport: updatedFoundReport,
-      matchedAt,
-      matchedBy: "Admin",
-      decision: "Confirmed",
-      userMessage:
-        "Admin confirmed this rule-based match. Please compare both reports and contact the other reporter using the phone/email details shown below.",
-    };
+      // Reload backend data so the match does not come back after refresh/login.
+      await loadAdminData();
+      setActiveTab("matched");
 
-    const previousMatches = readStorage(CONFIRMED_MATCHES_KEY, []);
-
-    const nextMatches = [
-      matchRecord,
-      ...previousMatches.filter(
-        (item) =>
-          item.pairKey !== match.pairKey &&
-          item.visualPairKey !== match.visualPairKey
-      ),
-    ];
-
-    writeStorage(CONFIRMED_MATCHES_KEY, nextMatches);
-
-    const nextDecisions = [
-      {
-        id: `${Date.now()}-${Math.random()}`,
-        pairKey: match.pairKey,
-        visualPairKey: match.visualPairKey,
-        decision: "Confirmed",
-        matchId,
-        score: match.score,
-        lostReportId: match.lostReport.id,
-        foundReportId: match.foundReport.id,
-        lostTitle: match.lostReport.title,
-        foundTitle: match.foundReport.title,
-        decidedAt: matchedAt,
-        decidedBy: "Admin",
-      },
-      ...matchDecisions.filter(
-        (item) =>
-          item.pairKey !== match.pairKey &&
-          item.visualPairKey !== match.visualPairKey
-      ),
-    ];
-
-    saveMatchDecisions(nextDecisions);
-
-    saveReports(
-      nextReports,
-      "Match confirmed. Both reports are saved as Matched and Solved."
-    );
-
-    addAdminLog(
-      "Match confirmed",
-      `${match.lostReport.title} + ${match.foundReport.title}`
-    );
-
-    const actionUrl = `/match-alert/${matchId}`;
-
-    addNotification(
-      updatedLostReport,
-      "Match",
-      "Match Confirmed by Admin",
-      `Admin confirmed a ${match.score}% match for your report "${updatedLostReport.title}". Open this alert to compare both reports.`,
-      { matchId, actionUrl }
-    );
-
-    addNotification(
-      updatedFoundReport,
-      "Match",
-      "Match Confirmed by Admin",
-      `Admin confirmed your found report "${updatedFoundReport.title}" as a ${match.score}% match. Open this alert to compare both reports.`,
-      { matchId, actionUrl }
-    );
+      addAdminLog(
+        "Match confirmed",
+        `${match.lostReport.title} + ${match.foundReport.title}`
+      );
+    } catch (error) {
+      console.error("Confirm match error:", error);
+      showMessage(error.message || "Unable to confirm match.");
+    }
   };
 
-  const dismissMatch = (match) => {
+  const dismissMatch = async (match) => {
     const confirmAction = window.confirm(
       `Mark "${match.lostReport.title}" and "${match.foundReport.title}" as Not Matched?`
     );
@@ -1073,35 +1080,32 @@ export default function AdminPanel() {
       return;
     }
 
-    const nextDecisions = [
-      {
-        id: `${Date.now()}-${Math.random()}`,
-        pairKey: match.pairKey,
-        visualPairKey: match.visualPairKey,
-        decision: "Not Matched",
-        score: match.score,
-        lostReportId: match.lostReport.id,
-        foundReportId: match.foundReport.id,
-        lostTitle: match.lostReport.title,
-        foundTitle: match.foundReport.title,
-        decidedAt: new Date().toISOString(),
-        decidedBy: "Admin",
-      },
-      ...matchDecisions.filter(
-        (item) =>
-          item.pairKey !== match.pairKey &&
-          item.visualPairKey !== match.visualPairKey
-      ),
-    ];
+    if (!match.matchId) {
+      showMessage("Match id missing. Please refresh and try again.");
+      return;
+    }
 
-    saveMatchDecisions(nextDecisions);
+    try {
+      const response = await dismissMatchSuggestion(match.matchId);
 
-    addAdminLog(
-      "Match dismissed",
-      `${match.lostReport.title} + ${match.foundReport.title}`
-    );
+      setApiMatchSuggestions((previousSuggestions) =>
+        previousSuggestions.filter(
+          (item) => String(item.matchId) !== String(match.matchId)
+        )
+      );
 
-    showMessage("Match suggestion removed and saved as Not Matched.");
+      await loadAdminData();
+
+      addAdminLog(
+        "Match dismissed",
+        `${match.lostReport.title} + ${match.foundReport.title}`
+      );
+
+      showMessage(response?.message || "Match suggestion removed and saved as Not Matched.");
+    } catch (error) {
+      console.error("Dismiss match error:", error);
+      showMessage(error.message || "Unable to dismiss match.");
+    }
   };
 
   const openAlertModal = (report) => {
@@ -1117,7 +1121,7 @@ export default function AdminPanel() {
     });
   };
 
-  const sendAlert = (e) => {
+  const sendAlert = async (e) => {
     e.preventDefault();
 
     if (!alertForm.title.trim() || !alertForm.message.trim()) {
@@ -1125,27 +1129,36 @@ export default function AdminPanel() {
       return;
     }
 
-    addNotification(
-      alertReport,
-      alertForm.type,
-      alertForm.title.trim(),
-      alertForm.message.trim()
-    );
+    try {
+      const payload = {
+        type: alertForm.type,
+        title: alertForm.title.trim(),
+        message: alertForm.message.trim(),
+      };
 
-    addAdminLog("Alert sent", alertReport?.title || "General Alert");
-    showMessage("Alert notification created successfully.");
+      if (alertReport?.id) {
+        await sendReportAlert(alertReport.id, payload);
+      } else {
+        await sendGeneralAlert(payload);
+      }
 
-    setAlertReport(null);
-    setShowAlertPopup(false);
+      addAdminLog("Alert sent", alertReport?.title || "General Alert");
+      showMessage("Alert notification created successfully.");
 
-    setAlertForm({
-      type: "Alert",
-      title: "Admin Alert",
-      message: "",
-    });
+      setAlertReport(null);
+      setShowAlertPopup(false);
+
+      setAlertForm({
+        type: "Alert",
+        title: "Admin Alert",
+        message: "",
+      });
+    } catch (error) {
+      showMessage(error.message || "Unable to send alert.");
+    }
   };
 
-  const toggleUserStatus = (userId) => {
+  const toggleUserStatus = async (userId) => {
     const nextUsers = users.map((user) =>
       String(user.id) === String(userId)
         ? {
@@ -1155,18 +1168,34 @@ export default function AdminPanel() {
         : user
     );
 
-    saveUsers(nextUsers, "User status updated.");
+    try {
+      const targetUser = users.find((user) => String(user.id) === String(userId));
+      if (targetUser?.status === "Blocked") {
+        await unblockAdminUser(userId);
+      } else {
+        await blockAdminUser(userId);
+      }
+
+      saveUsers(nextUsers, "User status updated.");
+    } catch (error) {
+      showMessage(error.message || "Unable to update user status.");
+    }
   };
 
-  const deleteUser = (userId) => {
+  const deleteUser = async (userId) => {
     const confirmDelete = window.confirm("Delete this user from frontend admin list?");
 
     if (!confirmDelete) return;
 
-    saveUsers(
-      users.filter((user) => String(user.id) !== String(userId)),
-      "User removed from admin list."
-    );
+    try {
+      await deleteAdminUser(userId);
+      saveUsers(
+        users.filter((user) => String(user.id) !== String(userId)),
+        "User removed from admin list."
+      );
+    } catch (error) {
+      showMessage(error.message || "Unable to delete user.");
+    }
   };
 
   const renderStatusBadge = (status) => {
@@ -1182,7 +1211,9 @@ export default function AdminPanel() {
   };
 
   const renderReportCard = (report) => {
-    const isFlagged = Number(report.flagCount || 0) >= 5;
+    const flagCount = Number(report.flagCount || 0);
+    const isFlagged = flagCount > 0;
+    const needsAdminReview = flagCount >= 5;
 
     return (
       <article
@@ -1204,7 +1235,7 @@ export default function AdminPanel() {
 
           {isFlagged && (
             <span className="admin-flag-badge">
-              <FaFlag /> Review Required
+              <FaFlag /> {needsAdminReview ? "Review Required" : `${flagCount} Flag${flagCount > 1 ? "s" : ""}`}
             </span>
           )}
         </div>

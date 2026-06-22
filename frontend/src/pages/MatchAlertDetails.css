@@ -505,3 +505,13 @@
     font-size: 32px;
   }
 }
+
+.match-alert-empty-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-weight: 900;
+}

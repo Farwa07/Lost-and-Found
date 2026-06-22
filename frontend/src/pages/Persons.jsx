@@ -2,7 +2,7 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FaCalendarAlt,
   FaUser,
@@ -15,270 +15,8 @@ import {
 import "./Persons.css";
 import CommentsButton from "../components/CommentsButton";
 import ReportPostButton from "../components/ReportPostButton";
-
-const REPORTS_KEY = "lostFoundReports";
-
-const personsData = [
-  {
-    id: 1,
-    status: "Missing",
-    name: "Abdullah Khan",
-    age: 7,
-    gender: "Male",
-    lastSeenLocation: "Anarkali Bazaar, Lahore",
-    city: "Lahore",
-    date: "2026-05-12",
-    description:
-      "Last seen wearing red t-shirt and blue jeans. Small school bag with cartoons.",
-    reporterFullName: "Imran Khan",
-    reporterContactNumber: "03001112222",
-    reporterRelationship: "Father",
-    image:
-      "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-
-  {
-    id: 2,
-    status: "Found",
-    name: "Areeba Noor",
-    age: 9,
-    gender: "Female",
-    foundLocation: "Saddar Market, Karachi",
-    currentLocation: "Edhi Center Karachi",
-    city: "Karachi",
-    date: "2026-05-18",
-    description:
-      "Found crying near market area. Wearing pink frock and white sandals.",
-    reporterFullName: "Sadia Ahmed",
-    reporterContactNumber: "03125556666",
-    reporterRelationship: "Citizen",
-    image:
-      "https://images.unsplash.com/photo-1516627145497-ae6968895b74?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-
-  {
-    id: 3,
-    status: "Missing",
-    name: "Hasnain Ali",
-    age: 11,
-    gender: "Male",
-    lastSeenLocation: "G-10 Markaz, Islamabad",
-    city: "Islamabad",
-    date: "2026-04-28",
-    description:
-      "Last seen after school hours wearing black school uniform.",
-    reporterFullName: "Naveed Ali",
-    reporterContactNumber: "03214445555",
-    reporterRelationship: "Brother",
-    image:
-      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-
-  {
-    id: 4,
-    status: "Found",
-    name: "Iqra Fatima",
-    age: 6,
-    gender: "Female",
-    foundLocation: "Bus Stand, Multan",
-    currentLocation: "Women Protection Center Multan",
-    city: "Multan",
-    date: "2026-05-02",
-    description:
-      "Found alone near bus stand. Wearing yellow dress and black shoes.",
-    reporterFullName: "Saima Bibi",
-    reporterContactNumber: "03334445555",
-    reporterRelationship: "NGO Worker",
-    image:
-      "https://images.unsplash.com/photo-1519457431-44ccd64a579b?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-
-  {
-    id: 5,
-    status: "Missing",
-    name: "Muhammad Bilal",
-    age: 14,
-    gender: "Male",
-    lastSeenLocation: "D-Ground Faisalabad",
-    city: "Faisalabad",
-    date: "2026-03-19",
-    description: "Last seen wearing grey hoodie and black trousers.",
-    reporterFullName: "Shahid Mehmood",
-    reporterContactNumber: "03457778888",
-    reporterRelationship: "Father",
-    image:
-      "https://images.unsplash.com/photo-1517588632672-9758d6acba04?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-
-  {
-    id: 6,
-    status: "Found",
-    name: "Zainab Malik",
-    age: 13,
-    gender: "Female",
-    foundLocation: "Committee Chowk, Rawalpindi",
-    currentLocation: "District Hospital Rawalpindi",
-    city: "Rawalpindi",
-    date: "2026-04-09",
-    description: "Found near hospital road. Carrying small purple backpack.",
-    reporterFullName: "Nadia Khan",
-    reporterContactNumber: "03016667777",
-    reporterRelationship: "Citizen",
-    image:
-      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-
-  {
-    id: 7,
-    status: "Missing",
-    name: "Hamza Tariq",
-    age: 5,
-    gender: "Male",
-    lastSeenLocation: "Clock Tower, Sialkot",
-    city: "Sialkot",
-    date: "2026-05-20",
-    description: "Lost during shopping rush. Wearing blue cap and white shirt.",
-    reporterFullName: "Tariq Ahmed",
-    reporterContactNumber: "03078889999",
-    reporterRelationship: "Father",
-    image:
-      "https://images.unsplash.com/photo-1472162072942-cd5147eb3902?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-
-  {
-    id: 8,
-    status: "Found",
-    name: "Minal Faisal",
-    age: 10,
-    gender: "Female",
-    foundLocation: "Latifabad Hyderabad",
-    currentLocation: "Local Police Station Hyderabad",
-    city: "Hyderabad",
-    date: "2026-05-22",
-    description: "Found near shopping area. Wearing green dress and white scarf.",
-    reporterFullName: "Faisal Ahmed",
-    reporterContactNumber: "03189990000",
-    reporterRelationship: "Citizen",
-    image:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-
-  {
-    id: 9,
-    status: "Missing",
-    name: "Ali Raza",
-    age: 34,
-    gender: "Male",
-    lastSeenLocation: "University Road, Peshawar",
-    city: "Peshawar",
-    date: "2026-05-25",
-    description: "Last seen wearing brown jacket and black shoes.",
-    reporterFullName: "Kamran Raza",
-    reporterContactNumber: "03297776666",
-    reporterRelationship: "Brother",
-    image:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-];
-
-const readReports = () => {
-  try {
-    const savedReports = localStorage.getItem(REPORTS_KEY);
-    const parsedReports = savedReports ? JSON.parse(savedReports) : [];
-
-    return Array.isArray(parsedReports) ? parsedReports : [];
-  } catch {
-    return [];
-  }
-};
-
-const normalizePersonReport = (report) => {
-  const status = report.status || report.type || "Missing";
-
-  return {
-    ...report,
-    id: report.id,
-    status,
-    type: status,
-    name: report.name || report.title || "Unknown Person",
-    title: report.title || report.name || "Unknown Person",
-    age: report.age || "",
-    gender: report.gender || "Other",
-    lastSeenLocation:
-      report.lastSeenLocation || (status === "Missing" ? report.location : ""),
-    foundLocation:
-      report.foundLocation || (status === "Found" ? report.location : ""),
-    currentLocation: report.currentLocation || "",
-    city: report.city || "Unknown",
-    date: report.date || "",
-    description: report.description || "",
-    reporterFullName:
-      report.reporterFullName || report.reporterName || "Unknown Reporter",
-    reporterContactNumber:
-      report.reporterContactNumber || report.reporterContact || "",
-    reporterRelationship:
-      report.reporterRelationship || report.relation || "Reporter",
-    reporterEmail: report.reporterEmail || "",
-    image: report.image || "",
-    comments: Array.isArray(report.comments) ? report.comments : [],
-    adminStatus: report.adminStatus || "Pending Review",
-    caseStatus: report.caseStatus || "Unsolved",
-    flagCount: Number(report.flagCount || 0),
-    flags: Array.isArray(report.flags) ? report.flags : [],
-  };
-};
-
-const getPersonReportsFromStorage = () => {
-  return readReports()
-    .filter((report) => report.category === "Person")
-    .filter((report) =>
-      ["Missing", "Found"].includes(report.type || report.status)
-    )
-    .filter((report) => report.adminStatus !== "Rejected")
-    .map(normalizePersonReport);
-};
-
-const removeDuplicatePersons = (reports) => {
-  const seen = new Set();
-
-  return reports.filter((report) => {
-    const key = String(report.id);
-
-    if (seen.has(key)) {
-      return false;
-    }
-
-    seen.add(key);
-    return true;
-  });
-};
+import { getPublicPersonReports } from "../api/reportApi";
+import { normalizePersonReport } from "../utils/reportMapper";
 
 export default function Persons() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -287,59 +25,53 @@ export default function Persons() {
   const [city, setCity] = useState("All");
   const [gender, setGender] = useState("All");
   const [selectedPerson, setSelectedPerson] = useState(null);
-  const [storedPersons, setStoredPersons] = useState([]);
+  const [allPersons, setAllPersons] = useState([]);
+  const [cities, setCities] = useState(["All"]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    const syncPersonReports = () => {
-      setStoredPersons(getPersonReportsFromStorage());
+    let ignore = false;
+
+    const loadPersons = async () => {
+      try {
+        setIsLoading(true);
+        setError("");
+
+        const response = await getPublicPersonReports({
+          keyword: search.trim(),
+          reportType: caseType,
+          city,
+          gender,
+        });
+
+        if (ignore) return;
+
+        const nextPersons = (response?.reports || []).map(normalizePersonReport);
+        const backendCities = response?.filters?.cities || [];
+
+        setAllPersons(nextPersons);
+        setCities(["All", ...backendCities.filter(Boolean)]);
+      } catch (err) {
+        if (!ignore) {
+          setError(err.message || "Unable to load person reports.");
+          setAllPersons([]);
+        }
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
     };
 
-    syncPersonReports();
-
-    window.addEventListener("storage", syncPersonReports);
-    window.addEventListener("lostFoundReportsUpdated", syncPersonReports);
+    loadPersons();
 
     return () => {
-      window.removeEventListener("storage", syncPersonReports);
-      window.removeEventListener("lostFoundReportsUpdated", syncPersonReports);
+      ignore = true;
     };
-  }, []);
+  }, [search, caseType, city, gender]);
 
-  const allPersons = useMemo(() => {
-    return removeDuplicatePersons([
-      ...storedPersons,
-      ...personsData.map(normalizePersonReport),
-    ]);
-  }, [storedPersons]);
-
-  const cities = useMemo(() => {
-    return [
-      "All",
-      ...new Set(allPersons.map((person) => person.city).filter(Boolean)),
-    ];
-  }, [allPersons]);
-
-  const filteredPersons = useMemo(() => {
-    return allPersons.filter((person) => {
-      const searchValue = search.trim().toLowerCase();
-
-      const nameMatch =
-        !searchValue ||
-        person.name.toLowerCase().includes(searchValue) ||
-        person.city.toLowerCase().includes(searchValue) ||
-        person.description.toLowerCase().includes(searchValue) ||
-        person.lastSeenLocation.toLowerCase().includes(searchValue) ||
-        person.foundLocation.toLowerCase().includes(searchValue);
-
-      const caseMatch = caseType === "All" || person.status === caseType;
-      const cityMatch = city === "All" || person.city === city;
-      const genderMatch = gender === "All" || person.gender === gender;
-
-      return nameMatch && caseMatch && cityMatch && genderMatch;
-    });
-  }, [allPersons, search, caseType, city, gender]);
+  const filteredPersons = allPersons;
 
   const resetFilters = () => {
     setSearch("");
@@ -430,7 +162,11 @@ export default function Persons() {
             Showing {filteredPersons.length} of {allPersons.length} reports
           </p>
 
-          {filteredPersons.length === 0 ? (
+          {isLoading && <div className="empty-box"><h3>Loading person reports...</h3></div>}
+
+          {error && !isLoading && <div className="empty-box"><h3>{error}</h3></div>}
+
+          {!isLoading && !error && (filteredPersons.length === 0 ? (
             <div className="empty-box">
               <h3>No person report found</h3>
               <p>Try another name, city, gender or case type.</p>
@@ -499,7 +235,7 @@ export default function Persons() {
                 </div>
               ))}
             </div>
-          )}
+          ))}
 
           {selectedPerson && (
             <div

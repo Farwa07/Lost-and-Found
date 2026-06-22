@@ -7,6 +7,8 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 import CommentsButton from "../components/CommentsButton";
+import { getMyReports, deleteMyReport, updateMyReportStatus, updateMyReport } from "../api/reportApi";
+import { mapBackendReportsToUi, mapUiReportToUpdatePayload } from "../utils/reportMapper";
 
 import {
   FaBoxOpen,
@@ -387,42 +389,43 @@ export default function MyReports() {
 
   const [autoOpenCommentReportId, setAutoOpenCommentReportId] = useState("");
   const [autoOpenCommentKey, setAutoOpenCommentKey] = useState("");
+  const [highlightedCommentId, setHighlightedCommentId] = useState("");
+
+  const loadMyReports = async () => {
+    setCurrentUser(getCurrentUser());
+
+    try {
+      const response = await getMyReports();
+      const apiReports = mapBackendReportsToUi(response?.reports || []).map(normalizeReport);
+      setAllReports(apiReports);
+    } catch (error) {
+      console.error("My reports load error:", error);
+      setAllReports([]);
+      setMessage(error.message || "Unable to load your reports.");
+    }
+  };
 
   const saveAllReports = (nextReports) => {
     const normalizedReports = nextReports.map(normalizeReport);
-
     setAllReports(normalizedReports);
-    writeReports(normalizedReports);
   };
 
   useEffect(() => {
-    const syncReports = () => {
-      setCurrentUser(getCurrentUser());
+    loadMyReports();
 
-      const latestReports = readReports();
-      setAllReports(latestReports);
-
-      if (!localStorage.getItem(REPORTS_KEY)) {
-        writeReports(latestReports);
-      }
-    };
-
-    syncReports();
-
-    window.addEventListener("storage", syncReports);
-    window.addEventListener("authChanged", syncReports);
-    window.addEventListener("lostFoundReportsUpdated", syncReports);
+    window.addEventListener("authChanged", loadMyReports);
 
     return () => {
-      window.removeEventListener("storage", syncReports);
-      window.removeEventListener("authChanged", syncReports);
-      window.removeEventListener("lostFoundReportsUpdated", syncReports);
+      window.removeEventListener("authChanged", loadMyReports);
     };
   }, []);
 
   const reports = useMemo(() => {
-    return allReports.filter((report) => isOwnReport(report, currentUser));
-  }, [allReports, currentUser]);
+    // Backend /reports/my-reports already filters reports by logged-in userId.
+    // Do not filter again by reporterEmail, because reporter details can be
+    // different from the logged-in account email.
+    return allReports;
+  }, [allReports]);
 
   const stats = useMemo(() => {
     return {
@@ -457,6 +460,7 @@ export default function MyReports() {
   useEffect(() => {
     const reportId = searchParams.get("reportId");
     const shouldOpenComments = searchParams.get("openComments") === "true";
+    const commentId = searchParams.get("commentId") || "";
 
     if (!reportId || reports.length === 0) {
       return;
@@ -476,7 +480,8 @@ export default function MyReports() {
       setEditingReport(null);
 
       setAutoOpenCommentReportId(String(targetReport.id));
-      setAutoOpenCommentKey(`${targetReport.id}-${Date.now()}`);
+      setHighlightedCommentId(commentId);
+      setAutoOpenCommentKey(`${targetReport.id}-${commentId || "comments"}-${Date.now()}`);
 
       setTimeout(() => {
         const reportElement = document.getElementById(
@@ -492,6 +497,7 @@ export default function MyReports() {
       return;
     }
 
+    setHighlightedCommentId("");
     setSelectedReport(targetReport);
   }, [searchParams, reports]);
 
@@ -505,10 +511,11 @@ export default function MyReports() {
 
   const closeReportDetails = () => {
     setSelectedReport(null);
+    setHighlightedCommentId("");
     setSearchParams({});
   };
 
-  const handleDeleteReport = (id) => {
+  const handleDeleteReport = async (id) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this report?"
     );
@@ -517,26 +524,23 @@ export default function MyReports() {
       return;
     }
 
-    const targetReport = reports.find(
-      (report) => String(report.id) === String(id)
-    );
+    try {
+      await deleteMyReport(id);
 
-    if (!targetReport) {
-      setMessage("You can delete only your own reports.");
-      return;
+      const nextReports = allReports.filter(
+        (report) => String(report.id) !== String(id)
+      );
+
+      saveAllReports(nextReports);
+      setMessage("Report deleted successfully.");
+      setSelectedReport(null);
+      setSearchParams({});
+    } catch (error) {
+      setMessage(error.message || "Unable to delete this report.");
     }
-
-    const nextReports = allReports.filter(
-      (report) => String(report.id) !== String(id)
-    );
-
-    saveAllReports(nextReports);
-    setMessage("Report deleted successfully.");
-    setSelectedReport(null);
-    setSearchParams({});
   };
 
-  const handleSolvedToggle = (id) => {
+  const handleSolvedToggle = async (id) => {
     const targetReport = reports.find(
       (report) => String(report.id) === String(id)
     );
@@ -546,18 +550,25 @@ export default function MyReports() {
       return;
     }
 
-    const nextReports = allReports.map((report) =>
-      String(report.id) === String(id)
-        ? {
-            ...report,
-            caseStatus:
-              report.caseStatus === "Solved" ? "Unsolved" : "Solved",
-          }
-        : report
-    );
+    const nextCaseStatus =
+      targetReport.caseStatus === "Solved" ? "Unsolved" : "Solved";
 
-    saveAllReports(nextReports);
-    setMessage("Case status updated successfully.");
+    try {
+      const response = await updateMyReportStatus(id, nextCaseStatus);
+      const updatedReport = normalizeReport(mapBackendReportsToUi([response?.report])[0] || {
+        ...targetReport,
+        caseStatus: nextCaseStatus,
+      });
+
+      const nextReports = allReports.map((report) =>
+        String(report.id) === String(id) ? updatedReport : report
+      );
+
+      saveAllReports(nextReports);
+      setMessage("Case status updated successfully.");
+    } catch (error) {
+      setMessage(error.message || "Unable to update case status.");
+    }
   };
 
   const handleEditChange = (e) => {
@@ -593,7 +604,7 @@ export default function MyReports() {
     e.target.value = "";
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
 
     if (!editingReport) {
@@ -610,21 +621,23 @@ export default function MyReports() {
       return;
     }
 
-    const protectedAdminStatus = targetReport.adminStatus || "Pending Review";
+    try {
+      const payload = mapUiReportToUpdatePayload(editingReport);
+      const response = await updateMyReport(editingReport.id, payload);
+      const updatedReport = normalizeReport(
+        mapBackendReportsToUi([response?.report])[0] || editingReport
+      );
 
-    const nextReports = allReports.map((report) =>
-      String(report.id) === String(editingReport.id)
-        ? normalizeReport({
-            ...report,
-            ...editingReport,
-            adminStatus: protectedAdminStatus,
-          })
-        : report
-    );
+      const nextReports = allReports.map((report) =>
+        String(report.id) === String(editingReport.id) ? updatedReport : report
+      );
 
-    saveAllReports(nextReports);
-    setMessage("Report updated successfully.");
-    setEditingReport(null);
+      saveAllReports(nextReports);
+      setMessage("Report updated successfully.");
+      setEditingReport(null);
+    } catch (error) {
+      setMessage(error.message || "Unable to update report.");
+    }
   };
 
   const getAdminIcon = (status) => {
@@ -848,6 +861,11 @@ export default function MyReports() {
   autoOpenKey={
     autoOpenCommentReportId === String(report.id)
       ? autoOpenCommentKey
+      : ""
+  }
+  highlightedCommentId={
+    autoOpenCommentReportId === String(report.id)
+      ? highlightedCommentId
       : ""
   }
 />

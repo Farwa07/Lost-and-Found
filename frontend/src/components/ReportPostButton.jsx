@@ -3,8 +3,11 @@ import "./ReportPostButton.css";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { FaFlag, FaTimes } from "react-icons/fa";
+import { reportPost } from "../api/reportApi";
+import { useAuth } from "../context/AuthContext";
 
 export default function ReportPostButton({ report }) {
+  const { currentUser } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -12,9 +15,25 @@ export default function ReportPostButton({ report }) {
     return report?.title || report?.name || report?.itemName || "this post";
   };
 
+  const getReportId = () => report?._id || report?.id;
+
+  const isBackendReportId = (id) => /^[a-f\d]{24}$/i.test(String(id || ""));
+
+  const isOwnReport = () => {
+    const userId = currentUser?._id || currentUser?.id || currentUser?.userId;
+    const ownerId = report?.userId?._id || report?.userId || report?.ownerId;
+
+    return userId && ownerId && String(userId) === String(ownerId);
+  };
+
   const openModal = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isOwnReport()) {
+      alert("You cannot report your own post.");
+      return;
+    }
+
     setShowModal(true);
   };
 
@@ -28,7 +47,7 @@ export default function ReportPostButton({ report }) {
     setReason("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -37,10 +56,22 @@ export default function ReportPostButton({ report }) {
       return;
     }
 
-    alert("Post reported successfully. Admin will review it.");
+    try {
+      const reportId = getReportId();
 
-    setShowModal(false);
-    setReason("");
+      if (!isBackendReportId(reportId)) {
+        alert("This post is not connected with the backend database. Please refresh the page and try again.");
+        return;
+      }
+
+      await reportPost(reportId, reason);
+      alert("Post reported successfully. Admin will review it.");
+
+      setShowModal(false);
+      setReason("");
+    } catch (error) {
+      alert(error.message || "Unable to report this post.");
+    }
   };
 
   const modalContent = (

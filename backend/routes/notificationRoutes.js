@@ -5,10 +5,13 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const {
   getNotifications,
+  getNotificationSummary,
   markNotificationAsRead,
   deleteNotification,
   clearAllNotifications,
 } = require("../controllers/notificationController");
+
+router.get("/summary", authMiddleware, getNotificationSummary);
 
 router.get("/", authMiddleware, getNotifications);
 

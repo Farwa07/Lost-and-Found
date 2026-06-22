@@ -345,3 +345,28 @@
     justify-content:center;
   }
 }
+/* Backend comments can contain long unbroken text. Keep modal content inside its box. */
+.comments-modal{
+  overflow-x:hidden;
+}
+
+.comment-content,
+.comment-content p,
+.comments-modal-header p,
+.add-comment-form textarea,
+.reply-form textarea{
+  min-width:0;
+  max-width:100%;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+
+.comment-main,
+.reply-box{
+  min-width:0;
+}
+
+.comment-box--highlighted{
+  border-color:#8b5cf6;
+  box-shadow:0 0 0 3px rgba(139,92,246,0.12);
+}

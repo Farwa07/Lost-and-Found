@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
@@ -21,369 +21,47 @@ import {
 } from "react-icons/fa";
 
 import "./Home.css";
-
-const REPORTS_KEY = "lostFoundReports";
-
-const recentReports = [
-  {
-    id: 1,
-    type: "Missing",
-    category: "Person",
-    title: "Abdullah Khan",
-    age: 7,
-    gender: "Male",
-    city: "Lahore",
-    location: "Anarkali Bazaar, Lahore",
-    date: "2026-05-12",
-    description:
-      "Last seen wearing red t-shirt and blue jeans. Small school bag with him.",
-    reporterName: "Imran Khan",
-    reporterContact: "03001112222",
-    relation: "Father",
-    image:
-      "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?q=80&w=1200&auto=format&fit=crop",
-    comments: [
-      {
-        id: 1,
-        user: "Sara Ahmed",
-        text: "Is report ki exact location confirm kar dein please.",
-        createdAt: "2026-06-01T10:30:00",
-        replies: [
-          {
-            id: 11,
-            user: "John Doe",
-            text: "Location Anarkali Bazaar ke near hai.",
-            createdAt: "2026-06-01T11:00:00",
-          },
-        ],
-      },
-    ],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-  {
-    id: 2,
-    type: "Found",
-    category: "Person",
-    title: "Areeba Noor",
-    age: 9,
-    gender: "Female",
-    city: "Karachi",
-    location: "Saddar Market, Karachi",
-    currentLocation: "Edhi Center Karachi",
-    date: "2026-05-18",
-    description:
-      "Found crying near market area. Wearing pink frock and white sandals.",
-    reporterName: "Sadia Ahmed",
-    reporterContact: "03125556666",
-    relation: "Citizen",
-    image:
-      "https://images.unsplash.com/photo-1516627145497-ae6968895b74?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-  {
-    id: 3,
-    type: "Missing",
-    category: "Person",
-    title: "Hasnain Ali",
-    age: 11,
-    gender: "Male",
-    city: "Islamabad",
-    location: "G-10 Markaz, Islamabad",
-    date: "2026-04-28",
-    description: "Last seen after school hours wearing black school uniform.",
-    reporterName: "Naveed Ali",
-    reporterContact: "03214445555",
-    relation: "Brother",
-    image:
-      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-  {
-    id: 4,
-    type: "Found",
-    category: "Person",
-    title: "Iqra Fatima",
-    age: 6,
-    gender: "Female",
-    city: "Multan",
-    location: "Bus Stand, Multan",
-    currentLocation: "Women Protection Center Multan",
-    date: "2026-05-02",
-    description: "Found alone near bus stand. Wearing yellow dress and black shoes.",
-    reporterName: "Saima Bibi",
-    reporterContact: "03334445555",
-    relation: "NGO Worker",
-    image:
-      "https://images.unsplash.com/photo-1519457431-44ccd64a579b?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-  {
-    id: 5,
-    type: "Lost",
-    category: "Item",
-    title: "School Backpack",
-    itemCategory: "Bag",
-    color: "Blue",
-    brand: "Nike",
-    city: "Lahore",
-    location: "Liberty Market, Lahore",
-    date: "2026-05-10",
-    description: "Blue school backpack with cartoon keychain and books inside.",
-    reporterName: "Ahmed Khan",
-    reporterContact: "03009998888",
-    reporterAddress: "Johar Town Lahore",
-    image:
-      "https://images.unsplash.com/photo-1581605405669-fcdf81165afa?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-  {
-    id: 6,
-    type: "Found",
-    category: "Item",
-    title: "Black Wallet",
-    itemCategory: "Wallet",
-    color: "Black",
-    brand: "Leather Hub",
-    city: "Multan",
-    location: "Multan Bus Stand",
-    currentLocation: "Police Station Multan",
-    date: "2026-05-22",
-    description: "Black wallet found near waiting area with some cards inside.",
-    reporterName: "Ali Raza",
-    reporterContact: "03335556666",
-    reporterAddress: "Cantt Multan",
-    image:
-      "https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-  {
-    id: 7,
-    type: "Lost",
-    category: "Item",
-    title: "Dell Laptop",
-    itemCategory: "Laptop",
-    color: "Gray",
-    brand: "Dell",
-    city: "Faisalabad",
-    location: "D Ground Faisalabad",
-    date: "2026-03-18",
-    description: "Dell Inspiron laptop in black bag with charger.",
-    reporterName: "Hassan Tariq",
-    reporterContact: "03456667777",
-    reporterAddress: "Peoples Colony Faisalabad",
-    image:
-      "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-  {
-    id: 8,
-    type: "Found",
-    category: "Item",
-    title: "Gold Watch",
-    itemCategory: "Watch",
-    color: "Golden",
-    brand: "Rolex",
-    city: "Rawalpindi",
-    location: "Committee Chowk Rawalpindi",
-    currentLocation: "District Office Rawalpindi",
-    date: "2026-04-12",
-    description: "Golden wrist watch found near shopping center.",
-    reporterName: "Noman Malik",
-    reporterContact: "03016667777",
-    reporterAddress: "Satellite Town Rawalpindi",
-    image:
-      "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-  {
-    id: 9,
-    type: "Lost",
-    category: "Item",
-    title: "Samsung Tablet",
-    itemCategory: "Mobile",
-    color: "Black",
-    brand: "Samsung",
-    city: "Peshawar",
-    location: "University Road Peshawar",
-    date: "2026-05-25",
-    description: "Samsung tablet with cracked corner and black cover.",
-    reporterName: "Kamran Ali",
-    reporterContact: "03297776666",
-    reporterAddress: "Hayatabad Peshawar",
-    image:
-      "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-  },
-];
-
-const readReports = () => {
-  try {
-    const savedReports = localStorage.getItem(REPORTS_KEY);
-    const parsedReports = savedReports ? JSON.parse(savedReports) : [];
-
-    return Array.isArray(parsedReports) ? parsedReports : [];
-  } catch {
-    return [];
-  }
-};
-
-const getSafeImage = (report) => {
-  if (report.image) {
-    return report.image;
-  }
-
-  if (report.category === "Person") {
-    return "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop";
-  }
-
-  return "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1200&auto=format&fit=crop";
-};
-
-const normalizeReport = (report, source = "storage") => {
-  const type = report.type || report.status || "Missing";
-  const category = report.category || "Person";
-
-  return {
-    ...report,
-    viewId: `${source}-${report.id}`,
-    id: report.id,
-    type,
-    status: type,
-    category,
-    title: report.title || report.name || report.itemName || "Untitled Report",
-    age: report.age || "",
-    gender: report.gender || "",
-    itemCategory: report.itemCategory || "",
-    color: report.color || report.itemColor || "",
-    brand: report.brand || report.itemBrand || "",
-    city: report.city || "Unknown",
-    location:
-      report.location ||
-      report.lastSeenLocation ||
-      report.foundLocation ||
-      report.lostLocation ||
-      "",
-    currentLocation: report.currentLocation || "",
-    date: report.date || report.lostDate || report.foundDate || "",
-    description: report.description || report.itemDescription || "",
-    reporterName:
-      report.reporterName ||
-      report.reporterFullName ||
-      "Unknown Reporter",
-    reporterContact:
-      report.reporterContact ||
-      report.reporterContactNumber ||
-      "",
-    reporterEmail: report.reporterEmail || "",
-    reporterAddress: report.reporterAddress || "",
-    relation:
-      report.relation ||
-      report.reporterRelationship ||
-      "",
-    image: getSafeImage(report),
-    comments: Array.isArray(report.comments) ? report.comments : [],
-    adminStatus: report.adminStatus || "Pending Review",
-    caseStatus: report.caseStatus || "Unsolved",
-    createdAt: report.createdAt || report.date || "",
-    flags: Array.isArray(report.flags) ? report.flags : [],
-    flagCount: Number(report.flagCount || 0),
-  };
-};
-
-const getLiveReportsFromStorage = () => {
-  return readReports()
-    .filter((report) => ["Missing", "Found", "Lost"].includes(report.type || report.status))
-    .filter((report) => ["Person", "Item"].includes(report.category))
-    .filter((report) => report.adminStatus !== "Rejected")
-    .map((report) => normalizeReport(report, "live"));
-};
-
-const getTimeValue = (report) => {
-  const value = report.createdAt || report.date;
-
-  if (!value) {
-    return 0;
-  }
-
-  const time = new Date(value).getTime();
-
-  return Number.isNaN(time) ? 0 : time;
-};
-
-const removeDuplicateReports = (reports) => {
-  const seen = new Set();
-
-  return reports.filter((report) => {
-    const key = [
-      report.type,
-      report.category,
-      report.title,
-      report.city,
-      report.location,
-      report.date,
-    ]
-      .map((item) => String(item || "").toLowerCase().trim())
-      .join("|");
-
-    if (seen.has(key)) {
-      return false;
-    }
-
-    seen.add(key);
-    return true;
-  });
-};
+import { getPublicReports } from "../api/reportApi";
+import { normalizePublicReport } from "../utils/reportMapper";
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
-  const [storedReports, setStoredReports] = useState([]);
+  const [homeReports, setHomeReports] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    const syncReports = () => {
-      setStoredReports(getLiveReportsFromStorage());
+    let ignore = false;
+
+    const loadRecentReports = async () => {
+      try {
+        setIsLoading(true);
+        setError("");
+
+        const response = await getPublicReports({ limit: 9 });
+
+        if (ignore) return;
+
+        setHomeReports((response?.reports || []).map(normalizePublicReport));
+      } catch (err) {
+        if (!ignore) {
+          setError(err.message || "Unable to load recent reports.");
+          setHomeReports([]);
+        }
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
     };
 
-    syncReports();
-
-    window.addEventListener("storage", syncReports);
-    window.addEventListener("lostFoundReportsUpdated", syncReports);
+    loadRecentReports();
 
     return () => {
-      window.removeEventListener("storage", syncReports);
-      window.removeEventListener("lostFoundReportsUpdated", syncReports);
+      ignore = true;
     };
   }, []);
-
-  const homeReports = useMemo(() => {
-    const mergedReports = removeDuplicateReports([
-      ...storedReports,
-      ...recentReports.map((report) => normalizeReport(report, "static")),
-    ]);
-
-    return mergedReports
-      .sort((a, b) => getTimeValue(b) - getTimeValue(a))
-      .slice(0, 9);
-  }, [storedReports]);
 
   const handleShare = (report) => {
     const title = report.title || report.name || report.itemName || "Report";
@@ -509,6 +187,9 @@ export default function Home() {
                 <button onClick={() => navigate("/items")}>View Items</button>
               </div>
             </div>
+
+            {isLoading && <div className="empty-box"><h3>Loading recent cases...</h3></div>}
+            {error && !isLoading && <div className="empty-box"><h3>{error}</h3></div>}
 
             <div className="recent-grid">
               {homeReports.map((report) => (

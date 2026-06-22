@@ -224,6 +224,39 @@ flagCount: {
       type: Boolean,
       default: false,
     },
+
+    matchedWith: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Report",
+      default: null,
+    },
+
+    matchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ReportMatch",
+      default: null,
+    },
+
+    matchScore: {
+      type: Number,
+      default: 0,
+    },
+
+    matchedFields: {
+      type: [String],
+      default: [],
+    },
+
+    matchedAt: {
+      type: Date,
+      default: null,
+    },
+
+    matchedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
   { timestamps: true }
 );

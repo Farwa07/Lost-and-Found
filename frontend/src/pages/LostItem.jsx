@@ -1,13 +1,8 @@
 import React, { useState } from "react";
 import "./LostItem.css";
+import { createLostItemReport } from "../api/reportApi";
 
-import {
-  FaBoxOpen,
-  FaUpload,
-  FaIdCard,
-} from "react-icons/fa";
-
-const REPORTS_KEY = "lostFoundReports";
+import { FaBoxOpen, FaUpload, FaIdCard } from "react-icons/fa";
 
 const cityOptions = [
   "Lahore",
@@ -67,6 +62,24 @@ const cityAliases = {
   sukkur: "Sukkur",
 };
 
+const initialState = {
+  itemName: "",
+  itemCategory: "",
+  itemColor: "",
+  itemBrand: "",
+  lostLocation: "",
+  lostDate: "",
+  itemDescription: "",
+
+  reporterFullName: "",
+  reporterContactNumber: "",
+  reporterEmail: "",
+  reporterAddress: "",
+
+  lostItemImage: null,
+  reporterIdCardImage: null,
+};
+
 const cleanCityName = (value = "") => {
   return String(value)
     .trim()
@@ -83,10 +96,7 @@ const titleCaseCity = (value = "") => {
 };
 
 const inferCity = (...values) => {
-  const combinedValue = values
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  const combinedValue = values.filter(Boolean).join(" ").toLowerCase();
 
   const aliasKey = Object.keys(cityAliases).find((key) => {
     const pattern = new RegExp(`\\b${key}\\b`, "i");
@@ -117,9 +127,7 @@ const inferCity = (...values) => {
     return titleCaseCity(locationParts[locationParts.length - 1]);
   }
 
-  const words = cleanCityName(locationValue)
-    .split(" ")
-    .filter(Boolean);
+  const words = cleanCityName(locationValue).split(" ").filter(Boolean);
 
   if (words.length > 0) {
     return titleCaseCity(words[words.length - 1]);
@@ -128,102 +136,27 @@ const inferCity = (...values) => {
   return "Unknown";
 };
 
-const readReports = () => {
-  try {
-    const savedReports = localStorage.getItem(REPORTS_KEY);
-    const parsedReports = savedReports ? JSON.parse(savedReports) : [];
-
-    return Array.isArray(parsedReports) ? parsedReports : [];
-  } catch {
-    return [];
-  }
-};
-
-const writeReports = (nextReports) => {
-  localStorage.setItem(REPORTS_KEY, JSON.stringify(nextReports));
-  window.dispatchEvent(new Event("lostFoundReportsUpdated"));
-};
-
-const getCurrentUser = () => {
-  try {
-    const currentUser = localStorage.getItem("lostFoundCurrentUser");
-    const registeredUser = localStorage.getItem("lostFoundRegisteredUser");
-
-    if (currentUser) {
-      return JSON.parse(currentUser);
-    }
-
-    if (registeredUser) {
-      return JSON.parse(registeredUser);
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-};
-
-const fileToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    if (!file) {
-      resolve("");
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      resolve(reader.result);
-    };
-
-    reader.onerror = () => {
-      reject(new Error("File could not be read"));
-    };
-
-    reader.readAsDataURL(file);
-  });
-};
-
-const createReportId = () => {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-};
-
 const LostItem = () => {
-  const initialState = {
-    itemName: "",
-    itemCategory: "",
-    itemColor: "",
-    itemBrand: "",
-    lostLocation: "",
-    lostDate: "",
-    itemDescription: "",
-
-    reporterFullName: "",
-    reporterContactNumber: "",
-    reporterEmail: "",
-    reporterAddress: "",
-
-    lostItemImage: null,
-    reporterIdCardImage: null,
-  };
-
   const [formData, setFormData] = useState(initialState);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    setFormData((previousData) => ({
+      ...previousData,
+      [name]: value,
+    }));
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const { name, files } = e.target;
+    const file = files?.[0] || null;
 
-    setFormData({
-      ...formData,
-      [e.target.name]: file,
-    });
+    setFormData((previousData) => ({
+      ...previousData,
+      [name]: file,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -233,66 +166,55 @@ const LostItem = () => {
       return;
     }
 
+    const formElement = e.currentTarget;
+
     try {
       setIsSubmitting(true);
 
-      const currentUser = getCurrentUser();
-      const reportImage = await fileToBase64(formData.lostItemImage);
+      const payload = new FormData();
 
-      const newReport = {
-        id: createReportId(),
-        type: "Lost",
-        status: "Lost",
-        category: "Item",
-        title: formData.itemName.trim(),
-        age: "",
-        gender: "",
-        itemCategory: formData.itemCategory,
-        color: formData.itemColor.trim(),
-        brand: formData.itemBrand.trim(),
-        city: inferCity(formData.lostLocation, formData.reporterAddress),
-        location: formData.lostLocation.trim(),
-        currentLocation: "",
-        date: formData.lostDate,
-        adminStatus: "Pending Review",
-        caseStatus: "Unsolved",
-        description: formData.itemDescription.trim(),
-        reporterName: formData.reporterFullName.trim(),
-        reporterContact: formData.reporterContactNumber.trim(),
-        reporterEmail: formData.reporterEmail.trim(),
-        reporterAddress: formData.reporterAddress.trim(),
-        relation: "",
-        image: reportImage,
-        ownerName: currentUser?.fullName || formData.reporterFullName.trim(),
-        ownerEmail: currentUser?.email || formData.reporterEmail.trim(),
-        ownerId:
-          currentUser?.id ||
-          currentUser?.email ||
-          formData.reporterEmail.trim(),
-        flags: [],
-        flagCount: 0,
-        comments: [],
-        createdAt: new Date().toISOString(),
-        reporterIdCardFileName: formData.reporterIdCardImage?.name || "",
-        reportSource: "User Submitted",
-      };
+      payload.append("itemName", formData.itemName.trim());
+      payload.append("itemCategory", formData.itemCategory);
+      payload.append("itemColor", formData.itemColor.trim());
+      payload.append("itemBrand", formData.itemBrand.trim());
+      payload.append("lostLocation", formData.lostLocation.trim());
+      payload.append("lostDate", formData.lostDate);
+      payload.append("itemDescription", formData.itemDescription.trim());
+      payload.append(
+        "city",
+        inferCity(formData.lostLocation, formData.reporterAddress)
+      );
 
-      const previousReports = readReports();
-      const nextReports = [newReport, ...previousReports];
+      payload.append("reporterFullName", formData.reporterFullName.trim());
+      payload.append(
+        "reporterContactNumber",
+        formData.reporterContactNumber.trim()
+      );
+      payload.append("reporterEmail", formData.reporterEmail.trim());
+      payload.append("reporterAddress", formData.reporterAddress.trim());
 
-      writeReports(nextReports);
+      if (formData.lostItemImage) {
+        payload.append("lostItemImage", formData.lostItemImage);
+      }
 
-      console.log("Lost Item Report Saved:", newReport);
+      if (formData.reporterIdCardImage) {
+        payload.append("reporterIdCardImage", formData.reporterIdCardImage);
+      }
+
+      const response = await createLostItemReport(payload);
+
+      console.log("Lost Item Report Submitted:", response?.report);
 
       alert(
-        "Lost Item Report Submitted Successfully! It is now pending admin review."
+        response?.message ||
+          "Lost Item Report Submitted Successfully! It is now pending admin verification."
       );
 
       setFormData(initialState);
-      e.target.reset();
+      formElement.reset();
     } catch (error) {
       console.error("Lost Item Submit Error:", error);
-      alert("Something went wrong while saving the report. Please try again.");
+      alert(error.message || "Something went wrong while submitting the report. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

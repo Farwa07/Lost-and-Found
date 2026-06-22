@@ -1,6 +1,6 @@
 import "./Notifications.css";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Navbar from "../components/Navbar";
@@ -21,100 +21,13 @@ import {
   FaUserCheck,
 } from "react-icons/fa";
 
-const NOTIFICATIONS_KEY = "lostFoundNotifications";
-
-const initialNotifications = [
-  {
-    id: "demo-1",
-    reportId: 2,
-    type: "Match",
-    title: "Potential Match Found",
-    message:
-      "A found item report may match your lost wallet report. Admin is reviewing the details.",
-    caseTitle: "Black Wallet",
-    city: "Gujranwala",
-    time: "10 minutes ago",
-    isRead: false,
-    createdAt: "2026-05-20T10:00:00.000Z",
-  },
-  {
-    id: "demo-2",
-    reportId: 1,
-    type: "Verification",
-    title: "Report Verified",
-    message:
-      "Your missing person report has been verified by admin and is now visible to users.",
-    caseTitle: "Ali Hassan",
-    city: "Lahore",
-    time: "1 hour ago",
-    isRead: false,
-    createdAt: "2026-05-20T09:00:00.000Z",
-  },
-  {
-    id: "demo-3",
-    reportId: 1,
-    type: "Comment",
-    title: "New Comment on Your Report",
-    message:
-      "A user commented: I saw a child with similar appearance near Anarkali yesterday evening.",
-    caseTitle: "Ali Hassan",
-    city: "Lahore",
-    time: "2 hours ago",
-    isRead: false,
-    createdAt: "2026-05-20T08:00:00.000Z",
-  },
-  {
-    id: "demo-4",
-    reportId: null,
-    type: "Alert",
-    title: "Admin Alert",
-    message:
-      "Please update your report image. Clear images help admin verify cases quickly.",
-    caseTitle: "System Update",
-    city: "All Cities",
-    time: "Yesterday",
-    isRead: true,
-    createdAt: "2026-05-19T08:00:00.000Z",
-  },
-  {
-    id: "demo-5",
-    reportId: 4,
-    type: "Status",
-    title: "Case Status Updated",
-    message:
-      "Your report status has been updated after review. Check your report details for more information.",
-    caseTitle: "Unknown Child",
-    city: "Karachi",
-    time: "2 days ago",
-    isRead: false,
-    createdAt: "2026-05-18T08:00:00.000Z",
-  },
-];
-
-const readNotifications = () => {
-  try {
-    const saved = localStorage.getItem(NOTIFICATIONS_KEY);
-
-    if (saved !== null) {
-      const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) ? parsed : initialNotifications;
-    }
-
-    localStorage.setItem(
-      NOTIFICATIONS_KEY,
-      JSON.stringify(initialNotifications)
-    );
-
-    return initialNotifications;
-  } catch {
-    return initialNotifications;
-  }
-};
-
-const writeNotifications = (nextNotifications) => {
-  localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(nextNotifications));
-  window.dispatchEvent(new Event("lostFoundNotificationsUpdated"));
-};
+import {
+  clearAllNotifications,
+  deleteNotification as deleteNotificationApi,
+  getNotifications,
+  markNotificationAsRead,
+} from "../api/notificationApi";
+import { getMatchByReportId } from "../api/matchApi";
 
 const getRelativeTime = (createdAt, fallback = "") => {
   if (!createdAt) {
@@ -133,25 +46,11 @@ const getRelativeTime = (createdAt, fallback = "") => {
   const diffHours = Math.floor(diffMinutes / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffSeconds < 60) {
-    return "Just now";
-  }
-
-  if (diffMinutes < 60) {
-    return `${diffMinutes} minute${diffMinutes > 1 ? "s" : ""} ago`;
-  }
-
-  if (diffHours < 24) {
-    return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-  }
-
-  if (diffDays === 1) {
-    return "Yesterday";
-  }
-
-  if (diffDays < 7) {
-    return `${diffDays} days ago`;
-  }
+  if (diffSeconds < 60) return "Just now";
+  if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes > 1 ? "s" : ""} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
 
   return createdDate.toLocaleDateString("en-PK", {
     day: "2-digit",
@@ -160,183 +59,251 @@ const getRelativeTime = (createdAt, fallback = "") => {
   });
 };
 
+const getId = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (value._id) return String(value._id);
+  if (value.id) return String(value.id);
+  return String(value);
+};
+
+const normalizeNotification = (notification) => {
+  const type = notification.type || "Alert";
+
+  return {
+    ...notification,
+    id: getId(notification._id || notification.id),
+    reportId: getId(notification.reportId),
+    matchId: getId(notification.matchId),
+    type,
+    title: notification.title || "Admin Alert",
+    message: notification.message || "You have a new notification.",
+    caseTitle: notification.caseTitle || "System Update",
+    city: notification.city || "All Cities",
+    actionUrl: notification.actionUrl || "",
+    isRead: Boolean(notification.isRead),
+    createdAt: notification.createdAt || notification.time || new Date().toISOString(),
+  };
+};
+
+const filterToQuery = (filter) => {
+  if (filter === "unread") return { unread: "true" };
+  if (filter === "match") return { type: "match" };
+  if (filter === "verification") return { type: "verification" };
+  return {};
+};
+
 export default function Notifications() {
   const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [allNotifications, setAllNotifications] = useState([]);
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
 
+  const loadNotifications = useCallback(async (filter = activeFilter) => {
+    try {
+      setIsLoading(true);
+      setError("");
+
+      const [allResponse, filteredResponse] = await Promise.all([
+        getNotifications(),
+        getNotifications(filterToQuery(filter)),
+      ]);
+
+      const nextAll = (allResponse.notifications || []).map(normalizeNotification);
+      const nextFiltered = (filteredResponse.notifications || []).map(normalizeNotification);
+
+      setAllNotifications(nextAll);
+      setNotifications(filter === "all" ? nextAll : nextFiltered);
+    } catch (err) {
+      setError(err.message || "Notifications could not be loaded.");
+      setAllNotifications([]);
+      setNotifications([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeFilter]);
+
   useEffect(() => {
-    const syncNotifications = () => {
-      setNotifications(readNotifications());
+    loadNotifications("all");
+  }, [loadNotifications]);
+
+  const counts = useMemo(() => {
+    return {
+      total: allNotifications.length,
+      unread: allNotifications.filter((notification) => !notification.isRead).length,
+      match: allNotifications.filter(
+        (notification) => String(notification.type).toLowerCase() === "match"
+      ).length,
+      verification: allNotifications.filter((notification) =>
+        ["verification", "status"].includes(String(notification.type).toLowerCase())
+      ).length,
     };
+  }, [allNotifications]);
 
-    syncNotifications();
-
-    window.addEventListener("storage", syncNotifications);
-    window.addEventListener("lostFoundNotificationsUpdated", syncNotifications);
-
-    return () => {
-      window.removeEventListener("storage", syncNotifications);
-      window.removeEventListener(
-        "lostFoundNotificationsUpdated",
-        syncNotifications
-      );
-    };
-  }, []);
-
-  const saveNotifications = (nextNotifications) => {
-    setNotifications(nextNotifications);
-    writeNotifications(nextNotifications);
+  const setFilter = (filter) => {
+    setActiveFilter(filter);
+    loadNotifications(filter);
   };
 
-  const unreadCount = useMemo(() => {
-    return notifications.filter((notification) => !notification.isRead).length;
-  }, [notifications]);
-
-  const matchCount = useMemo(() => {
-    return notifications.filter((notification) => notification.type === "Match")
-      .length;
-  }, [notifications]);
-
-  const markAsRead = (id) => {
-    const nextNotifications = notifications.map((notification) =>
-      notification.id === id
-        ? {
-            ...notification,
-            isRead: true,
-          }
-        : notification
-    );
-
-    saveNotifications(nextNotifications);
+  const refreshAfterChange = async () => {
+    await loadNotifications(activeFilter);
+    window.dispatchEvent(new Event("lostFoundNotificationsUpdated"));
   };
 
-  const deleteNotification = (id) => {
-    const nextNotifications = notifications.filter(
-      (notification) => notification.id !== id
-    );
-
-    saveNotifications(nextNotifications);
-
-    if (selectedNotification?.id === id) {
-      setSelectedNotification(null);
+  const markAsRead = async (id) => {
+    try {
+      await markNotificationAsRead(id);
+      await refreshAfterChange();
+    } catch (err) {
+      alert(err.message || "Notification could not be marked as read.");
     }
   };
 
-  const handleClearAll = () => {
-    saveNotifications([]);
-    setShowConfirmPopup(false);
-    setSelectedNotification(null);
+  const deleteNotification = async (id) => {
+    try {
+      await deleteNotificationApi(id);
+      if (selectedNotification?.id === id) {
+        setSelectedNotification(null);
+      }
+      await refreshAfterChange();
+    } catch (err) {
+      alert(err.message || "Notification could not be deleted.");
+    }
   };
 
-  const openNotification = (notification) => {
-    const nextNotifications = notifications.map((item) =>
-      item.id === notification.id
-        ? {
-            ...item,
-            isRead: true,
+  const handleClearAll = async () => {
+    try {
+      await clearAllNotifications();
+      setShowConfirmPopup(false);
+      setSelectedNotification(null);
+      await refreshAfterChange();
+    } catch (err) {
+      alert(err.message || "Notifications could not be cleared.");
+    }
+  };
+
+  const findMatchUrlFromReport = async (reportId) => {
+    if (!reportId) return "";
+
+    const response = await getMatchByReportId(reportId);
+    const matchId = response.match?._id || response.match?.id;
+    return matchId ? `/match-alert/${matchId}` : "";
+  };
+
+  const openNotification = async (notification) => {
+    const updatedNotification = { ...notification, isRead: true };
+
+    try {
+      if (!notification.isRead) {
+        await markNotificationAsRead(notification.id);
+        await refreshAfterChange();
+      }
+
+      const type = String(notification.type || "").toLowerCase();
+
+      if (type === "match") {
+        if (notification.actionUrl && notification.actionUrl.includes("/match-alert/")) {
+          navigate(notification.actionUrl);
+          return;
+        }
+
+        if (notification.matchId) {
+          navigate(`/match-alert/${notification.matchId}`);
+          return;
+        }
+
+        if (notification.reportId) {
+          const matchUrl = await findMatchUrlFromReport(notification.reportId);
+
+          if (matchUrl) {
+            navigate(matchUrl);
+            return;
           }
-        : item
-    );
+        }
 
-    saveNotifications(nextNotifications);
+        setSelectedNotification({
+          ...updatedNotification,
+          extraMessage:
+            "This match alert is not linked with a confirmed comparison yet. Ask admin to confirm the match again.",
+        });
+        return;
+      }
 
-    const updatedNotification = {
-      ...notification,
-      isRead: true,
-    };
+      if (type === "comment") {
+        if (notification.actionUrl) {
+          navigate(notification.actionUrl);
+          return;
+        }
 
-    const type = String(notification.type || "").toLowerCase();
+        if (notification.reportId) {
+          navigate(`/reports?reportId=${notification.reportId}&openComments=true`);
+          return;
+        }
 
-    if (type === "match") {
+        setSelectedNotification(updatedNotification);
+        return;
+      }
+
+      if (["verification", "status", "alert"].includes(type)) {
+        if (notification.reportId) {
+          navigate(`/reports?reportId=${notification.reportId}`);
+          return;
+        }
+
+        setSelectedNotification(updatedNotification);
+        return;
+      }
+
       if (notification.actionUrl) {
         navigate(notification.actionUrl);
         return;
       }
 
-      if (notification.matchId) {
-        navigate(`/match-alert/${notification.matchId}`);
+      if (notification.reportId) {
+        navigate(`/reports?reportId=${notification.reportId}`);
         return;
       }
 
+      setSelectedNotification(updatedNotification);
+    } catch (err) {
       setSelectedNotification({
         ...updatedNotification,
-        extraMessage:
-          "This match alert has no confirmed match comparison data yet. Confirm the match from Admin Panel first.",
+        extraMessage: err.message || "Notification action could not be opened.",
       });
-      return;
     }
-
-    if (type === "comment") {
-      if (notification.actionUrl) {
-        navigate(notification.actionUrl);
-        return;
-      }
-
-      if (notification.reportId) {
-        navigate(`/reports?reportId=${notification.reportId}&openComments=true`);
-        return;
-      }
-
-      setSelectedNotification(updatedNotification);
-      return;
-    }
-
-    if (type === "verification" || type === "status") {
-      if (notification.reportId) {
-        navigate(`/reports?reportId=${notification.reportId}`);
-        return;
-      }
-
-      setSelectedNotification(updatedNotification);
-      return;
-    }
-
-    if (type === "alert") {
-      if (notification.reportId) {
-        navigate(`/reports?reportId=${notification.reportId}`);
-        return;
-      }
-
-      setSelectedNotification(updatedNotification);
-      return;
-    }
-
-    if (notification.actionUrl) {
-      navigate(notification.actionUrl);
-      return;
-    }
-
-    if (notification.reportId) {
-      navigate(`/reports?reportId=${notification.reportId}`);
-      return;
-    }
-
-    setSelectedNotification(updatedNotification);
   };
 
   const getNotificationIcon = (type) => {
-    if (type === "Match") {
-      return <FaUserCheck />;
-    }
+    const normalizedType = String(type || "").toLowerCase();
 
-    if (type === "Verification") {
-      return <FaShieldAlt />;
-    }
-
-    if (type === "Comment") {
-      return <FaCommentDots />;
-    }
-
-    if (type === "Alert") {
-      return <FaExclamationTriangle />;
-    }
+    if (normalizedType === "match") return <FaUserCheck />;
+    if (normalizedType === "verification") return <FaShieldAlt />;
+    if (normalizedType === "comment") return <FaCommentDots />;
+    if (normalizedType === "alert") return <FaExclamationTriangle />;
 
     return <FaCheckCircle />;
   };
+
+  const renderSummaryCard = (filter, icon, count, label) => (
+    <button
+      type="button"
+      className={`notifications-summary-card ${activeFilter === filter ? "notifications-summary-card--active" : ""}`}
+      onClick={() => setFilter(filter)}
+    >
+      <div className="notifications-summary-icon">{icon}</div>
+
+      <div>
+        <h3>{count}</h3>
+        <p>{label}</p>
+      </div>
+    </button>
+  );
 
   return (
     <div className="notifications-page">
@@ -358,50 +325,22 @@ export default function Notifications() {
 
             <div className="notifications-hero__badge">
               <FaBell />
-              {unreadCount} Unread
+              {counts.unread} Unread
             </div>
           </section>
 
           <section className="notifications-summary">
-            <div className="notifications-summary-card">
-              <div className="notifications-summary-icon">
-                <FaBell />
-              </div>
-
-              <div>
-                <h3>{notifications.length}</h3>
-                <p>Total Notifications</p>
-              </div>
-            </div>
-
-            <div className="notifications-summary-card">
-              <div className="notifications-summary-icon">
-                <FaEnvelopeOpen />
-              </div>
-
-              <div>
-                <h3>{unreadCount}</h3>
-                <p>Unread</p>
-              </div>
-            </div>
-
-            <div className="notifications-summary-card">
-              <div className="notifications-summary-icon">
-                <FaUserCheck />
-              </div>
-
-              <div>
-                <h3>{matchCount}</h3>
-                <p>Match Alerts</p>
-              </div>
-            </div>
+            {renderSummaryCard("all", <FaBell />, counts.total, "Total Notifications")}
+            {renderSummaryCard("unread", <FaEnvelopeOpen />, counts.unread, "Unread")}
+            {renderSummaryCard("match", <FaUserCheck />, counts.match, "Match Alerts")}
+            {renderSummaryCard("verification", <FaShieldAlt />, counts.verification, "Verification")}
           </section>
 
           <section className="notifications-top-actions">
             <button
               className="notifications-clear-all-btn"
               onClick={() => setShowConfirmPopup(true)}
-              disabled={notifications.length === 0}
+              disabled={allNotifications.length === 0}
             >
               <FaTrash />
               Clear All Notifications
@@ -409,12 +348,22 @@ export default function Notifications() {
           </section>
 
           <section className="notifications-list">
-            {notifications.length > 0 ? (
+            {isLoading ? (
+              <div className="notifications-empty">
+                <FaBell />
+                <h2>Loading notifications...</h2>
+                <p>Please wait while updates are loaded from backend.</p>
+              </div>
+            ) : error ? (
+              <div className="notifications-empty">
+                <FaExclamationTriangle />
+                <h2>Notifications could not load</h2>
+                <p>{error}</p>
+              </div>
+            ) : notifications.length > 0 ? (
               notifications.map((notification) => (
                 <div
-                  className={`notification-card ${
-                    !notification.isRead ? "notification-card--unread" : ""
-                  }`}
+                  className={`notification-card ${!notification.isRead ? "notification-card--unread" : ""}`}
                   key={notification.id}
                   onClick={() => openNotification(notification)}
                 >
@@ -429,21 +378,14 @@ export default function Notifications() {
                   <div className="notification-card__content">
                     <div className="notification-card__top">
                       <div>
-                        <span className="notification-type">
-                          {notification.type}
-                        </span>
-
+                        <span className="notification-type">{notification.type}</span>
                         <h2>{notification.title}</h2>
                       </div>
 
-                      {!notification.isRead && (
-                        <span className="notification-unread-dot"></span>
-                      )}
+                      {!notification.isRead && <span className="notification-unread-dot"></span>}
                     </div>
 
-                    <p className="notification-message">
-                      {notification.message}
-                    </p>
+                    <p className="notification-message">{notification.message}</p>
 
                     <div className="notification-meta">
                       <span>
@@ -458,17 +400,11 @@ export default function Notifications() {
 
                       <span>
                         <FaClock />
-                        {getRelativeTime(
-                          notification.createdAt,
-                          notification.time
-                        )}
+                        {getRelativeTime(notification.createdAt, notification.time)}
                       </span>
                     </div>
 
-                    <div
-                      className="notification-card__actions"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <div className="notification-card__actions" onClick={(e) => e.stopPropagation()}>
                       {!notification.isRead && (
                         <button onClick={() => markAsRead(notification.id)}>
                           <FaCheckCircle />
@@ -495,26 +431,16 @@ export default function Notifications() {
 
                 <p>
                   You do not have any notifications right now. Admin alerts,
-                  comments, verification updates and match alerts will appear
-                  here.
+                  comments, verification updates and match alerts will appear here.
                 </p>
               </div>
             )}
           </section>
 
           {selectedNotification && (
-            <div
-              className="notifications-detail-overlay"
-              onClick={() => setSelectedNotification(null)}
-            >
-              <div
-                className="notifications-detail-box"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  className="notifications-detail-close"
-                  onClick={() => setSelectedNotification(null)}
-                >
+            <div className="notifications-detail-overlay" onClick={() => setSelectedNotification(null)}>
+              <div className="notifications-detail-box" onClick={(e) => e.stopPropagation()}>
+                <button className="notifications-detail-close" onClick={() => setSelectedNotification(null)}>
                   <FaTimes />
                 </button>
 
@@ -526,18 +452,12 @@ export default function Notifications() {
                   {getNotificationIcon(selectedNotification.type)}
                 </div>
 
-                <span className="notification-type">
-                  {selectedNotification.type}
-                </span>
-
+                <span className="notification-type">{selectedNotification.type}</span>
                 <h2>{selectedNotification.title}</h2>
-
                 <p>{selectedNotification.message}</p>
 
                 {selectedNotification.extraMessage && (
-                  <p className="notifications-detail-note">
-                    {selectedNotification.extraMessage}
-                  </p>
+                  <p className="notifications-detail-note">{selectedNotification.extraMessage}</p>
                 )}
 
                 <div className="notification-meta">
@@ -553,17 +473,11 @@ export default function Notifications() {
 
                   <span>
                     <FaClock />
-                    {getRelativeTime(
-                      selectedNotification.createdAt,
-                      selectedNotification.time
-                    )}
+                    {getRelativeTime(selectedNotification.createdAt, selectedNotification.time)}
                   </span>
                 </div>
 
-                <button
-                  className="notifications-detail-ok"
-                  onClick={() => setSelectedNotification(null)}
-                >
+                <button className="notifications-detail-ok" onClick={() => setSelectedNotification(null)}>
                   Okay
                 </button>
               </div>
@@ -573,10 +487,7 @@ export default function Notifications() {
           {showConfirmPopup && (
             <div className="notifications-confirm-overlay">
               <div className="notifications-confirm-box">
-                <button
-                  className="notifications-confirm-close"
-                  onClick={() => setShowConfirmPopup(false)}
-                >
+                <button className="notifications-confirm-close" onClick={() => setShowConfirmPopup(false)}>
                   <FaTimes />
                 </button>
 
@@ -585,23 +496,14 @@ export default function Notifications() {
                 </div>
 
                 <h2>Clear All Notifications?</h2>
-
-                <p>
-                  This will remove all notifications from frontend localStorage.
-                </p>
+                <p>This will remove all notifications from your account.</p>
 
                 <div className="notifications-confirm-actions">
-                  <button
-                    className="notifications-cancel-btn"
-                    onClick={() => setShowConfirmPopup(false)}
-                  >
+                  <button className="notifications-cancel-btn" onClick={() => setShowConfirmPopup(false)}>
                     Cancel
                   </button>
 
-                  <button
-                    className="notifications-delete-confirm-btn"
-                    onClick={handleClearAll}
-                  >
+                  <button className="notifications-delete-confirm-btn" onClick={handleClearAll}>
                     Clear All
                   </button>
                 </div>

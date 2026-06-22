@@ -7,9 +7,11 @@ const adminMiddleware = require("../middleware/adminMiddleware");
 const {
   getAdminReports,
   updateReportStatus,
+  updateReportCaseStatus,
   verifyReport,
   rejectReport,
   deleteAdminReport,
+  clearReportFlags,
   getAdminUsers,
   updateUserRole,
   deleteAdminUser,
@@ -26,128 +28,31 @@ const {
   getMatchById,
 } = require("../controllers/adminController");
 
-// ================= ADMIN REPORTS =================
 router.get("/reports", authMiddleware, adminMiddleware, getAdminReports);
+router.patch("/reports/:id/status", authMiddleware, adminMiddleware, updateReportStatus);
+router.patch("/reports/:id/case-status", authMiddleware, adminMiddleware, updateReportCaseStatus);
+router.patch("/reports/:id/verify", authMiddleware, adminMiddleware, verifyReport);
+router.patch("/reports/:id/reject", authMiddleware, adminMiddleware, rejectReport);
+router.post("/reports/:id/alert", authMiddleware, adminMiddleware, sendAdminAlert);
+router.patch("/reports/:id/flags/clear", authMiddleware, adminMiddleware, clearReportFlags);
+router.delete("/reports/:id", authMiddleware, adminMiddleware, deleteAdminReport);
 
-router.patch(
-  "/reports/:id/status",
-  authMiddleware,
-  adminMiddleware,
-  updateReportStatus
-);
+router.post("/alerts", authMiddleware, adminMiddleware, sendGeneralAlert);
 
-router.patch(
-  "/reports/:id/verify",
-  authMiddleware,
-  adminMiddleware,
-  verifyReport
-);
-
-router.patch(
-  "/reports/:id/reject",
-  authMiddleware,
-  adminMiddleware,
-  rejectReport
-);
-
-router.post(
-  "/reports/:id/alert",
-  authMiddleware,
-  adminMiddleware,
-  sendAdminAlert
-);
-
-router.delete(
-  "/reports/:id",
-  authMiddleware,
-  adminMiddleware,
-  deleteAdminReport
-);
-
-// ================= ADMIN GENERAL ALERT =================
-router.post(
-  "/alerts",
-  authMiddleware,
-  adminMiddleware,
-  sendGeneralAlert
-);
-
-// ================= ADMIN USERS =================
 router.get("/users", authMiddleware, adminMiddleware, getAdminUsers);
+router.patch("/users/:id/role", authMiddleware, adminMiddleware, updateUserRole);
+router.patch("/users/:id/block", authMiddleware, adminMiddleware, blockUser);
+router.patch("/users/:id/unblock", authMiddleware, adminMiddleware, unblockUser);
+router.delete("/users/:id", authMiddleware, adminMiddleware, deleteAdminUser);
 
-router.patch(
-  "/users/:id/role",
-  authMiddleware,
-  adminMiddleware,
-  updateUserRole
-);
+router.get("/complaints", authMiddleware, adminMiddleware, getReportComplaints);
+router.patch("/complaints/:id/status", authMiddleware, adminMiddleware, updateComplaintStatus);
 
-router.patch(
-  "/users/:id/block",
-  authMiddleware,
-  adminMiddleware,
-  blockUser
-);
-
-router.patch(
-  "/users/:id/unblock",
-  authMiddleware,
-  adminMiddleware,
-  unblockUser
-);
-
-router.delete(
-  "/users/:id",
-  authMiddleware,
-  adminMiddleware,
-  deleteAdminUser
-);
-
-// ================= REPORT COMPLAINTS =================
-router.get(
-  "/complaints",
-  authMiddleware,
-  adminMiddleware,
-  getReportComplaints
-);
-
-router.patch(
-  "/complaints/:id/status",
-  authMiddleware,
-  adminMiddleware,
-  updateComplaintStatus
-);
-
-// ================= ADMIN LOGS =================
 router.get("/logs", authMiddleware, adminMiddleware, getAdminLogs);
 
-// ================= ADMIN MATCHING ROUTES =================
-router.get(
-  "/matches/suggestions",
-  authMiddleware,
-  adminMiddleware,
-  getMatchSuggestions
-);
-
-router.post(
-  "/matches/:matchId/confirm",
-  authMiddleware,
-  adminMiddleware,
-  confirmMatch
-);
-
-router.post(
-  "/matches/:matchId/dismiss",
-  authMiddleware,
-  adminMiddleware,
-  dismissMatch
-);
-
-router.get(
-  "/matches/:matchId",
-  authMiddleware,
-  adminMiddleware,
-  getMatchById
-);
+router.get("/matches/suggestions", authMiddleware, adminMiddleware, getMatchSuggestions);
+router.post("/matches/:matchId/confirm", authMiddleware, adminMiddleware, confirmMatch);
+router.post("/matches/:matchId/dismiss", authMiddleware, adminMiddleware, dismissMatch);
+router.get("/matches/:matchId", authMiddleware, adminMiddleware, getMatchById);
 
 module.exports = router;

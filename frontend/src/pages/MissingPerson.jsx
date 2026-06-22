@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import "./MissingPerson.css";
+import { createMissingPersonReport } from "../api/reportApi";
 import {
   FaUserAlt,
   FaUpload,
@@ -7,220 +8,46 @@ import {
   FaFileAlt,
 } from "react-icons/fa";
 
-const REPORTS_KEY = "lostFoundReports";
+const initialState = {
+  missingPersonName: "",
+  missingPersonAge: "",
+  missingPersonGender: "",
+  missingPersonLastSeenLocation: "",
+  missingPersonLastSeenDate: "",
+  missingPersonDescription: "",
 
-const cityOptions = [
-  "Lahore",
-  "Karachi",
-  "Islamabad",
-  "Gujranwala",
-  "Kamoki",
-  "Kamoke",
-  "Sialkot",
-  "Faisalabad",
-  "Multan",
-  "Rawalpindi",
-  "Peshawar",
-  "Quetta",
-  "Hyderabad",
-  "Wazirabad",
-  "Gujrat",
-  "Sheikhupura",
-  "Sargodha",
-  "Bahawalpur",
-  "Sahiwal",
-  "Okara",
-  "Kasur",
-  "Jhelum",
-  "Mardan",
-  "Abbottabad",
-  "Sukkur",
-];
+  reporterFullName: "",
+  reporterContactNumber: "",
+  reporterEmail: "",
+  reporterAddress: "",
+  reporterRelationship: "",
 
-const cityAliases = {
-  kamoki: "Kamoki",
-  kamoke: "Kamoki",
-  gujranwala: "Gujranwala",
-  grw: "Gujranwala",
-  lahore: "Lahore",
-  karachi: "Karachi",
-  islamabad: "Islamabad",
-  rawalpindi: "Rawalpindi",
-  pindi: "Rawalpindi",
-  faisalabad: "Faisalabad",
-  multan: "Multan",
-  sialkot: "Sialkot",
-  peshawar: "Peshawar",
-  quetta: "Quetta",
-  hyderabad: "Hyderabad",
-  wazirabad: "Wazirabad",
-  gujrat: "Gujrat",
-  sheikhupura: "Sheikhupura",
-  sargodha: "Sargodha",
-  bahawalpur: "Bahawalpur",
-  sahiwal: "Sahiwal",
-  okara: "Okara",
-  kasur: "Kasur",
-  jhelum: "Jhelum",
-  mardan: "Mardan",
-  abbottabad: "Abbottabad",
-  sukkur: "Sukkur",
-};
-
-const cleanCityName = (value = "") => {
-  return String(value)
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, " ");
-};
-
-const titleCaseCity = (value = "") => {
-  return cleanCityName(value)
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-};
-
-const inferCity = (...values) => {
-  const combinedValue = values
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const aliasKey = Object.keys(cityAliases).find((key) => {
-    const pattern = new RegExp(`\\b${key}\\b`, "i");
-    return pattern.test(combinedValue);
-  });
-
-  if (aliasKey) {
-    return cityAliases[aliasKey];
-  }
-
-  const matchedCity = cityOptions.find((city) => {
-    const pattern = new RegExp(`\\b${city.toLowerCase()}\\b`, "i");
-    return pattern.test(combinedValue);
-  });
-
-  if (matchedCity) {
-    return matchedCity === "Kamoke" ? "Kamoki" : matchedCity;
-  }
-
-  const locationValue = values.find(Boolean) || "";
-
-  const locationParts = locationValue
-    .split(",")
-    .map((part) => cleanCityName(part))
-    .filter(Boolean);
-
-  if (locationParts.length > 1) {
-    return titleCaseCity(locationParts[locationParts.length - 1]);
-  }
-
-  const words = cleanCityName(locationValue)
-    .split(" ")
-    .filter(Boolean);
-
-  if (words.length > 0) {
-    return titleCaseCity(words[words.length - 1]);
-  }
-
-  return "Unknown";
-};
-
-const readReports = () => {
-  try {
-    const savedReports = localStorage.getItem(REPORTS_KEY);
-    const parsedReports = savedReports ? JSON.parse(savedReports) : [];
-
-    return Array.isArray(parsedReports) ? parsedReports : [];
-  } catch {
-    return [];
-  }
-};
-
-const writeReports = (nextReports) => {
-  localStorage.setItem(REPORTS_KEY, JSON.stringify(nextReports));
-  window.dispatchEvent(new Event("lostFoundReportsUpdated"));
-};
-
-const getCurrentUser = () => {
-  try {
-    const currentUser = localStorage.getItem("lostFoundCurrentUser");
-    const registeredUser = localStorage.getItem("lostFoundRegisteredUser");
-
-    if (currentUser) {
-      return JSON.parse(currentUser);
-    }
-
-    if (registeredUser) {
-      return JSON.parse(registeredUser);
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-};
-
-const fileToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    if (!file) {
-      resolve("");
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      resolve(reader.result);
-    };
-
-    reader.onerror = () => {
-      reject(new Error("File could not be read"));
-    };
-
-    reader.readAsDataURL(file);
-  });
-};
-
-const createReportId = () => {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  reporterIdCardImage: null,
+  firReportImage: null,
+  missingPersonImage: null,
 };
 
 const MissingPerson = () => {
-  const initialState = {
-    missingPersonName: "",
-    missingPersonAge: "",
-    missingPersonGender: "",
-    missingPersonLastSeenLocation: "",
-    missingPersonLastSeenDate: "",
-    missingPersonDescription: "",
-    reporterFullName: "",
-    reporterContactNumber: "",
-    reporterRelationship: "",
-    reporterIdCardImage: null,
-    firReportImage: null,
-    missingPersonImage: null,
-  };
-
   const [formData, setFormData] = useState(initialState);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    setFormData((previousData) => ({
+      ...previousData,
+      [name]: value,
+    }));
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const { name, files } = e.target;
+    const file = files?.[0] || null;
 
-    setFormData({
-      ...formData,
-      [e.target.name]: file,
-    });
+    setFormData((previousData) => ({
+      ...previousData,
+      [name]: file,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -230,64 +57,68 @@ const MissingPerson = () => {
       return;
     }
 
+    const formElement = e.currentTarget;
+
     try {
       setIsSubmitting(true);
 
-      const currentUser = getCurrentUser();
-      const reportImage = await fileToBase64(formData.missingPersonImage);
+      const payload = new FormData();
 
-      const newReport = {
-        id: createReportId(),
-        type: "Missing",
-        status: "Missing",
-        category: "Person",
-        title: formData.missingPersonName.trim(),
-        age: formData.missingPersonAge,
-        gender: formData.missingPersonGender,
-        itemCategory: "",
-        color: "",
-        brand: "",
-        city: inferCity(formData.missingPersonLastSeenLocation),
-        location: formData.missingPersonLastSeenLocation.trim(),
-        currentLocation: "",
-        date: formData.missingPersonLastSeenDate,
-        adminStatus: "Pending Review",
-        caseStatus: "Unsolved",
-        description: formData.missingPersonDescription.trim(),
-        reporterName: formData.reporterFullName.trim(),
-        reporterContact: formData.reporterContactNumber.trim(),
-        reporterEmail: currentUser?.email || "",
-        reporterAddress: currentUser?.address || currentUser?.city || "",
-        relation: formData.reporterRelationship.trim(),
-        image: reportImage,
-        ownerName: currentUser?.fullName || formData.reporterFullName.trim(),
-        ownerEmail: currentUser?.email || "",
-        ownerId: currentUser?.id || currentUser?.email || "",
-        flags: [],
-        flagCount: 0,
-        comments: [],
-        createdAt: new Date().toISOString(),
-        reporterIdCardFileName: formData.reporterIdCardImage?.name || "",
-        firReportFileName: formData.firReportImage?.name || "",
-        reportSource: "User Submitted",
-      };
+      payload.append("missingPersonName", formData.missingPersonName.trim());
+      payload.append("missingPersonAge", formData.missingPersonAge);
+      payload.append("missingPersonGender", formData.missingPersonGender);
+      payload.append(
+        "missingPersonLastSeenLocation",
+        formData.missingPersonLastSeenLocation.trim()
+      );
+      payload.append(
+        "missingPersonLastSeenDate",
+        formData.missingPersonLastSeenDate
+      );
+      payload.append(
+        "missingPersonDescription",
+        formData.missingPersonDescription.trim()
+      );
 
-      const previousReports = readReports();
-      const nextReports = [newReport, ...previousReports];
+      payload.append("reporterFullName", formData.reporterFullName.trim());
+      payload.append(
+        "reporterContactNumber",
+        formData.reporterContactNumber.trim()
+      );
+      payload.append("reporterEmail", formData.reporterEmail.trim());
+      payload.append("reporterAddress", formData.reporterAddress.trim());
+      payload.append(
+        "reporterRelationship",
+        formData.reporterRelationship.trim()
+      );
 
-      writeReports(nextReports);
+      if (formData.missingPersonImage) {
+        payload.append("missingPersonImage", formData.missingPersonImage);
+      }
 
-      console.log("Missing Person Report Saved:", newReport);
+      if (formData.reporterIdCardImage) {
+        payload.append("reporterIdCardImage", formData.reporterIdCardImage);
+      }
+
+      if (formData.firReportImage) {
+        payload.append("firReportImage", formData.firReportImage);
+      }
+
+      const response = await createMissingPersonReport(payload);
 
       alert(
-        "Missing Person Report Submitted Successfully! It is now pending admin review."
+        response?.message ||
+          "Missing Person Report Submitted Successfully! It is now pending admin verification."
       );
 
       setFormData(initialState);
-      e.target.reset();
+      formElement.reset();
     } catch (error) {
       console.error("Missing Person Submit Error:", error);
-      alert("Something went wrong while saving the report. Please try again.");
+      alert(
+        error.message ||
+          "Something went wrong while submitting the report. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -431,6 +262,30 @@ const MissingPerson = () => {
               </div>
 
               <div className="input-group">
+                <label>Reporter Email</label>
+                <input
+                  type="email"
+                  name="reporterEmail"
+                  placeholder="Enter reporter email"
+                  value={formData.reporterEmail}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="input-group">
+                <label>Reporter Address</label>
+                <input
+                  type="text"
+                  name="reporterAddress"
+                  placeholder="Enter reporter address, city"
+                  value={formData.reporterAddress}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="input-group">
                 <label>Relationship With Missing Person</label>
                 <input
                   type="text"
@@ -462,7 +317,9 @@ const MissingPerson = () => {
                   required
                 />
                 {formData.missingPersonImage && (
-                  <p className="file-name">{formData.missingPersonImage.name}</p>
+                  <p className="file-name">
+                    {formData.missingPersonImage.name}
+                  </p>
                 )}
               </div>
 
@@ -480,7 +337,9 @@ const MissingPerson = () => {
                   required
                 />
                 {formData.reporterIdCardImage && (
-                  <p className="file-name">{formData.reporterIdCardImage.name}</p>
+                  <p className="file-name">
+                    {formData.reporterIdCardImage.name}
+                  </p>
                 )}
               </div>
 

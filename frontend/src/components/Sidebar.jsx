@@ -1,8 +1,9 @@
 import "./Sidebar.css";
 
-import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getNotificationSummary } from "../api/notificationApi";
 
 import {
   FaTachometerAlt,
@@ -17,11 +18,28 @@ import {
 
 export default function Sidebar({ open }) {
   const { isLoggedIn, isAdmin, currentUser } = useAuth();
+  const location = useLocation();
 
   const [profileImage, setProfileImage] = useState("");
   const [profileName, setProfileName] = useState(
     currentUser?.fullName || "John Doe"
   );
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+
+  const loadNotificationBadge = useCallback(async () => {
+    if (!isLoggedIn) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    try {
+      const response = await getNotificationSummary();
+      const unreadCount = Number(response?.counts?.unread || 0);
+      setUnreadNotificationCount(unreadCount);
+    } catch (error) {
+      setUnreadNotificationCount(0);
+    }
+  }, [isLoggedIn]);
 
   const loadProfileData = () => {
     const savedImage = localStorage.getItem("lostFoundProfileImage");
@@ -77,6 +95,31 @@ export default function Sidebar({ open }) {
     };
   }, [currentUser]);
 
+  useEffect(() => {
+    loadNotificationBadge();
+  }, [loadNotificationBadge, location.pathname]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      return undefined;
+    }
+
+    const handleNotificationUpdate = () => {
+      loadNotificationBadge();
+    };
+
+    window.addEventListener("lostFoundNotificationsUpdated", handleNotificationUpdate);
+    window.addEventListener("focus", handleNotificationUpdate);
+
+    const intervalId = window.setInterval(handleNotificationUpdate, 30000);
+
+    return () => {
+      window.removeEventListener("lostFoundNotificationsUpdated", handleNotificationUpdate);
+      window.removeEventListener("focus", handleNotificationUpdate);
+      window.clearInterval(intervalId);
+    };
+  }, [isLoggedIn, loadNotificationBadge]);
+
   if (!isLoggedIn) {
     return null;
   }
@@ -124,7 +167,16 @@ export default function Sidebar({ open }) {
 
         <NavLink to="/notifications" className={getLinkClass}>
           <FaBell />
-          Notifications
+          <span className="sidebar__link-text">Notifications</span>
+          {unreadNotificationCount > 0 && (
+            <span
+              className="sidebar__notification-badge"
+              aria-label={`${unreadNotificationCount} unread notifications`}
+              title={`${unreadNotificationCount} unread notifications`}
+            >
+              {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+            </span>
+          )}
         </NavLink>
 
         <NavLink to="/reports" className={getLinkClass}>

@@ -475,19 +475,20 @@
   background: rgba(15, 23, 42, 0.68);
 
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 
-  padding: 22px;
+  padding: 96px 22px 32px;
+  overflow-y: auto;
 
-  z-index: 999;
+  z-index: 9999;
 }
 
 .myreports-modal,
 .myreports-edit-modal {
   width: 100%;
   max-width: 720px;
-  max-height: 90vh;
+  max-height: calc(100vh - 128px);
 
   overflow-y: auto;
 

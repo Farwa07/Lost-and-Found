@@ -704,3 +704,21 @@
     flex-direction: column;
   }
 }
+.notifications-summary-card {
+  border: 1px solid #eef2ff;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.notifications-summary-card--active {
+  border-color: #8b5cf6;
+  box-shadow: 0 12px 30px rgba(139, 92, 246, 0.14);
+}
+
+@media (min-width: 1024px) {
+  .notifications-summary {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

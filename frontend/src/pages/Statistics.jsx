@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
+import { getStatistics } from "../api/statsApi";
 
 import {
   FaUsers,
@@ -39,9 +40,7 @@ ChartJS.register(
   Legend
 );
 
-const REPORTS_KEY = "lostFoundReports";
-
-const monthOptions = [
+const fallbackMonthOptions = [
   "All Months",
   "January",
   "February",
@@ -57,89 +56,6 @@ const monthOptions = [
   "December",
 ];
 
-const allMonths = monthOptions.filter((month) => month !== "All Months");
-
-const monthShortNames = {
-  January: "Jan",
-  February: "Feb",
-  March: "Mar",
-  April: "Apr",
-  May: "May",
-  June: "Jun",
-  July: "Jul",
-  August: "Aug",
-  September: "Sep",
-  October: "Oct",
-  November: "Nov",
-  December: "Dec",
-};
-
-const safeParse = (value, fallback = []) => {
-  try {
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const getMonthName = (dateValue) => {
-  if (!dateValue) {
-    return "Unknown";
-  }
-
-  const date = new Date(dateValue);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Unknown";
-  }
-
-  return date.toLocaleString("en-US", {
-    month: "long",
-  });
-};
-
-const normalizeReport = (report) => {
-  const type = report.type || report.status || "Missing";
-
-  return {
-    ...report,
-    id: report.id,
-    type,
-    status: type,
-    category: report.category || "Person",
-    title: report.title || report.name || report.itemName || "Untitled Report",
-    city: report.city || "Unknown",
-    date: report.date || report.lostDate || report.foundDate || "",
-    month: getMonthName(report.date || report.lostDate || report.foundDate),
-    age: report.age || "",
-    itemCategory: report.itemCategory || report.category || "Other",
-    adminStatus: report.adminStatus || "Pending Review",
-    caseStatus: report.caseStatus || "Unsolved",
-  };
-};
-
-const readReports = () => {
-  const savedReports = safeParse(localStorage.getItem(REPORTS_KEY), []);
-
-  if (!Array.isArray(savedReports)) {
-    return [];
-  }
-
-  return savedReports
-    .filter((report) => report.reportSource === "User Submitted")
-    .map(normalizeReport);
-};
-
-const isResolvedReport = (report) => {
-  return (
-    report.caseStatus === "Solved" ||
-    report.caseStatus === "Closed" ||
-    report.adminStatus === "Matched" ||
-    report.adminStatus === "Resolved" ||
-    report.matchId
-  );
-};
-
 const getSuccessRate = (resolved, total) => {
   if (!total) {
     return 0;
@@ -154,101 +70,130 @@ const getYAxisMax = (values) => {
   return Math.max(30, Math.ceil(maxValue / 5) * 5);
 };
 
+const emptyStatistics = {
+  cityOptions: ["All Cities"],
+  monthOptions: fallbackMonthOptions,
+  summary: {
+    main: 0,
+    found: 0,
+    resolved: 0,
+    total: 0,
+    successRate: 0,
+  },
+  monthlyTrend: fallbackMonthOptions
+    .filter((month) => month !== "All Months")
+    .map((month) => ({
+      month: month.slice(0, 3),
+      fullMonth: month,
+      main: 0,
+      found: 0,
+      resolved: 0,
+    })),
+  cityWiseCases: [],
+  detailedStats: [],
+};
+
 export default function Statistics() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("persons");
   const [city, setCity] = useState("All Cities");
   const [month, setMonth] = useState("All Months");
-  const [reports, setReports] = useState([]);
+  const [statisticsData, setStatisticsData] = useState(emptyStatistics);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [showAllRows, setShowAllRows] = useState(false);
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   useEffect(() => {
-    const syncReports = () => {
-      setReports(readReports());
+    let isMounted = true;
+
+    const loadStatistics = async () => {
+      try {
+        setIsLoading(true);
+        setErrorMessage("");
+
+        const data = await getStatistics({
+          type: activeTab,
+          city,
+          month,
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setStatisticsData({
+          ...emptyStatistics,
+          ...data,
+          summary: {
+            ...emptyStatistics.summary,
+            ...(data?.summary || {}),
+          },
+          cityOptions:
+            Array.isArray(data?.cityOptions) && data.cityOptions.length > 0
+              ? data.cityOptions
+              : ["All Cities"],
+          monthOptions:
+            Array.isArray(data?.monthOptions) && data.monthOptions.length > 0
+              ? data.monthOptions
+              : fallbackMonthOptions,
+          monthlyTrend: Array.isArray(data?.monthlyTrend)
+            ? data.monthlyTrend
+            : emptyStatistics.monthlyTrend,
+          cityWiseCases: Array.isArray(data?.cityWiseCases)
+            ? data.cityWiseCases
+            : [],
+          detailedStats: Array.isArray(data?.detailedStats)
+            ? data.detailedStats
+            : [],
+        });
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setErrorMessage(
+          error.message || "Statistics could not be loaded from backend."
+        );
+        setStatisticsData(emptyStatistics);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     };
 
-    syncReports();
-
-    window.addEventListener("storage", syncReports);
-    window.addEventListener("lostFoundReportsUpdated", syncReports);
+    loadStatistics();
 
     return () => {
-      window.removeEventListener("storage", syncReports);
-      window.removeEventListener("lostFoundReportsUpdated", syncReports);
+      isMounted = false;
     };
-  }, []);
+  }, [activeTab, city, month]);
 
-  const currentReports = useMemo(() => {
-    return reports
-      .filter((report) =>
-        activeTab === "persons"
-          ? report.category === "Person"
-          : report.category === "Item"
-      )
-      .filter((report) => report.adminStatus !== "Rejected");
-  }, [reports, activeTab]);
-
-  const cityOptions = useMemo(() => {
-    const dynamicCities = [
-      ...new Set(currentReports.map((report) => report.city).filter(Boolean)),
-    ].sort();
-
-    return ["All Cities", ...dynamicCities];
-  }, [currentReports]);
-
-  const filteredReports = useMemo(() => {
-    return currentReports.filter((report) => {
-      const cityMatch = city === "All Cities" || report.city === city;
-      const monthMatch = month === "All Months" || report.month === month;
-
-      return cityMatch && monthMatch;
-    });
-  }, [currentReports, city, month]);
-
-  const mainType = activeTab === "persons" ? "Missing" : "Lost";
   const mainLabel = activeTab === "persons" ? "Missing" : "Lost";
   const foundLabel = "Found";
   const resolvedLabel = "Resolved";
 
-  const totalMain = filteredReports.filter(
-    (report) => report.type === mainType
-  ).length;
+  const totalMain = statisticsData.summary.main || 0;
+  const totalFound = statisticsData.summary.found || 0;
+  const totalResolved = statisticsData.summary.resolved || 0;
+  const totalCases = statisticsData.summary.total || 0;
+  const successRate = Number.isFinite(statisticsData.summary.successRate)
+    ? statisticsData.summary.successRate
+    : getSuccessRate(totalResolved, totalCases);
 
-  const totalFound = filteredReports.filter(
-    (report) => report.type === "Found"
-  ).length;
-
-  const totalResolved = filteredReports.filter(isResolvedReport).length;
-  const totalCases = filteredReports.length;
-  const successRate = getSuccessRate(totalResolved, totalCases);
-
-  const chartMonths = month === "All Months" ? allMonths : [month];
-
-  const monthlyTrendData = useMemo(() => {
-    return chartMonths.map((monthName) => {
-      const records = currentReports.filter((report) => {
-        const cityMatch = city === "All Cities" || report.city === city;
-
-        return report.month === monthName && cityMatch;
-      });
-
-      return {
-        month: monthShortNames[monthName] || monthName,
-        fullMonth: monthName,
-        main: records.filter((report) => report.type === mainType).length,
-        found: records.filter((report) => report.type === "Found").length,
-        resolved: records.filter(isResolvedReport).length,
-      };
-    });
-  }, [chartMonths, currentReports, city, mainType]);
+  const cityOptions = statisticsData.cityOptions || ["All Cities"];
+  const monthOptions = statisticsData.monthOptions || fallbackMonthOptions;
+  const monthlyTrendData = statisticsData.monthlyTrend || [];
+  const cityWiseCases = statisticsData.cityWiseCases || [];
+  const detailedStats = statisticsData.detailedStats || [];
 
   const yAxisMax = getYAxisMax(
     monthlyTrendData.flatMap((item) => [
-      item.main,
-      item.found,
-      item.resolved,
+      item.main || 0,
+      item.found || 0,
+      item.resolved || 0,
     ])
   );
 
@@ -257,7 +202,7 @@ export default function Statistics() {
     datasets: [
       {
         label: mainLabel,
-        data: monthlyTrendData.map((item) => item.main),
+        data: monthlyTrendData.map((item) => item.main || 0),
         borderColor: "#ef4444",
         backgroundColor: "#ef4444",
         pointBackgroundColor: "#ffffff",
@@ -270,7 +215,7 @@ export default function Statistics() {
       },
       {
         label: foundLabel,
-        data: monthlyTrendData.map((item) => item.found),
+        data: monthlyTrendData.map((item) => item.found || 0),
         borderColor: "#10b981",
         backgroundColor: "#10b981",
         pointBackgroundColor: "#ffffff",
@@ -283,7 +228,7 @@ export default function Statistics() {
       },
       {
         label: resolvedLabel,
-        data: monthlyTrendData.map((item) => item.resolved),
+        data: monthlyTrendData.map((item) => item.resolved || 0),
         borderColor: "#3b82f6",
         backgroundColor: "#3b82f6",
         pointBackgroundColor: "#ffffff",
@@ -329,7 +274,7 @@ export default function Statistics() {
         callbacks: {
           title: (tooltipItems) => {
             const index = tooltipItems[0]?.dataIndex || 0;
-            return monthlyTrendData[index]?.month || "";
+            return monthlyTrendData[index]?.fullMonth || monthlyTrendData[index]?.month || "";
           },
           label: (context) => {
             return `${context.dataset.label.toLowerCase()} : ${context.parsed.y}`;
@@ -352,22 +297,22 @@ export default function Statistics() {
         },
       },
       y: {
-  beginAtZero: true,
-  max: yAxisMax,
-  ticks: {
-    stepSize: 5,
-    precision: 0,
-    color: "#64748b",
-    font: {
-      size: 13,
-      weight: "600",
-    },
-  },
-  grid: {
-    color: "#d1d5db",
-    borderDash: [4, 4],
-  },
-},
+        beginAtZero: true,
+        max: yAxisMax,
+        ticks: {
+          stepSize: 5,
+          precision: 0,
+          color: "#64748b",
+          font: {
+            size: 13,
+            weight: "600",
+          },
+        },
+        grid: {
+          color: "#d1d5db",
+          borderDash: [4, 4],
+        },
+      },
     },
   };
 
@@ -407,100 +352,19 @@ export default function Statistics() {
         borderColor: "#d1d5db",
         borderWidth: 1,
         padding: 12,
-        callbacks: {
-          label: (context) => {
-            const total = context.dataset.data.reduce(
-              (sum, value) => sum + value,
-              0
-            );
-
-            const value = context.parsed || 0;
-            const percentage = total ? Math.round((value / total) * 100) : 0;
-
-            return `${context.label}: ${value} (${percentage}%)`;
-          },
-        },
       },
     },
   };
 
-  const hasPieData = totalMain + totalFound + totalResolved > 0;
-
-  const cityWiseCases = useMemo(() => {
-    const grouped = {};
-
-    currentReports.forEach((report) => {
-      const cityMatch = city === "All Cities" || report.city === city;
-      const monthMatch = month === "All Months" || report.month === month;
-
-      if (!cityMatch || !monthMatch) {
-        return;
-      }
-
-      if (!grouped[report.city]) {
-        grouped[report.city] = 0;
-      }
-
-      grouped[report.city] += 1;
-    });
-
-    return Object.entries(grouped)
-      .map(([cityName, total]) => ({
-        city: cityName,
-        total,
-      }))
-      .sort((a, b) => b.total - a.total);
-  }, [currentReports, city, month]);
-
-  const maxCityValue = Math.max(
-    ...cityWiseCases.map((item) => item.total),
-    1
+  const hasPieData = [totalMain, totalFound, totalResolved].some(
+    (value) => value > 0
   );
 
-  const detailedStats = useMemo(() => {
-    const grouped = {};
+  const maxCityValue = useMemo(() => {
+    return Math.max(...cityWiseCases.map((item) => item.total || 0), 1);
+  }, [cityWiseCases]);
 
-    filteredReports.forEach((report) => {
-      const key = `${report.city}-${report.month}`;
-
-      if (!grouped[key]) {
-        grouped[key] = {
-          city: report.city,
-          month: report.month,
-          main: 0,
-          found: 0,
-          resolved: 0,
-          total: 0,
-        };
-      }
-
-      if (report.type === mainType) {
-        grouped[key].main += 1;
-      }
-
-      if (report.type === "Found") {
-        grouped[key].found += 1;
-      }
-
-      if (isResolvedReport(report)) {
-        grouped[key].resolved += 1;
-      }
-
-      grouped[key].total += 1;
-    });
-
-    return Object.values(grouped).sort((a, b) => {
-      if (a.city === b.city) {
-        return allMonths.indexOf(a.month) - allMonths.indexOf(b.month);
-      }
-
-      return a.city.localeCompare(b.city);
-    });
-  }, [filteredReports, mainType]);
-
-  const visibleRows = showAllRows
-    ? detailedStats
-    : detailedStats.slice(0, 8);
+  const visibleRows = showAllRows ? detailedStats : detailedStats.slice(0, 8);
 
   return (
     <div className="statistics">
@@ -586,6 +450,14 @@ export default function Statistics() {
               </select>
             </div>
           </section>
+
+          {errorMessage && (
+            <div className="statistics__empty">{errorMessage}</div>
+          )}
+
+          {isLoading && (
+            <div className="statistics__empty">Loading statistics...</div>
+          )}
 
           <section className="statistics__cards">
             <div className="statistics__card">
@@ -711,7 +583,7 @@ export default function Statistics() {
                     <div className="statistics__cityBar">
                       <div
                         style={{
-                          width: `${(item.total / maxCityValue) * 100}%`,
+                          width: `${((item.total || 0) / maxCityValue) * 100}%`,
                         }}
                       ></div>
                     </div>
@@ -720,9 +592,7 @@ export default function Statistics() {
                   </div>
                 ))
               ) : (
-                <div className="statistics__empty">
-                  No city data available.
-                </div>
+                <div className="statistics__empty">No city data available.</div>
               )}
             </div>
           </section>
@@ -770,7 +640,7 @@ export default function Statistics() {
                         <td>{row.found}</td>
                         <td>{row.resolved}</td>
                         <td>{row.total}</td>
-                        <td>{getSuccessRate(row.resolved, row.total)}%</td>
+                        <td>{row.successRate ?? getSuccessRate(row.resolved, row.total)}%</td>
                       </tr>
                     ))}
                   </tbody>

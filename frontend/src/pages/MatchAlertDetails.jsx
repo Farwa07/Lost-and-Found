@@ -19,22 +19,124 @@ import {
   FaUser,
 } from "react-icons/fa";
 
-const CONFIRMED_MATCHES_KEY = "lostFoundConfirmedMatches";
-const REPORTS_KEY = "lostFoundReports";
+import { API_BASE_URL } from "../api/apiClient";
+import { getMatchById } from "../api/matchApi";
 
-const readStorage = (key, fallback) => {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch {
-    return fallback;
-  }
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
+
+const normalize = (value = "") => String(value || "").trim().toLowerCase();
+
+const formatDate = (value) => {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  return date.toLocaleDateString("en-PK", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 };
 
-const normalize = (value = "") => String(value).trim().toLowerCase();
+const resolveImageUrl = (value = "") => {
+  if (!value) return "";
+
+  const path = String(value);
+
+  if (path.startsWith("http") || path.startsWith("data:")) {
+    return path;
+  }
+
+  if (path.startsWith("/")) {
+    return `${API_ORIGIN}${path}`;
+  }
+
+  return `${API_ORIGIN}/${path.replace(/^\/+/, "")}`;
+};
+
+const getReportTitle = (report) => {
+  return (
+    report.itemName ||
+    report.missingPersonName ||
+    report.foundPersonName ||
+    report.title ||
+    "Untitled Report"
+  );
+};
+
+const getReportImage = (report) => {
+  return resolveImageUrl(
+    report.lostItemImage ||
+      report.foundItemImage ||
+      report.missingPersonImage ||
+      report.foundPersonImage ||
+      report.image ||
+      ""
+  );
+};
+
+const getReportTypeLabel = (report) => {
+  if (report.reportType === "found") return "Found";
+  if (report.category === "person") return "Missing";
+  return "Lost";
+};
+
+const getReportDate = (report) => {
+  return formatDate(
+    report.lostDate || report.foundDate || report.missingPersonLastSeenDate || report.date
+  );
+};
+
+const getReportLocation = (report) => {
+  return (
+    report.lostLocation ||
+    report.foundLocation ||
+    report.missingPersonLastSeenLocation ||
+    report.location ||
+    "N/A"
+  );
+};
+
+const getReportDescription = (report) => {
+  return (
+    report.itemDescription ||
+    report.missingPersonDescription ||
+    report.foundPersonDescription ||
+    report.description ||
+    "No description available."
+  );
+};
+
+const mapBackendReportToUi = (report = {}) => {
+  const category = report.category === "person" ? "Person" : "Item";
+
+  return {
+    id: report._id || report.id,
+    raw: report,
+    type: getReportTypeLabel(report),
+    category,
+    title: getReportTitle(report),
+    image: getReportImage(report),
+    city: report.city || "N/A",
+    date: getReportDate(report),
+    location: getReportLocation(report),
+    currentLocation: report.currentLocation || "",
+    caseStatus: report.caseStatus || "N/A",
+    description: getReportDescription(report),
+    age: report.missingPersonAge || report.estimatedAge || "",
+    gender: report.missingPersonGender || report.foundPersonGender || "",
+    itemCategory: report.itemCategory || "",
+    color: report.itemColor || "",
+    brand: report.itemBrand || "",
+    reporterName: report.reporterFullName || "N/A",
+    reporterContact: report.reporterContactNumber || "",
+    reporterEmail: report.reporterEmail || "",
+  };
+};
 
 const addDaysDifferenceScore = (lostDate, foundDate) => {
-  if (!lostDate || !foundDate) {
+  if (!lostDate || !foundDate || lostDate === "N/A" || foundDate === "N/A") {
     return 0;
   }
 
@@ -134,58 +236,57 @@ const getFieldRows = (lostReport, foundReport) => {
   return rows;
 };
 
+const normalizeBackendMatch = (backendMatch) => {
+  if (!backendMatch) return null;
+
+  const lostReport = mapBackendReportToUi(backendMatch.lostReportId || backendMatch.lostReport);
+  const foundReport = mapBackendReportToUi(backendMatch.foundReportId || backendMatch.foundReport);
+
+  return {
+    id: backendMatch._id || backendMatch.id,
+    matchId: backendMatch._id || backendMatch.id,
+    score: backendMatch.score || 0,
+    threshold: backendMatch.threshold || 60,
+    reasons: backendMatch.reasons || [],
+    matchedFields: backendMatch.matchedFields || [],
+    lostReport,
+    foundReport,
+    matchedAt: backendMatch.confirmedAt || backendMatch.matchedAt || backendMatch.updatedAt,
+    matchedBy: backendMatch.confirmedBy?.fullName || "Admin",
+    decision: "Confirmed",
+  };
+};
+
 export default function MatchAlertDetails() {
   const { matchId } = useParams();
   const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [match, setMatch] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const confirmedMatches = readStorage(CONFIRMED_MATCHES_KEY, []);
+    const loadMatch = async () => {
+      try {
+        setIsLoading(true);
+        setError("");
 
-    let selectedMatch = confirmedMatches.find(
-      (item) => String(item.matchId || item.id) === String(matchId)
-    );
-
-    if (!selectedMatch) {
-      const reports = readStorage(REPORTS_KEY, []);
-      const matchedReports = reports.filter(
-        (report) => String(report.matchId) === String(matchId)
-      );
-
-      const lostReport = matchedReports.find((report) =>
-        ["Missing", "Lost"].includes(report.type)
-      );
-
-      const foundReport = matchedReports.find((report) => report.type === "Found");
-
-      if (lostReport && foundReport) {
-        selectedMatch = {
-          id: matchId,
-          matchId,
-          score: lostReport.matchScore || foundReport.matchScore || 70,
-          threshold: 70,
-          reasons: [],
-          lostReport,
-          foundReport,
-          matchedAt: lostReport.matchedAt || foundReport.matchedAt,
-          matchedBy: lostReport.matchedBy || foundReport.matchedBy || "Admin",
-          decision: "Confirmed",
-          userMessage:
-            "Admin confirmed this rule-based match. Please compare both reports and contact the other reporter using the phone/email details shown below.",
-        };
+        const response = await getMatchById(matchId);
+        setMatch(normalizeBackendMatch(response.match));
+      } catch (err) {
+        setError(err.message || "Match details could not be loaded.");
+        setMatch(null);
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
 
-    setMatch(selectedMatch || null);
+    loadMatch();
   }, [matchId]);
 
   const rows = useMemo(() => {
-    if (!match) {
-      return [];
-    }
-
+    if (!match) return [];
     return getFieldRows(match.lostReport, match.foundReport);
   }, [match]);
 
@@ -193,12 +294,14 @@ export default function MatchAlertDetails() {
     return (
       <article className="match-alert-case-card">
         <div className="match-alert-case-image">
-          <img src={report.image} alt={report.title} />
+          {report.image ? (
+            <img src={report.image} alt={report.title} />
+          ) : (
+            <div className="match-alert-empty-image">No Image</div>
+          )}
 
           <span
-            className={`match-alert-type ${
-              report.type === "Found" ? "match-alert-type--found" : ""
-            }`}
+            className={`match-alert-type ${report.type === "Found" ? "match-alert-type--found" : ""}`}
           >
             {report.type}
           </span>
@@ -278,7 +381,7 @@ export default function MatchAlertDetails() {
             <div className="match-alert-contact-actions">
               {report.reporterContact && (
                 <a href={`tel:${report.reporterContact}`}>
-                  <FaPhoneAlt /> Call
+                  <FaPhoneAlt /> Contact Now
                 </a>
               )}
 
@@ -302,7 +405,13 @@ export default function MatchAlertDetails() {
         <Sidebar open={sidebarOpen} />
 
         <main className="match-alert-main">
-          {match ? (
+          {isLoading ? (
+            <section className="match-alert-empty">
+              <FaPeopleArrows />
+              <h1>Loading match comparison...</h1>
+              <p>Please wait while match details are loaded from backend.</p>
+            </section>
+          ) : match ? (
             <>
               <section className="match-alert-hero">
                 <button
@@ -321,8 +430,8 @@ export default function MatchAlertDetails() {
                   <h1>Matched Reports Comparison</h1>
 
                   <p>
-                    Admin has confirmed this rule-based match. Compare both
-                    reports and use the contact details to communicate safely.
+                    Admin has confirmed this rule-based match. Compare both reports
+                    and use the contact details to communicate safely.
                   </p>
                 </div>
 
@@ -347,9 +456,7 @@ export default function MatchAlertDetails() {
 
                 <span>
                   <FaCalendarAlt />
-                  {match.matchedAt
-                    ? new Date(match.matchedAt).toLocaleString("en-PK")
-                    : "Just now"}
+                  {match.matchedAt ? new Date(match.matchedAt).toLocaleString("en-PK") : "Just now"}
                 </span>
               </section>
 
@@ -357,9 +464,7 @@ export default function MatchAlertDetails() {
                 <div className="match-alert-comparison-grid">
                   {renderCaseCard(
                     match.lostReport,
-                    match.lostReport.type === "Missing"
-                      ? "Left: Missing Person Case"
-                      : "Left: Lost Item Case"
+                    match.lostReport.type === "Missing" ? "Left: Missing Person Case" : "Left: Lost Item Case"
                   )}
 
                   <div className="match-alert-middle-icon">
@@ -370,17 +475,13 @@ export default function MatchAlertDetails() {
 
                   {renderCaseCard(
                     match.foundReport,
-                    match.foundReport.category === "Person"
-                      ? "Right: Found Person Case"
-                      : "Right: Found Item Case"
+                    match.foundReport.category === "Person" ? "Right: Found Person Case" : "Right: Found Item Case"
                   )}
                 </div>
 
                 <div className="match-alert-reasons">
                   {(match.reasons || []).length > 0 ? (
-                    match.reasons.map((reason) => (
-                      <span key={reason}>{reason}</span>
-                    ))
+                    match.reasons.map((reason) => <span key={reason}>{reason}</span>)
                   ) : (
                     <span>Admin confirmed this match after review</span>
                   )}
@@ -390,9 +491,7 @@ export default function MatchAlertDetails() {
               <section className="match-alert-table-card">
                 <div className="match-alert-table-heading">
                   <h2>Matched Input Fields</h2>
-                  <p>
-                    These fields helped the system calculate the match score.
-                  </p>
+                  <p>These fields helped the system calculate the match score.</p>
                 </div>
 
                 <div className="match-alert-field-table">
@@ -426,9 +525,7 @@ export default function MatchAlertDetails() {
             <section className="match-alert-empty">
               <FaPeopleArrows />
               <h1>Match details not found</h1>
-              <p>
-                This match alert may have been removed from frontend storage.
-              </p>
+              <p>{error || "This match alert could not be opened from backend."}</p>
               <button type="button" onClick={() => navigate("/notifications")}>
                 Back to Notifications
               </button>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import "./FoundPerson.css";
+import { createFoundPersonReport } from "../api/reportApi";
 
 import {
   FaSearchLocation,
@@ -7,222 +8,46 @@ import {
   FaIdCard,
 } from "react-icons/fa";
 
-const REPORTS_KEY = "lostFoundReports";
+const initialState = {
+  foundPersonName: "",
+  estimatedAge: "",
+  foundPersonGender: "",
+  foundLocation: "",
+  foundDate: "",
+  currentLocation: "",
+  foundPersonDescription: "",
 
-const cityOptions = [
-  "Lahore",
-  "Karachi",
-  "Islamabad",
-  "Gujranwala",
-  "Kamoki",
-  "Kamoke",
-  "Sialkot",
-  "Faisalabad",
-  "Multan",
-  "Rawalpindi",
-  "Peshawar",
-  "Quetta",
-  "Hyderabad",
-  "Wazirabad",
-  "Gujrat",
-  "Sheikhupura",
-  "Sargodha",
-  "Bahawalpur",
-  "Sahiwal",
-  "Okara",
-  "Kasur",
-  "Jhelum",
-  "Mardan",
-  "Abbottabad",
-  "Sukkur",
-];
+  reporterFullName: "",
+  reporterContactNumber: "",
+  reporterEmail: "",
+  reporterAddress: "",
+  reporterRelationship: "",
 
-const cityAliases = {
-  kamoki: "Kamoki",
-  kamoke: "Kamoki",
-  gujranwala: "Gujranwala",
-  grw: "Gujranwala",
-  lahore: "Lahore",
-  karachi: "Karachi",
-  islamabad: "Islamabad",
-  rawalpindi: "Rawalpindi",
-  pindi: "Rawalpindi",
-  faisalabad: "Faisalabad",
-  multan: "Multan",
-  sialkot: "Sialkot",
-  peshawar: "Peshawar",
-  quetta: "Quetta",
-  hyderabad: "Hyderabad",
-  wazirabad: "Wazirabad",
-  gujrat: "Gujrat",
-  sheikhupura: "Sheikhupura",
-  sargodha: "Sargodha",
-  bahawalpur: "Bahawalpur",
-  sahiwal: "Sahiwal",
-  okara: "Okara",
-  kasur: "Kasur",
-  jhelum: "Jhelum",
-  mardan: "Mardan",
-  abbottabad: "Abbottabad",
-  sukkur: "Sukkur",
-};
-
-const cleanCityName = (value = "") => {
-  return String(value)
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, " ");
-};
-
-const titleCaseCity = (value = "") => {
-  return cleanCityName(value)
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-};
-
-const inferCity = (...values) => {
-  const combinedValue = values
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const aliasKey = Object.keys(cityAliases).find((key) => {
-    const pattern = new RegExp(`\\b${key}\\b`, "i");
-    return pattern.test(combinedValue);
-  });
-
-  if (aliasKey) {
-    return cityAliases[aliasKey];
-  }
-
-  const matchedCity = cityOptions.find((city) => {
-    const pattern = new RegExp(`\\b${city.toLowerCase()}\\b`, "i");
-    return pattern.test(combinedValue);
-  });
-
-  if (matchedCity) {
-    return matchedCity === "Kamoke" ? "Kamoki" : matchedCity;
-  }
-
-  const locationValue = values.find(Boolean) || "";
-
-  const locationParts = locationValue
-    .split(",")
-    .map((part) => cleanCityName(part))
-    .filter(Boolean);
-
-  if (locationParts.length > 1) {
-    return titleCaseCity(locationParts[locationParts.length - 1]);
-  }
-
-  const words = cleanCityName(locationValue)
-    .split(" ")
-    .filter(Boolean);
-
-  if (words.length > 0) {
-    return titleCaseCity(words[words.length - 1]);
-  }
-
-  return "Unknown";
-};
-
-const readReports = () => {
-  try {
-    const savedReports = localStorage.getItem(REPORTS_KEY);
-    const parsedReports = savedReports ? JSON.parse(savedReports) : [];
-
-    return Array.isArray(parsedReports) ? parsedReports : [];
-  } catch {
-    return [];
-  }
-};
-
-const writeReports = (nextReports) => {
-  localStorage.setItem(REPORTS_KEY, JSON.stringify(nextReports));
-  window.dispatchEvent(new Event("lostFoundReportsUpdated"));
-};
-
-const getCurrentUser = () => {
-  try {
-    const currentUser = localStorage.getItem("lostFoundCurrentUser");
-    const registeredUser = localStorage.getItem("lostFoundRegisteredUser");
-
-    if (currentUser) {
-      return JSON.parse(currentUser);
-    }
-
-    if (registeredUser) {
-      return JSON.parse(registeredUser);
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-};
-
-const fileToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    if (!file) {
-      resolve("");
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      resolve(reader.result);
-    };
-
-    reader.onerror = () => {
-      reject(new Error("File could not be read"));
-    };
-
-    reader.readAsDataURL(file);
-  });
-};
-
-const createReportId = () => {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  foundPersonImage: null,
+  reporterIdCardImage: null,
 };
 
 const FoundPerson = () => {
-  const initialState = {
-    foundPersonName: "",
-    estimatedAge: "",
-    foundPersonGender: "",
-    foundLocation: "",
-    foundDate: "",
-    currentLocation: "",
-    foundPersonDescription: "",
-
-    reporterFullName: "",
-    reporterContactNumber: "",
-    reporterRelationship: "",
-
-    foundPersonImage: null,
-    reporterIdCardImage: null,
-  };
-
   const [formData, setFormData] = useState(initialState);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    setFormData((previousData) => ({
+      ...previousData,
+      [name]: value,
+    }));
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const { name, files } = e.target;
+    const file = files?.[0] || null;
 
-    setFormData({
-      ...formData,
-      [e.target.name]: file,
-    });
+    setFormData((previousData) => ({
+      ...previousData,
+      [name]: file,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -232,67 +57,59 @@ const FoundPerson = () => {
       return;
     }
 
+    const formElement = e.currentTarget;
+
     try {
       setIsSubmitting(true);
 
-      const currentUser = getCurrentUser();
-      const reportImage = await fileToBase64(formData.foundPersonImage);
+      const payload = new FormData();
 
-      const foundTitle = formData.foundPersonName.trim()
-        ? formData.foundPersonName.trim()
-        : "Unknown Person";
+      payload.append("foundPersonName", formData.foundPersonName.trim());
+      payload.append("estimatedAge", formData.estimatedAge);
+      payload.append("foundPersonGender", formData.foundPersonGender);
+      payload.append("foundLocation", formData.foundLocation.trim());
+      payload.append("foundDate", formData.foundDate);
+      payload.append("currentLocation", formData.currentLocation.trim());
+      payload.append(
+        "foundPersonDescription",
+        formData.foundPersonDescription.trim()
+      );
 
-      const newReport = {
-        id: createReportId(),
-        type: "Found",
-        status: "Found",
-        category: "Person",
-        title: foundTitle,
-        age: formData.estimatedAge,
-        gender: formData.foundPersonGender,
-        itemCategory: "",
-        color: "",
-        brand: "",
-        city: inferCity(formData.foundLocation, formData.currentLocation),
-        location: formData.foundLocation.trim(),
-        currentLocation: formData.currentLocation.trim(),
-        date: formData.foundDate,
-        adminStatus: "Pending Review",
-        caseStatus: "Unsolved",
-        description: formData.foundPersonDescription.trim(),
-        reporterName: formData.reporterFullName.trim(),
-        reporterContact: formData.reporterContactNumber.trim(),
-        reporterEmail: currentUser?.email || "",
-        reporterAddress: currentUser?.address || currentUser?.city || "",
-        relation: formData.reporterRelationship.trim(),
-        image: reportImage,
-        ownerName: currentUser?.fullName || formData.reporterFullName.trim(),
-        ownerEmail: currentUser?.email || "",
-        ownerId: currentUser?.id || currentUser?.email || "",
-        flags: [],
-        flagCount: 0,
-        comments: [],
-        createdAt: new Date().toISOString(),
-        reporterIdCardFileName: formData.reporterIdCardImage?.name || "",
-        reportSource: "User Submitted",
-      };
+      payload.append("reporterFullName", formData.reporterFullName.trim());
+      payload.append(
+        "reporterContactNumber",
+        formData.reporterContactNumber.trim()
+      );
+      payload.append("reporterEmail", formData.reporterEmail.trim());
+      payload.append("reporterAddress", formData.reporterAddress.trim());
+      payload.append(
+        "reporterRelationship",
+        formData.reporterRelationship.trim()
+      );
 
-      const previousReports = readReports();
-      const nextReports = [newReport, ...previousReports];
+      if (formData.foundPersonImage) {
+        payload.append("foundPersonImage", formData.foundPersonImage);
+      }
 
-      writeReports(nextReports);
+      if (formData.reporterIdCardImage) {
+        payload.append("reporterIdCardImage", formData.reporterIdCardImage);
+      }
 
-      console.log("Found Person Report Saved:", newReport);
+      const response = await createFoundPersonReport(payload);
 
       alert(
-        "Found Person Report Submitted Successfully! It is now pending admin review."
+        response?.message ||
+          "Found Person Report Submitted Successfully! It is now pending admin verification."
       );
 
       setFormData(initialState);
-      e.target.reset();
+      formElement.reset();
     } catch (error) {
       console.error("Found Person Submit Error:", error);
-      alert("Something went wrong while saving the report. Please try again.");
+      alert(
+        error.message ||
+          "Something went wrong while submitting the report. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -458,6 +275,30 @@ const FoundPerson = () => {
               </div>
 
               <div className="found-input">
+                <label>Reporter Email</label>
+                <input
+                  type="email"
+                  name="reporterEmail"
+                  placeholder="Enter reporter email"
+                  value={formData.reporterEmail}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="found-input">
+                <label>Reporter Address</label>
+                <input
+                  type="text"
+                  name="reporterAddress"
+                  placeholder="Enter reporter address, city"
+                  value={formData.reporterAddress}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="found-input">
                 <label>Relationship With Found Person</label>
 
                 <input
@@ -512,7 +353,9 @@ const FoundPerson = () => {
                 />
 
                 {formData.reporterIdCardImage && (
-                  <p className="file-name">{formData.reporterIdCardImage.name}</p>
+                  <p className="file-name">
+                    {formData.reporterIdCardImage.name}
+                  </p>
                 )}
               </div>
             </div>

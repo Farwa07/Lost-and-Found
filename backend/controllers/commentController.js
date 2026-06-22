@@ -3,6 +3,29 @@ const Report = require("../models/report");
 const User = require("../models/user");
 const Notification = require("../models/notification");
 
+const getReportTitle = (report = {}) => {
+  return (
+    report.itemName ||
+    report.missingPersonName ||
+    report.foundPersonName ||
+    report.title ||
+    "your report"
+  );
+};
+
+const getReportCity = (report = {}) => {
+  return report.city || "All Cities";
+};
+
+const getPreviewText = (value = "", limit = 90) => {
+  const cleanText = String(value).replace(/\s+/g, " ").trim();
+
+  if (cleanText.length <= limit) {
+    return cleanText;
+  }
+
+  return `${cleanText.slice(0, limit).trim()}...`;
+};
 
 // ADD COMMENT
 const addComment = async (req, res) => {
@@ -24,27 +47,35 @@ const addComment = async (req, res) => {
       });
     }
 
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select("fullName email");
 
     const newComment = new Comment({
       reportId,
       userId: req.user.id,
-      userName: user.fullName,
-      userEmail: user.email,
+      userName: user?.fullName || "User",
+      userEmail: user?.email || "",
       text: text.trim(),
     });
 
     await newComment.save();
 
-    // AUTO NOTIFICATION ON COMMENT
+    // Owner ko har flag/post report par notification nahi milti,
+    // lekin comments par owner ko useful notification milni chahiye.
+    // Notification text backend se generate hota hai so frontend only renders data.
     if (report.userId && String(report.userId) !== String(req.user.id)) {
+      const reportTitle = getReportTitle(report);
+      const commentPreview = getPreviewText(text);
+
       await Notification.create({
         userId: report.userId,
         reportId: report._id,
+        commentId: newComment._id,
         type: "Comment",
-        title: "New Comment",
-        message: "Someone commented on your report.",
-        actionUrl: `/reports?reportId=${report._id}&openComments=true`,
+        title: `New comment on ${reportTitle}`,
+        message: `${user?.fullName || "Someone"} commented on your report "${reportTitle}": ${commentPreview}`,
+        caseTitle: reportTitle,
+        city: getReportCity(report),
+        actionUrl: `/reports?reportId=${report._id}&openComments=true&commentId=${newComment._id}`,
       });
     }
 
@@ -58,7 +89,6 @@ const addComment = async (req, res) => {
     });
   }
 };
-
 
 // GET COMMENTS BY REPORT
 const getCommentsByReport = async (req, res) => {
@@ -100,16 +130,36 @@ const addReply = async (req, res) => {
       });
     }
 
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select("fullName email");
 
     comment.replies.push({
       userId: req.user.id,
-      userName: user.fullName,
-      userEmail: user.email,
+      userName: user?.fullName || "User",
+      userEmail: user?.email || "",
       text: text.trim(),
     });
 
     await comment.save();
+
+    const savedReply = comment.replies[comment.replies.length - 1];
+    const report = await Report.findById(comment.reportId);
+
+    if (report?.userId && String(report.userId) !== String(req.user.id)) {
+      const reportTitle = getReportTitle(report);
+      const replyPreview = getPreviewText(text);
+
+      await Notification.create({
+        userId: report.userId,
+        reportId: report._id,
+        commentId: comment._id,
+        type: "Comment",
+        title: `New reply on ${reportTitle}`,
+        message: `${user?.fullName || "Someone"} replied on your report "${reportTitle}": ${replyPreview}`,
+        caseTitle: reportTitle,
+        city: getReportCity(report),
+        actionUrl: `/reports?reportId=${report._id}&openComments=true&commentId=${comment._id}&replyId=${savedReply?._id || ""}`,
+      });
+    }
 
     res.status(201).json({
       message: "Reply added successfully",

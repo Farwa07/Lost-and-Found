@@ -23,6 +23,175 @@ const getCity = (city, location = "") => {
   return parts.length > 0 ? parts[parts.length - 1] : "";
 };
 
+const escapeRegex = (value = "") => {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
+
+const normalizeQueryValue = (value = "") => String(value || "").trim();
+
+const normalizeReportTypeFilter = (value = "") => {
+  const normalized = normalizeQueryValue(value).toLowerCase();
+
+  if (!normalized || normalized === "all") return "";
+
+  if (["lost", "missing"].includes(normalized)) return "lost";
+  if (normalized === "found") return "found";
+
+  return "";
+};
+
+const buildPublicReportQuery = (queryParams = {}, fixedCategory = "") => {
+  const {
+    keyword,
+    search,
+    category,
+    reportType,
+    status,
+    gender,
+    itemCategory,
+    city,
+  } = queryParams;
+
+  const query = {
+    status: { $in: publicStatuses },
+  };
+
+  const selectedCategory = normalizeQueryValue(fixedCategory || category).toLowerCase();
+
+  if (["item", "person"].includes(selectedCategory)) {
+    query.category = selectedCategory;
+  }
+
+  const selectedReportType = normalizeReportTypeFilter(reportType || status);
+
+  if (selectedReportType) {
+    query.reportType = selectedReportType;
+  }
+
+  const selectedCity = normalizeQueryValue(city);
+
+  if (selectedCity && selectedCity.toLowerCase() !== "all") {
+    query.city = { $regex: escapeRegex(selectedCity), $options: "i" };
+  }
+
+  const selectedItemCategory = normalizeQueryValue(itemCategory);
+
+  if (selectedItemCategory && selectedItemCategory.toLowerCase() !== "all") {
+    query.itemCategory = {
+      $regex: `^${escapeRegex(selectedItemCategory)}$`,
+      $options: "i",
+    };
+  }
+
+  const selectedGender = normalizeQueryValue(gender);
+
+  if (selectedGender && selectedGender.toLowerCase() !== "all") {
+    query.$or = [
+      {
+        missingPersonGender: {
+          $regex: `^${escapeRegex(selectedGender)}$`,
+          $options: "i",
+        },
+      },
+      {
+        foundPersonGender: {
+          $regex: `^${escapeRegex(selectedGender)}$`,
+          $options: "i",
+        },
+      },
+    ];
+  }
+
+  const keywordValue = normalizeQueryValue(keyword || search);
+
+  if (keywordValue) {
+    const keywordRegex = { $regex: escapeRegex(keywordValue), $options: "i" };
+
+    const keywordSearch = [
+      { city: keywordRegex },
+      { itemName: keywordRegex },
+      { itemCategory: keywordRegex },
+      { itemColor: keywordRegex },
+      { itemBrand: keywordRegex },
+      { itemDescription: keywordRegex },
+      { lostLocation: keywordRegex },
+      { foundLocation: keywordRegex },
+      { currentLocation: keywordRegex },
+      { missingPersonName: keywordRegex },
+      { missingPersonGender: keywordRegex },
+      { missingPersonLastSeenLocation: keywordRegex },
+      { missingPersonDescription: keywordRegex },
+      { foundPersonName: keywordRegex },
+      { foundPersonGender: keywordRegex },
+      { foundPersonDescription: keywordRegex },
+      { reporterFullName: keywordRegex },
+      { reporterEmail: keywordRegex },
+      { reporterAddress: keywordRegex },
+    ];
+
+    if (query.$or) {
+      query.$and = [{ $or: query.$or }, { $or: keywordSearch }];
+      delete query.$or;
+    } else {
+      query.$or = keywordSearch;
+    }
+  }
+
+  return query;
+};
+
+const getPublicFilterOptions = async (category = "") => {
+  const baseQuery = {
+    status: { $in: publicStatuses },
+  };
+
+  if (category) {
+    baseQuery.category = category;
+  }
+
+  const [cities, categories] = await Promise.all([
+    Report.distinct("city", baseQuery),
+    category === "item" ? Report.distinct("itemCategory", baseQuery) : [],
+  ]);
+
+  return {
+    cities: cities.filter(Boolean).sort((a, b) => a.localeCompare(b)),
+    categories: categories.filter(Boolean).sort((a, b) => a.localeCompare(b)),
+  };
+};
+
+const getPublicReportsResponse = async (req, res, fixedCategory = "", message = "Reports fetched successfully") => {
+  try {
+    const query = buildPublicReportQuery(req.query, fixedCategory);
+    const limitValue = Number(req.query.limit || 0);
+    const limit = Number.isFinite(limitValue) && limitValue > 0 ? limitValue : 0;
+
+    const reportsQuery = Report.find(query).sort({ createdAt: -1 });
+
+    if (limit) {
+      reportsQuery.limit(limit);
+    }
+
+    const [reports, total, filters] = await Promise.all([
+      reportsQuery,
+      Report.countDocuments(query),
+      getPublicFilterOptions(fixedCategory),
+    ]);
+
+    return res.status(200).json({
+      message,
+      count: reports.length,
+      total,
+      filters,
+      reports,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 // CREATE LOST ITEM REPORT
 const createLostItemReport = async (req, res) => {
   try {
@@ -269,157 +438,42 @@ const createFoundPersonReport = async (req, res) => {
 
 // GET ALL PUBLIC REPORTS
 const getAllReports = async (req, res) => {
-  try {
-    const reports = await Report.find({
-      status: { $in: publicStatuses },
-    }).sort({ createdAt: -1 });
-
-    res.status(200).json({
-      message: "Reports fetched successfully",
-      reports,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
+  return getPublicReportsResponse(
+    req,
+    res,
+    "",
+    "Reports fetched successfully"
+  );
 };
 
 // GET ITEM REPORTS ONLY
 const getItemReports = async (req, res) => {
-  try {
-    const reports = await Report.find({
-      category: "item",
-      status: { $in: publicStatuses },
-    }).sort({ createdAt: -1 });
-
-    res.status(200).json({
-      message: "Item reports fetched successfully",
-      reports,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
+  return getPublicReportsResponse(
+    req,
+    res,
+    "item",
+    "Item reports fetched successfully"
+  );
 };
 
 // GET PERSON REPORTS ONLY
 const getPersonReports = async (req, res) => {
-  try {
-    const reports = await Report.find({
-      category: "person",
-      status: { $in: publicStatuses },
-    }).sort({ createdAt: -1 });
-
-    res.status(200).json({
-      message: "Person reports fetched successfully",
-      reports,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
+  return getPublicReportsResponse(
+    req,
+    res,
+    "person",
+    "Person reports fetched successfully"
+  );
 };
 
 // SEARCH AND FILTER PUBLIC REPORTS
 const searchReports = async (req, res) => {
-  try {
-    const {
-      keyword,
-      category,
-      reportType,
-      status,
-      gender,
-      itemCategory,
-      city,
-    } = req.query;
-
-    const query = {
-      status: { $in: publicStatuses },
-    };
-
-    if (category) {
-      query.category = category.toLowerCase();
-    }
-
-    if (reportType) {
-      query.reportType = reportType.toLowerCase();
-    }
-
-    if (status && publicStatuses.includes(status.toLowerCase())) {
-      query.status = status.toLowerCase();
-    }
-
-    if (city) {
-      query.city = { $regex: city, $options: "i" };
-    }
-
-    if (itemCategory) {
-      query.itemCategory = { $regex: itemCategory, $options: "i" };
-    }
-
-    if (gender) {
-      query.$or = [
-        { missingPersonGender: { $regex: gender, $options: "i" } },
-        { foundPersonGender: { $regex: gender, $options: "i" } },
-      ];
-    }
-
-    if (keyword) {
-      const keywordSearch = [
-        { city: { $regex: keyword, $options: "i" } },
-
-        { itemName: { $regex: keyword, $options: "i" } },
-        { itemCategory: { $regex: keyword, $options: "i" } },
-        { itemColor: { $regex: keyword, $options: "i" } },
-        { itemBrand: { $regex: keyword, $options: "i" } },
-        { itemDescription: { $regex: keyword, $options: "i" } },
-
-        { lostLocation: { $regex: keyword, $options: "i" } },
-        { foundLocation: { $regex: keyword, $options: "i" } },
-        { currentLocation: { $regex: keyword, $options: "i" } },
-
-        { missingPersonName: { $regex: keyword, $options: "i" } },
-        { missingPersonGender: { $regex: keyword, $options: "i" } },
-        {
-          missingPersonLastSeenLocation: {
-            $regex: keyword,
-            $options: "i",
-          },
-        },
-        { missingPersonDescription: { $regex: keyword, $options: "i" } },
-
-        { foundPersonName: { $regex: keyword, $options: "i" } },
-        { foundPersonGender: { $regex: keyword, $options: "i" } },
-        { foundPersonDescription: { $regex: keyword, $options: "i" } },
-
-        { reporterFullName: { $regex: keyword, $options: "i" } },
-        { reporterEmail: { $regex: keyword, $options: "i" } },
-        { reporterAddress: { $regex: keyword, $options: "i" } },
-      ];
-
-      if (query.$or) {
-        query.$and = [{ $or: query.$or }, { $or: keywordSearch }];
-        delete query.$or;
-      } else {
-        query.$or = keywordSearch;
-      }
-    }
-
-    const reports = await Report.find(query).sort({ createdAt: -1 });
-
-    res.status(200).json({
-      message: "Reports searched successfully",
-      count: reports.length,
-      reports,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
+  return getPublicReportsResponse(
+    req,
+    res,
+    "",
+    "Reports searched successfully"
+  );
 };
 
 // GET SINGLE REPORT BY ID
@@ -482,6 +536,12 @@ const reportPost = async (req, res) => {
       });
     }
 
+    if (report.userId && report.userId.toString() === req.user.id) {
+      return res.status(400).json({
+        message: "You cannot report your own post",
+      });
+    }
+
     const alreadyFlagged = report.flags?.some(
       (flag) => flag.userId?.toString() === req.user.id
     );
@@ -502,22 +562,29 @@ const reportPost = async (req, res) => {
 
     await newComplaint.save();
 
-    await Report.findByIdAndUpdate(reportId, {
-      $push: {
-        flags: {
-          userId: req.user.id,
-          userName: user?.fullName || "",
-          reason,
-          date: new Date(),
+    const updatedReport = await Report.findByIdAndUpdate(
+      reportId,
+      {
+        $push: {
+          flags: {
+            userId: req.user.id,
+            userName: user?.fullName || user?.email || "User",
+            reason,
+            date: new Date(),
+          },
+        },
+        $inc: {
+          flagCount: 1,
         },
       },
-      $inc: {
-        flagCount: 1,
-      },
-    });
+      {
+        new: true,
+      }
+    );
 
     res.status(201).json({
       message: "Post reported successfully. Admin will review it.",
+      report: updatedReport,
     });
   } catch (error) {
     res.status(500).json({

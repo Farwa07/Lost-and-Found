@@ -54,4 +54,6 @@ const reportMatchSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+reportMatchSchema.index({ lostReportId: 1, foundReportId: 1 }, { unique: true });
+
 module.exports = mongoose.model("ReportMatch", reportMatchSchema);

@@ -14,6 +14,13 @@ const notificationSchema = new mongoose.Schema(
       required: false,
     },
 
+    matchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ReportMatch",
+      required: false,
+      default: null,
+    },
+
     type: {
       type: String,
       enum: ["Match", "Verification", "Comment", "Alert", "Status"],

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 
 import "./FoundItem.css";
+import { createFoundItemReport } from "../api/reportApi";
 
 import {
   FaBoxOpen,
@@ -233,70 +234,56 @@ const FoundItem = () => {
       return;
     }
 
+    const formElement = e.currentTarget;
+
     try {
       setIsSubmitting(true);
 
-      const currentUser = getCurrentUser();
-      const reportImage = await fileToBase64(formData.foundItemImage);
+      const payload = new FormData();
 
-      const newReport = {
-        id: createReportId(),
-        type: "Found",
-        status: "Found",
-        category: "Item",
-        title: formData.itemName.trim(),
-        age: "",
-        gender: "",
-        itemCategory: formData.itemCategory,
-        color: formData.itemColor.trim(),
-        brand: formData.itemBrand.trim(),
-        city: inferCity(
-          formData.foundLocation,
-          formData.currentLocation,
-          formData.reporterAddress
-        ),
-        location: formData.foundLocation.trim(),
-        currentLocation: formData.currentLocation.trim(),
-        date: formData.foundDate,
-        adminStatus: "Pending Review",
-        caseStatus: "Unsolved",
-        description: formData.itemDescription.trim(),
-        reporterName: formData.reporterFullName.trim(),
-        reporterContact: formData.reporterContactNumber.trim(),
-        reporterEmail: formData.reporterEmail.trim(),
-        reporterAddress: formData.reporterAddress.trim(),
-        relation: "",
-        image: reportImage,
-        ownerName: currentUser?.fullName || formData.reporterFullName.trim(),
-        ownerEmail: currentUser?.email || formData.reporterEmail.trim(),
-        ownerId:
-          currentUser?.id ||
-          currentUser?.email ||
-          formData.reporterEmail.trim(),
-        flags: [],
-        flagCount: 0,
-        comments: [],
-        createdAt: new Date().toISOString(),
-        reporterIdCardFileName: formData.reporterIdCardImage?.name || "",
-        reportSource: "User Submitted",
-      };
+      payload.append("itemName", formData.itemName.trim());
+      payload.append("itemCategory", formData.itemCategory);
+      payload.append("itemColor", formData.itemColor.trim());
+      payload.append("itemBrand", formData.itemBrand.trim());
+      payload.append("foundLocation", formData.foundLocation.trim());
+      payload.append("foundDate", formData.foundDate);
+      payload.append("currentLocation", formData.currentLocation.trim());
+      payload.append("itemDescription", formData.itemDescription.trim());
+      payload.append(
+        "city",
+        inferCity(formData.foundLocation, formData.currentLocation, formData.reporterAddress)
+      );
 
-      const previousReports = readReports();
-      const nextReports = [newReport, ...previousReports];
+      payload.append("reporterFullName", formData.reporterFullName.trim());
+      payload.append(
+        "reporterContactNumber",
+        formData.reporterContactNumber.trim()
+      );
+      payload.append("reporterEmail", formData.reporterEmail.trim());
+      payload.append("reporterAddress", formData.reporterAddress.trim());
 
-      writeReports(nextReports);
+      if (formData.foundItemImage) {
+        payload.append("foundItemImage", formData.foundItemImage);
+      }
 
-      console.log("Found Item Report Saved:", newReport);
+      if (formData.reporterIdCardImage) {
+        payload.append("reporterIdCardImage", formData.reporterIdCardImage);
+      }
+
+      const response = await createFoundItemReport(payload);
+
+      console.log("Found Item Report Submitted:", response?.report);
 
       alert(
-        "Found Item Report Submitted Successfully! It is now pending admin review."
+        response?.message ||
+          "Found Item Report Submitted Successfully! It is now pending admin verification."
       );
 
       setFormData(initialState);
-      e.target.reset();
+      formElement.reset();
     } catch (error) {
       console.error("Found Item Submit Error:", error);
-      alert("Something went wrong while saving the report. Please try again.");
+      alert(error.message || "Something went wrong while submitting the report. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
