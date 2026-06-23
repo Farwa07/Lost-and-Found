@@ -49,3 +49,8 @@ export const updateProfileImage = (formData) =>
     method: "PUT",
     body: formData,
   });
+  
+export const deleteMyAccount = () =>
+  apiRequest("/auth/me", {
+    method: "DELETE",
+  });

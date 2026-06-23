@@ -12,207 +12,135 @@ import {
   FaPhoneAlt,
   FaMapMarkerAlt,
   FaEdit,
-  FaCheckCircle,                                              
+  FaCheckCircle,
   FaShieldAlt,
   FaTrash,
 } from "react-icons/fa";
 
-const REPORTS_KEY = "lostFoundReports";
-const PROFILE_IMAGE_KEY = "lostFoundProfileImage";
-const PROFILE_DATA_KEY = "lostFoundProfileData";
-const CURRENT_USER_KEY = "lostFoundCurrentUser";
-const REGISTERED_USER_KEY = "lostFoundRegisteredUser";
-const USERS_KEY = "lostFoundUsers";
+import { getProfile, updateProfile, updateProfileImage } from "../api/authApi";
+import { getMyReports } from "../api/reportApi";
 
-const safeParse = (value, fallback = null) => {
-  try {
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
+const CURRENT_USER_KEY = "lostFoundCurrentUser";
+
+const defaultProfileData = {
+  fullName: "",
+  email: "",
+  phone: "",
+  city: "",
+  address: "",
+  bio: "",
+  role: "user",
+  profileImage: "",
 };
 
-const normalize = (value = "") => {
+const normalizeReportStatus = (value = "") => {
   return String(value).trim().toLowerCase();
 };
 
-const getCurrentUser = () => {
-  const currentUser = safeParse(localStorage.getItem(CURRENT_USER_KEY));
-  const registeredUser = safeParse(localStorage.getItem(REGISTERED_USER_KEY));
-  const profileData = safeParse(localStorage.getItem(PROFILE_DATA_KEY));
+const getReportsArray = (response) => {
+  if (Array.isArray(response)) {
+    return response;
+  }
 
-  return currentUser || registeredUser || profileData || null;
+  if (Array.isArray(response?.reports)) {
+    return response.reports;
+  }
+
+  if (Array.isArray(response?.data)) {
+    return response.data;
+  }
+
+  return [];
 };
 
-const getInitialProfileData = () => {
-  const savedProfile = safeParse(localStorage.getItem(PROFILE_DATA_KEY));
-  const currentUser = getCurrentUser();
+const getUserFromResponse = (response) => {
+  return response?.user || response?.data || response || null;
+};
 
+const buildProfileData = (user) => {
   return {
-    fullName:
-      savedProfile?.fullName ||
-      savedProfile?.name ||
-      currentUser?.fullName ||
-      currentUser?.name ||
-      "John Doe",
-    email:
-      savedProfile?.email ||
-      currentUser?.email ||
-      "johndoe@gmail.com",
-    phone:
-      savedProfile?.phone ||
-      currentUser?.phone ||
-      "+92 300 1234567",
-    city: savedProfile?.city || currentUser?.city || "Gujranwala",
-    address:
-      savedProfile?.address ||
-      currentUser?.address ||
-      "Satellite Town, Gujranwala",
+    fullName: user?.fullName || user?.name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    city: user?.city || "",
+    address: user?.address || "",
     bio:
-      savedProfile?.bio ||
+      user?.bio ||
       "I am using Lost & Found to report and track missing persons and lost items.",
-    role:
-      savedProfile?.role ||
-      currentUser?.role ||
-      "Registered User",
+    role: user?.role || "user",
+    profileImage: user?.profileImage || "",
   };
-};
-
-const readReports = () => {
-  const reports = safeParse(localStorage.getItem(REPORTS_KEY), []);
-  return Array.isArray(reports) ? reports : [];
-};
-
-const isOwnReport = (report, profileData) => {
-  const userEmail = normalize(profileData.email);
-  const userName = normalize(profileData.fullName);
-
-  const ownerEmail = normalize(report.ownerEmail);
-  const reporterEmail = normalize(report.reporterEmail);
-  const ownerName = normalize(report.ownerName);
-  const reporterName = normalize(report.reporterName || report.reporterFullName);
-
-  if (userEmail && (ownerEmail === userEmail || reporterEmail === userEmail)) {
-    return true;
-  }
-
-  if (userName && (ownerName === userName || reporterName === userName)) {
-    return true;
-  }
-
-  return false;
-};
-
-const updateStoredUserData = (profileData) => {
-  const currentUser = safeParse(localStorage.getItem(CURRENT_USER_KEY));
-  const registeredUser = safeParse(localStorage.getItem(REGISTERED_USER_KEY));
-  const users = safeParse(localStorage.getItem(USERS_KEY), []);
-
-  const updatedPublicUser = {
-    ...(currentUser || {}),
-    fullName: profileData.fullName,
-    email: normalize(profileData.email),
-    phone: profileData.phone,
-    role: profileData.role || currentUser?.role || registeredUser?.role || "Registered User",
-    city: profileData.city,
-    address: profileData.address,
-  };
-
-  const updatedRegisteredUser = {
-    ...(registeredUser || updatedPublicUser),
-    fullName: profileData.fullName,
-    email: normalize(profileData.email),
-    phone: profileData.phone,
-    role: profileData.role || registeredUser?.role || currentUser?.role || "Registered User",
-    city: profileData.city,
-    address: profileData.address,
-  };
-
-  if (currentUser) {
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedPublicUser));
-  }
-
-  if (registeredUser) {
-    localStorage.setItem(REGISTERED_USER_KEY, JSON.stringify(updatedRegisteredUser));
-  }
-
-  if (Array.isArray(users) && users.length > 0) {
-    const nextUsers = users.map((user) => {
-      const sameUser =
-        normalize(user.email) === normalize(currentUser?.email || registeredUser?.email || profileData.email);
-
-      if (!sameUser) {
-        return user;
-      }
-
-      return {
-        ...user,
-        fullName: profileData.fullName,
-        email: normalize(profileData.email),
-        phone: profileData.phone,
-        role: profileData.role || user.role || "Registered User",
-        city: profileData.city,
-        address: profileData.address,
-      };
-    });
-
-    localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
-  }
-
-  window.dispatchEvent(new Event("authChanged"));
-  window.dispatchEvent(new Event("profileUpdated"));
 };
 
 export default function Profile() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileImage, setProfileImage] = useState("");
   const [message, setMessage] = useState("");
-  const [profileData, setProfileData] = useState(() => getInitialProfileData());
+  const [profileData, setProfileData] = useState(defaultProfileData);
   const [reports, setReports] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isImageUploading, setIsImageUploading] = useState(false);
+
+  const loadProfile = async () => {
+    try {
+      setIsLoading(true);
+
+      const profileResponse = await getProfile();
+      const user = getUserFromResponse(profileResponse);
+      const nextProfileData = buildProfileData(user);
+
+      setProfileData(nextProfileData);
+      setProfileImage(nextProfileData.profileImage || "");
+
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+
+      const reportsResponse = await getMyReports();
+      setReports(getReportsArray(reportsResponse));
+    } catch (error) {
+      console.error("Profile Load Error:", error);
+      setMessage(error.message || "Failed to load profile.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadProfile = () => {
-      const savedImage = localStorage.getItem(PROFILE_IMAGE_KEY);
-      const latestProfile = getInitialProfileData();
-
-      setProfileImage(savedImage || "");
-      setProfileData(latestProfile);
-      setReports(readReports());
-    };
-
     loadProfile();
 
-    window.addEventListener("storage", loadProfile);
     window.addEventListener("authChanged", loadProfile);
     window.addEventListener("profileUpdated", loadProfile);
-    window.addEventListener("lostFoundReportsUpdated", loadProfile);
 
     return () => {
-      window.removeEventListener("storage", loadProfile);
       window.removeEventListener("authChanged", loadProfile);
       window.removeEventListener("profileUpdated", loadProfile);
-      window.removeEventListener("lostFoundReportsUpdated", loadProfile);
     };
   }, []);
 
-  const ownReports = useMemo(() => {
-    return reports.filter((report) => isOwnReport(report, profileData));
-  }, [reports, profileData]);
-
   const profileStats = useMemo(() => {
     return {
-      total: ownReports.length,
-      matched: ownReports.filter(
-        (report) =>
-          report.adminStatus === "Matched" ||
-          report.matchDecision === "Confirmed" ||
-          report.matchId
-      ).length,
-      pending: ownReports.filter((report) =>
-        ["Pending", "Pending Review"].includes(report.adminStatus)
-      ).length,
+      total: reports.length,
+
+      matched: reports.filter((report) => {
+        const status = normalizeReportStatus(
+          report.status || report.adminStatus || report.caseStatus
+        );
+
+        return (
+          status === "matched" ||
+          status === "solved" ||
+          Boolean(report.matchId) ||
+          Boolean(report.matchedWith)
+        );
+      }).length,
+
+      pending: reports.filter((report) => {
+        const status = normalizeReportStatus(report.status || report.adminStatus);
+
+        return status === "pending" || status === "pending review";
+      }).length,
     };
-  }, [ownReports]);
+  }, [reports]);
 
   const showMessage = (text) => {
     setMessage(text);
@@ -222,8 +150,17 @@ export default function Profile() {
     }, 3000);
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
+  const syncCurrentUser = (user) => {
+    if (user) {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+    }
+
+    window.dispatchEvent(new Event("authChanged"));
+    window.dispatchEvent(new Event("profileUpdated"));
+  };
+
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
 
     if (!file) {
       return;
@@ -231,39 +168,70 @@ export default function Profile() {
 
     if (!file.type.startsWith("image/")) {
       showMessage("Please upload a valid image file.");
+      e.target.value = "";
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
       showMessage("Image size should be less than 2MB.");
+      e.target.value = "";
       return;
     }
 
-    const reader = new FileReader();
+    try {
+      setIsImageUploading(true);
 
-    reader.onloadend = () => {
-      const imageBase64 = reader.result;
+      const imageFormData = new FormData();
+      imageFormData.append("profileImage", file);
 
-      setProfileImage(imageBase64);
-      localStorage.setItem(PROFILE_IMAGE_KEY, imageBase64);
+      const response = await updateProfileImage(imageFormData);
+      const user = getUserFromResponse(response?.user ? response : response);
+      const imageUrl =
+        response?.profileImage || user?.profileImage || profileData.profileImage;
 
-      showMessage("Profile picture updated successfully.");
+      setProfileImage(imageUrl || "");
+      setProfileData((previousData) => ({
+        ...previousData,
+        profileImage: imageUrl || "",
+      }));
 
-      window.dispatchEvent(new Event("profileUpdated"));
-    };
+      if (response?.user) {
+        syncCurrentUser(response.user);
+      }
 
-    reader.readAsDataURL(file);
-
-    e.target.value = "";
+      showMessage(response?.message || "Profile picture updated successfully.");
+    } catch (error) {
+      console.error("Profile Image Upload Error:", error);
+      alert(error.message || "Failed to upload profile picture.");
+    } finally {
+      setIsImageUploading(false);
+      e.target.value = "";
+    }
   };
 
-  const handleRemoveImage = () => {
-    setProfileImage("");
-    localStorage.removeItem(PROFILE_IMAGE_KEY);
+  const handleRemoveImage = async () => {
+    try {
+      setIsImageUploading(true);
 
-    showMessage("Profile picture removed successfully.");
+      const response = await updateProfile({
+        profileImage: "",
+      });
 
-    window.dispatchEvent(new Event("profileUpdated"));
+      const user = getUserFromResponse(response);
+      const nextProfileData = buildProfileData(user);
+
+      setProfileData(nextProfileData);
+      setProfileImage("");
+
+      syncCurrentUser(user);
+
+      showMessage("Profile picture removed successfully.");
+    } catch (error) {
+      console.error("Profile Image Remove Error:", error);
+      alert(error.message || "Failed to remove profile picture.");
+    } finally {
+      setIsImageUploading(false);
+    }
   };
 
   const handleChange = (e) => {
@@ -275,26 +243,40 @@ export default function Profile() {
     setMessage("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const cleanProfile = {
-      ...profileData,
-      fullName: profileData.fullName.trim(),
-      email: normalize(profileData.email),
-      phone: profileData.phone.trim(),
-      city: profileData.city.trim(),
-      address: profileData.address.trim(),
-      bio: profileData.bio.trim(),
-      role: profileData.role || "Registered User",
-    };
+    if (isSaving) {
+      return;
+    }
 
-    localStorage.setItem(PROFILE_DATA_KEY, JSON.stringify(cleanProfile));
+    try {
+      setIsSaving(true);
 
-    setProfileData(cleanProfile);
-    updateStoredUserData(cleanProfile);
+      const payload = {
+        fullName: profileData.fullName.trim(),
+        phone: profileData.phone.trim(),
+        city: profileData.city.trim(),
+        address: profileData.address.trim(),
+        bio: profileData.bio.trim(),
+      };
 
-    showMessage("Profile updated successfully.");
+      const response = await updateProfile(payload);
+      const user = getUserFromResponse(response);
+      const nextProfileData = buildProfileData(user);
+
+      setProfileData(nextProfileData);
+      setProfileImage(nextProfileData.profileImage || "");
+
+      syncCurrentUser(user);
+
+      showMessage(response?.message || "Profile updated successfully.");
+    } catch (error) {
+      console.error("Profile Update Error:", error);
+      alert(error.message || "Failed to update profile.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const initials = profileData.fullName
@@ -304,6 +286,8 @@ export default function Profile() {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  const isAdmin = profileData.role === "admin" || profileData.role === "Admin";
 
   return (
     <div className="profile">
@@ -325,7 +309,7 @@ export default function Profile() {
 
             <div className="profile-hero__badge">
               <FaShieldAlt />
-              {profileData.role === "Admin" ? "Admin User" : "Verified User"}
+              {isAdmin ? "Admin User" : "Verified User"}
             </div>
           </section>
 
@@ -343,12 +327,17 @@ export default function Profile() {
                 <div className="profile-image-actions">
                   <label className="profile-upload-btn">
                     <FaCamera />
-                    {profileImage ? "Change DP" : "Upload DP"}
+                    {isImageUploading
+                      ? "Uploading..."
+                      : profileImage
+                      ? "Change DP"
+                      : "Upload DP"}
 
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleImageChange}
+                      disabled={isImageUploading}
                     />
                   </label>
 
@@ -357,6 +346,7 @@ export default function Profile() {
                       type="button"
                       className="profile-remove-btn"
                       onClick={handleRemoveImage}
+                      disabled={isImageUploading}
                     >
                       <FaTrash />
                       Remove
@@ -365,28 +355,26 @@ export default function Profile() {
                 </div>
               </div>
 
-              <h2>{profileData.fullName}</h2>
+              <h2>{profileData.fullName || "User"}</h2>
 
               <p className="profile-role">
-                {profileData.role === "Admin"
-                  ? "Lost & Found Administrator"
-                  : "Lost & Found Member"}
+                {isAdmin ? "Lost & Found Administrator" : "Lost & Found Member"}
               </p>
 
               <div className="profile-info-list">
                 <p>
                   <FaEnvelope />
-                  {profileData.email}
+                  {profileData.email || "N/A"}
                 </p>
 
                 <p>
                   <FaPhoneAlt />
-                  {profileData.phone}
+                  {profileData.phone || "N/A"}
                 </p>
 
                 <p>
                   <FaMapMarkerAlt />
-                  {profileData.city}
+                  {profileData.city || "N/A"}
                 </p>
               </div>
 
@@ -426,89 +414,100 @@ export default function Profile() {
                 </div>
               )}
 
-              <form className="profile-form" onSubmit={handleSubmit}>
-                <div className="profile-form__grid">
+              {isLoading ? (
+                <div className="profile-message">
+                  <FaCheckCircle />
+                  Loading profile...
+                </div>
+              ) : (
+                <form className="profile-form" onSubmit={handleSubmit}>
+                  <div className="profile-form__grid">
+                    <div className="profile-field">
+                      <label>Full Name</label>
+
+                      <input
+                        type="text"
+                        name="fullName"
+                        value={profileData.fullName}
+                        onChange={handleChange}
+                        placeholder="Enter full name"
+                        required
+                      />
+                    </div>
+
+                    <div className="profile-field">
+                      <label>Email Address</label>
+
+                      <input
+                        type="email"
+                        name="email"
+                        value={profileData.email}
+                        placeholder="Enter email"
+                        readOnly
+                        required
+                      />
+                    </div>
+
+                    <div className="profile-field">
+                      <label>Phone Number</label>
+
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={profileData.phone}
+                        onChange={handleChange}
+                        placeholder="Enter phone number"
+                        required
+                      />
+                    </div>
+
+                    <div className="profile-field">
+                      <label>City</label>
+
+                      <input
+                        type="text"
+                        name="city"
+                        value={profileData.city}
+                        onChange={handleChange}
+                        placeholder="Enter city"
+                        required
+                      />
+                    </div>
+                  </div>
+
                   <div className="profile-field">
-                    <label>Full Name</label>
+                    <label>Address</label>
 
                     <input
                       type="text"
-                      name="fullName"
-                      value={profileData.fullName}
+                      name="address"
+                      value={profileData.address}
                       onChange={handleChange}
-                      placeholder="Enter full name"
+                      placeholder="Enter address"
                       required
                     />
                   </div>
 
                   <div className="profile-field">
-                    <label>Email Address</label>
+                    <label>Bio</label>
 
-                    <input
-                      type="email"
-                      name="email"
-                      value={profileData.email}
+                    <textarea
+                      name="bio"
+                      value={profileData.bio}
                       onChange={handleChange}
-                      placeholder="Enter email"
-                      required
-                    />
+                      placeholder="Write short bio"
+                    ></textarea>
                   </div>
 
-                  <div className="profile-field">
-                    <label>Phone Number</label>
-
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={profileData.phone}
-                      onChange={handleChange}
-                      placeholder="Enter phone number"
-                      required
-                    />
-                  </div>
-
-                  <div className="profile-field">
-                    <label>City</label>
-
-                    <input
-                      type="text"
-                      name="city"
-                      value={profileData.city}
-                      onChange={handleChange}
-                      placeholder="Enter city"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="profile-field">
-                  <label>Address</label>
-
-                  <input
-                    type="text"
-                    name="address"
-                    value={profileData.address}
-                    onChange={handleChange}
-                    placeholder="Enter address"
-                    required
-                  />
-                </div>
-
-                <div className="profile-field">
-                  <label>Bio</label>
-
-                  <textarea
-                    name="bio"
-                    value={profileData.bio}
-                    onChange={handleChange}
-                    placeholder="Write short bio"
-                  ></textarea>
-                </div>
-
-                <button type="submit" className="profile-save-btn">
-                  Save Changes
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    className="profile-save-btn"
+                    disabled={isSaving}
+                  >
+                    {isSaving ? "Saving..." : "Save Changes"}
+                  </button>
+                </form>
+              )}
             </div>
           </section>
 

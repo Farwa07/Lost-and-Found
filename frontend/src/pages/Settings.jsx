@@ -3,7 +3,7 @@ import "./Settings.css";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { changePassword } from "../api/authApi";
+import { changePassword, deleteMyAccount } from "../api/authApi";
 
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -290,22 +290,17 @@ export default function Settings() {
     navigate("/login");
   };
 
-  const handleDeleteAccount = () => {
-    const activeUser = getCurrentUserFromStorage();
+ const handleDeleteAccount = async () => {
+  const activeUser = getCurrentUserFromStorage();
 
-    if (activeUser?.role === "Admin") {
-      alert("Demo admin account cannot be deleted from settings.");
-      setConfirmAction(null);
-      return;
-    }
+  if (activeUser?.role === "Admin" || activeUser?.role === "admin") {
+    alert("Admin account cannot be deleted from settings.");
+    setConfirmAction(null);
+    return;
+  }
 
-    const users = getUsers();
-
-    const nextUsers = users.filter(
-      (user) => normalizeEmail(user.email) !== normalizeEmail(activeUser?.email)
-    );
-
-    localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
+  try {
+    const response = await deleteMyAccount();
 
     localStorage.removeItem(REGISTERED_USER_KEY);
     localStorage.removeItem(CURRENT_USER_KEY);
@@ -319,9 +314,12 @@ export default function Settings() {
 
     setConfirmAction(null);
 
-    alert("Account deleted from frontend storage.");
+    alert(response?.message || "Account deleted successfully.");
     navigate("/signup");
-  };
+  } catch (error) {
+    alert(error.message || "Failed to delete account.");
+  }
+};
 
   const renderSwitch = (key, title, description, icon) => {
     return (
@@ -372,7 +370,7 @@ export default function Settings() {
     return {
       icon: <FaTrash />,
       title: "Delete Account?",
-      text: "This will remove your account, profile picture, profile data and settings from frontend localStorage.",
+      text: "This will delete your account from the database and clear your current session from this browser.",
       buttonText: "Delete Account",
       action: handleDeleteAccount,
       danger: true,

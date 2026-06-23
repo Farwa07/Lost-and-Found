@@ -4,6 +4,12 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const Report = require("../models/report");
+const Comment = require("../models/comment");
+const Notification = require("../models/notification");
+const ReportComplaint = require("../models/reportComplaint");
+const ReportMatch = require("../models/reportMatch");
+
 
 // Email sender setup
 const sendEmail = async (to, subject, text) => {
@@ -480,6 +486,73 @@ const changePassword = async (req, res) => {
   }
 };
 
+// DELETE MY ACCOUNT
+// DELETE MY ACCOUNT
+const deleteMyAccount = async (req, res) => {
+  try {
+    const userId = req.user.id || req.user._id;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    if (user.role === "admin") {
+      return res.status(403).json({
+        message: "Admin account cannot be deleted from settings.",
+      });
+    }
+
+    const userReports = await Report.find({ userId }).select("_id");
+    const userReportIds = userReports.map((report) => report._id);
+
+    if (userReportIds.length > 0) {
+      await Comment.deleteMany({
+        reportId: { $in: userReportIds },
+      });
+
+      await Notification.deleteMany({
+        $or: [
+          { userId },
+          { reportId: { $in: userReportIds } },
+        ],
+      });
+
+      await ReportComplaint.deleteMany({
+        reportId: { $in: userReportIds },
+      });
+
+      await ReportMatch.deleteMany({
+        $or: [
+          { lostReportId: { $in: userReportIds } },
+          { foundReportId: { $in: userReportIds } },
+        ],
+      });
+
+      await Report.deleteMany({
+        _id: { $in: userReportIds },
+      });
+    }
+
+    await Comment.deleteMany({ userId });
+    await Notification.deleteMany({ userId });
+    await ReportComplaint.deleteMany({ reportedBy: userId });
+
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({
+      message: "Account and related reports deleted successfully.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message || "Failed to delete account.",
+    });
+  }
+};
+
 // UPDATE PROFILE IMAGE
 const updateProfileImage = async (req, res) => {
   try {
@@ -522,6 +595,7 @@ module.exports = {
   loginUser,
   forgotPassword,
   resetPassword,
+  deleteMyAccount,
   sendSignupOtp,
   verifySignupOtp,
   getProfile,

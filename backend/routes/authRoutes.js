@@ -25,6 +25,7 @@ const {
   getProfile,
   updateProfile,
   changePassword,
+  deleteMyAccount,
   updateProfileImage,
 } = require("../controllers/authController");
 
@@ -40,6 +41,9 @@ router.get("/profile", authMiddleware, getProfile);
 router.put("/profile", authMiddleware, updateProfile);
 router.get("/me", authMiddleware, getProfile);
 router.put("/change-password", authMiddleware, changePassword);
+
+router.delete("/me", authMiddleware, deleteMyAccount);
+
 router.put(
   "/profile/image",
   authMiddleware,
