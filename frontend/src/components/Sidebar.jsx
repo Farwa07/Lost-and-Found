@@ -20,9 +20,9 @@ export default function Sidebar({ open }) {
   const { isLoggedIn, isAdmin, currentUser } = useAuth();
   const location = useLocation();
 
-  const [profileImage, setProfileImage] = useState("");
+  const [profileImage, setProfileImage] = useState(currentUser?.profileImage || "");
   const [profileName, setProfileName] = useState(
-    currentUser?.fullName || "John Doe"
+    currentUser?.fullName || currentUser?.name || "User"
   );
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
@@ -42,55 +42,18 @@ export default function Sidebar({ open }) {
   }, [isLoggedIn]);
 
   const loadProfileData = () => {
-    const savedImage = localStorage.getItem("lostFoundProfileImage");
-    const savedProfile = localStorage.getItem("lostFoundProfileData");
-    const savedCurrentUser = localStorage.getItem("lostFoundCurrentUser");
-
-    setProfileImage(savedImage || "");
-
-    try {
-      if (savedProfile) {
-        const parsedProfile = JSON.parse(savedProfile);
-
-        setProfileName(
-          parsedProfile.fullName ||
-            parsedProfile.name ||
-            currentUser?.fullName ||
-            "John Doe"
-        );
-
-        return;
-      }
-
-      if (savedCurrentUser) {
-        const parsedUser = JSON.parse(savedCurrentUser);
-
-        setProfileName(
-          parsedUser.fullName ||
-            parsedUser.name ||
-            currentUser?.fullName ||
-            "John Doe"
-        );
-
-        return;
-      }
-
-      setProfileName(currentUser?.fullName || "John Doe");
-    } catch {
-      setProfileName(currentUser?.fullName || "John Doe");
-    }
+    setProfileImage(currentUser?.profileImage || "");
+    setProfileName(currentUser?.fullName || currentUser?.name || "User");
   };
 
   useEffect(() => {
     loadProfileData();
 
     window.addEventListener("profileUpdated", loadProfileData);
-    window.addEventListener("storage", loadProfileData);
     window.addEventListener("authChanged", loadProfileData);
 
     return () => {
       window.removeEventListener("profileUpdated", loadProfileData);
-      window.removeEventListener("storage", loadProfileData);
       window.removeEventListener("authChanged", loadProfileData);
     };
   }, [currentUser]);
