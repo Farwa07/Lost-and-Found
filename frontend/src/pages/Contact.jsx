@@ -3,6 +3,7 @@ import { useState } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
+import { submitContactMessage } from "../api/contactApi";
 import {
   FaEnvelope,
   FaPhoneAlt,
@@ -68,14 +69,20 @@ export default function Contact() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (!validateForm()) return;
+  if (!validateForm()) return;
 
-    console.log("Contact Form Data:", formData);
+  try {
+    const response = await submitContactMessage({
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      subject: formData.subject.trim(),
+      message: formData.message.trim(),
+    });
 
-    setSuccess("Your message has been submitted successfully!");
+    setSuccess(response?.message || "Your message has been sent successfully!");
 
     setFormData({
       name: "",
@@ -83,7 +90,12 @@ export default function Contact() {
       subject: "",
       message: "",
     });
-  };
+  } catch (error) {
+    setErrors({
+      submit: error.message || "Failed to send message. Please try again.",
+    });
+  }
+};
 
   return (
     <div className="contact-page">
@@ -132,8 +144,10 @@ export default function Contact() {
             <div className="contact-left">
               <h2>Get In Touch</h2>
               <p>
-                Fill out the form below. This frontend form checks all required
-                fields before submission. Backend API can be connected later.
+                <p>
+  Fill out the form below and our team will review your message from the admin
+  panel.
+</p>
               </p>
 
               <form className="contact-form" onSubmit={handleSubmit}>
@@ -187,6 +201,7 @@ export default function Contact() {
                 </div>
 
                 {success && <p className="contact-success">{success}</p>}
+                {errors.submit && <small>{errors.submit}</small>}
 
                 <button type="submit" className="contact-submit">
                   <FaPaperPlane />
