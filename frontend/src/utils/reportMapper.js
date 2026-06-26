@@ -4,6 +4,11 @@ const DEFAULT_PERSON_IMAGE =
 const DEFAULT_ITEM_IMAGE =
   "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1200&auto=format&fit=crop";
 
+export const getFallbackReportImage = (category = "Item") =>
+  String(category || "").toLowerCase() === "person"
+    ? DEFAULT_PERSON_IMAGE
+    : DEFAULT_ITEM_IMAGE;
+
 const adminStatusMap = {
   pending: "Pending Review",
   verified: "Verified",
@@ -74,7 +79,7 @@ export const getReportImage = (report = {}) => {
     return image;
   }
 
-  return getCategoryLabel(report) === "Person" ? DEFAULT_PERSON_IMAGE : DEFAULT_ITEM_IMAGE;
+  return getFallbackReportImage(getCategoryLabel(report));
 };
 
 const getLocation = (report = {}) => {

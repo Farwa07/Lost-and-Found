@@ -22,7 +22,15 @@ import {
 
 import "./Home.css";
 import { getPublicReports } from "../api/reportApi";
-import { normalizePublicReport } from "../utils/reportMapper";
+import { getFallbackReportImage, normalizePublicReport } from "../utils/reportMapper";
+
+const handleHomeReportImageError = (event, category = "Item") => {
+  const fallbackImage = getFallbackReportImage(category);
+
+  if (event.currentTarget.src !== fallbackImage) {
+    event.currentTarget.src = fallbackImage;
+  }
+};
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -204,7 +212,13 @@ export default function Home() {
                     {report.type}
                   </div>
 
-                  <img src={report.image} alt={report.title} />
+                  <img
+                    src={report.image}
+                    alt={report.title}
+                    onError={(event) =>
+                      handleHomeReportImageError(event, report.category)
+                    }
+                  />
 
                   <div className="recent-card__content">
                     <span className="case-category">{report.category}</span>
@@ -267,7 +281,13 @@ export default function Home() {
                   <FaTimes />
                 </button>
 
-                <img src={selectedReport.image} alt={selectedReport.title} />
+                <img
+                  src={selectedReport.image}
+                  alt={selectedReport.title}
+                  onError={(event) =>
+                    handleHomeReportImageError(event, selectedReport.category)
+                  }
+                />
 
                 <span
                   className={`detail-status ${

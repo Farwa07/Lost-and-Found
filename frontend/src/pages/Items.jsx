@@ -19,7 +19,15 @@ import "./Items.css";
 import CommentsButton from "../components/CommentsButton";
 import ReportPostButton from "../components/ReportPostButton";
 import { getPublicItemReports } from "../api/reportApi";
-import { normalizeItemReport } from "../utils/reportMapper";
+import { getFallbackReportImage, normalizeItemReport } from "../utils/reportMapper";
+
+const handleItemImageError = (event) => {
+  const fallbackImage = getFallbackReportImage("Item");
+
+  if (event.currentTarget.src !== fallbackImage) {
+    event.currentTarget.src = fallbackImage;
+  }
+};
 
 const defaultCategories = [
   "All",
@@ -201,7 +209,11 @@ export default function Items() {
                   {item.status}
                 </span>
 
-                <img src={item.image} alt={item.itemName} />
+                <img
+                  src={item.image}
+                  alt={item.itemName}
+                  onError={handleItemImageError}
+                />
 
                 <div className="item-content">
                   <h3>{item.itemName}</h3>
@@ -274,7 +286,11 @@ export default function Items() {
                   ×
                 </button>
 
-                <img src={selectedItem.image} alt={selectedItem.itemName} />
+                <img
+                  src={selectedItem.image}
+                  alt={selectedItem.itemName}
+                  onError={handleItemImageError}
+                />
 
                 <span
                   className={`detail-status ${

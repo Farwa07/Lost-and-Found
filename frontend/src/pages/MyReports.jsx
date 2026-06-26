@@ -8,7 +8,11 @@ import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 import CommentsButton from "../components/CommentsButton";
 import { getMyReports, deleteMyReport, updateMyReportStatus, updateMyReport } from "../api/reportApi";
-import { mapBackendReportsToUi, mapUiReportToUpdatePayload } from "../utils/reportMapper";
+import {
+  getFallbackReportImage,
+  mapBackendReportsToUi,
+  mapUiReportToUpdatePayload,
+} from "../utils/reportMapper";
 
 import {
   FaBoxOpen,
@@ -250,11 +254,43 @@ const getSafeImage = (report) => {
     return report.image;
   }
 
-  if (report.category === "Person") {
-    return "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop";
+  return getFallbackReportImage(report.category);
+};
+
+const handleReportImageError = (event, category = "Item") => {
+  const fallbackImage = getFallbackReportImage(category);
+
+  if (event.currentTarget.src !== fallbackImage) {
+    event.currentTarget.src = fallbackImage;
+  }
+};
+
+const getReportImageUploadField = (report = {}) => {
+  const category = String(report.category || report.reportCategory || "").toLowerCase();
+  const type = String(report.type || "").toLowerCase();
+
+  if (category === "person") {
+    return type === "found" ? "foundPersonImage" : "missingPersonImage";
   }
 
-  return "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1200&auto=format&fit=crop";
+  return type === "found" ? "foundItemImage" : "lostItemImage";
+};
+
+const buildReportUpdateFormData = (report, imageFile) => {
+  const payload = mapUiReportToUpdatePayload(report);
+  const formData = new FormData();
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      formData.append(key, value);
+    }
+  });
+
+  if (imageFile) {
+    formData.append(getReportImageUploadField(report), imageFile);
+  }
+
+  return formData;
 };
 
 const normalizeReport = (report) => {
@@ -384,6 +420,7 @@ export default function MyReports() {
   const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
   const [selectedReport, setSelectedReport] = useState(null);
   const [editingReport, setEditingReport] = useState(null);
+  const [editImageFile, setEditImageFile] = useState(null);
   const [message, setMessage] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
 
@@ -419,6 +456,18 @@ export default function MyReports() {
       window.removeEventListener("authChanged", loadMyReports);
     };
   }, []);
+
+  useEffect(() => {
+    if (!message) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setMessage("");
+    }, 4000);
+
+    return () => window.clearTimeout(timer);
+  }, [message]);
 
   const reports = useMemo(() => {
     // Backend /reports/my-reports already filters reports by logged-in userId.
@@ -590,13 +639,15 @@ export default function MyReports() {
       return;
     }
 
+    setEditImageFile(file);
+
     const reader = new FileReader();
 
     reader.onloadend = () => {
-      setEditingReport({
-        ...editingReport,
+      setEditingReport((currentReport) => ({
+        ...currentReport,
         image: reader.result,
-      });
+      }));
     };
 
     reader.readAsDataURL(file);
@@ -618,11 +669,15 @@ export default function MyReports() {
     if (!targetReport) {
       setMessage("You can edit only your own reports.");
       setEditingReport(null);
+      setEditImageFile(null);
       return;
     }
 
     try {
-      const payload = mapUiReportToUpdatePayload(editingReport);
+      const payload = editImageFile
+        ? buildReportUpdateFormData(editingReport, editImageFile)
+        : mapUiReportToUpdatePayload(editingReport);
+
       const response = await updateMyReport(editingReport.id, payload);
       const updatedReport = normalizeReport(
         mapBackendReportsToUi([response?.report])[0] || editingReport
@@ -635,6 +690,7 @@ export default function MyReports() {
       saveAllReports(nextReports);
       setMessage("Report updated successfully.");
       setEditingReport(null);
+      setEditImageFile(null);
     } catch (error) {
       setMessage(error.message || "Unable to update report.");
     }
@@ -780,7 +836,11 @@ export default function MyReports() {
                   key={report.id}
                 >
                   <div className="myreports-card__image">
-                    <img src={report.image} alt={report.title} />
+                    <img
+                      src={report.image}
+                      alt={report.title}
+                      onError={(event) => handleReportImageError(event, report.category)}
+                    />
 
                     <span
                       className={`myreports-type ${
@@ -870,7 +930,12 @@ export default function MyReports() {
   }
 />
 
-                        <button onClick={() => setEditingReport(report)}>
+                        <button
+                          onClick={() => {
+                            setEditImageFile(null);
+                            setEditingReport(report);
+                          }}
+                        >
                           <FaEdit />
                           Edit
                         </button>
@@ -906,7 +971,13 @@ export default function MyReports() {
                   <FaTimes />
                 </button>
 
-                <img src={selectedReport.image} alt={selectedReport.title} />
+                <img
+                  src={selectedReport.image}
+                  alt={selectedReport.title}
+                  onError={(event) =>
+                    handleReportImageError(event, selectedReport.category)
+                  }
+                />
 
                 <span
                   className={`myreports-type ${
@@ -1030,7 +1101,10 @@ export default function MyReports() {
           {editingReport && (
             <div
               className="myreports-modal-overlay"
-              onClick={() => setEditingReport(null)}
+              onClick={() => {
+                setEditingReport(null);
+                setEditImageFile(null);
+              }}
             >
               <div
                 className="myreports-edit-modal"
@@ -1038,7 +1112,10 @@ export default function MyReports() {
               >
                 <button
                   className="myreports-modal-close"
-                  onClick={() => setEditingReport(null)}
+                  onClick={() => {
+                    setEditingReport(null);
+                    setEditImageFile(null);
+                  }}
                 >
                   <FaTimes />
                 </button>
@@ -1052,7 +1129,13 @@ export default function MyReports() {
 
                 <form className="myreports-edit-form" onSubmit={handleSaveEdit}>
                   <div className="myreports-edit-image">
-                    <img src={editingReport.image} alt={editingReport.title} />
+                    <img
+                      src={editingReport.image}
+                      alt={editingReport.title}
+                      onError={(event) =>
+                        handleReportImageError(event, editingReport.category)
+                      }
+                    />
 
                     <label>
                       <FaCamera />

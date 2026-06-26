@@ -75,5 +75,5 @@ export const updateMyReportStatus = (id, caseStatus) =>
 export const updateMyReport = (id, payload) =>
   apiRequest(`/reports/my-reports/${id}`, {
     method: "PUT",
-    body: JSON.stringify(payload),
+    body: payload instanceof FormData ? payload : JSON.stringify(payload),
   });

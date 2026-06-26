@@ -16,7 +16,15 @@ import "./Persons.css";
 import CommentsButton from "../components/CommentsButton";
 import ReportPostButton from "../components/ReportPostButton";
 import { getPublicPersonReports } from "../api/reportApi";
-import { normalizePersonReport } from "../utils/reportMapper";
+import { getFallbackReportImage, normalizePersonReport } from "../utils/reportMapper";
+
+const handlePersonImageError = (event) => {
+  const fallbackImage = getFallbackReportImage("Person");
+
+  if (event.currentTarget.src !== fallbackImage) {
+    event.currentTarget.src = fallbackImage;
+  }
+};
 
 export default function Persons() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -185,7 +193,11 @@ export default function Persons() {
                     {person.status}
                   </span>
 
-                  <img src={person.image} alt={person.name} />
+                  <img
+                    src={person.image}
+                    alt={person.name}
+                    onError={handlePersonImageError}
+                  />
 
                   <div className="person-card-content">
                     <h3>{person.name}</h3>
@@ -253,7 +265,11 @@ export default function Persons() {
                   ×
                 </button>
 
-                <img src={selectedPerson.image} alt={selectedPerson.name} />
+                <img
+                  src={selectedPerson.image}
+                  alt={selectedPerson.name}
+                  onError={handlePersonImageError}
+                />
 
                 <span
                   className={`detail-status ${

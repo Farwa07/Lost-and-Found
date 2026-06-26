@@ -107,7 +107,17 @@ router.delete("/my-reports/:id", authMiddleware, deleteMyReport);
 router.patch("/my-reports/:id/status", authMiddleware, updateMyReportStatus);
 
 // Update my report details
-router.put("/my-reports/:id", authMiddleware, updateMyReport);
+router.put(
+  "/my-reports/:id",
+  authMiddleware,
+  upload.fields([
+    { name: "lostItemImage", maxCount: 1 },
+    { name: "foundItemImage", maxCount: 1 },
+    { name: "missingPersonImage", maxCount: 1 },
+    { name: "foundPersonImage", maxCount: 1 },
+  ]),
+  updateMyReport
+);
 
 // Get single report by ID
 router.get("/:id", getReportById);

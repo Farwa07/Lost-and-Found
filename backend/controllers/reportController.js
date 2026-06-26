@@ -664,13 +664,32 @@ const updateMyReportStatus = async (req, res) => {
 // UPDATE MY REPORT DETAILS
 const updateMyReport = async (req, res) => {
   try {
-    const updateData = req.body;
+    const updateData = { ...(req.body || {}) };
 
     delete updateData.userId;
     delete updateData.status;
     delete updateData.isVerified;
     delete updateData.flags;
     delete updateData.flagCount;
+    delete updateData.matchedWith;
+    delete updateData.matchId;
+    delete updateData.matchScore;
+    delete updateData.matchedFields;
+    delete updateData.matchedAt;
+    delete updateData.matchedBy;
+
+    const imageFieldNames = [
+      "lostItemImage",
+      "foundItemImage",
+      "missingPersonImage",
+      "foundPersonImage",
+    ];
+
+    imageFieldNames.forEach((fieldName) => {
+      if (req.files?.[fieldName]?.[0]) {
+        updateData[fieldName] = getImageUrl(req, req.files[fieldName][0].path);
+      }
+    });
 
     const report = await Report.findOneAndUpdate(
       {
