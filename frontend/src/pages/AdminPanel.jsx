@@ -17,6 +17,11 @@ import {
   updateAdminReportCaseStatus,
   verifyAdminReport,
 } from "../api/adminApi";
+import {
+  deleteContactMessage,
+  getContactMessages,
+  markContactMessageRead,
+} from "../api/contactApi";
 import { mapBackendReportToUi, mapBackendReportsToUi } from "../utils/reportMapper";
 
 import { useEffect, useMemo, useState } from "react";
@@ -557,6 +562,8 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState("reports");
   const [reports, setReports] = useState([]);
   const [users, setUsers] = useState([]);
+  const [contactMessages, setContactMessages] = useState([]);
+  const [contactLoading, setContactLoading] = useState(false);
   const [matchDecisions, setMatchDecisions] = useState([]);
   const [apiMatchSuggestions, setApiMatchSuggestions] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -589,6 +596,51 @@ export default function AdminPanel() {
     status: user.status === "blocked" ? "Blocked" : "Active",
     joinedAt: user.createdAt || user.joinedAt || "",
   });
+
+const normalizeContactMessage = (contactMessage = {}) => ({
+  ...contactMessage,
+  id: contactMessage._id || contactMessage.id,
+  name: contactMessage.name || "Unknown User",
+  email: contactMessage.email || "N/A",
+  subject: contactMessage.subject || "Contact Message",
+  message: contactMessage.message || "",
+  status: contactMessage.status || "unread",
+  createdAt: contactMessage.createdAt || contactMessage.date || "",
+});
+
+const loadContactMessages = async () => {
+  try {
+    setContactLoading(true);
+
+    const response = await getContactMessages();
+
+    const messages =
+      response?.messages ||
+      response?.contactMessages ||
+      response?.data ||
+      [];
+
+    setContactMessages(
+      Array.isArray(messages) ? messages.map(normalizeContactMessage) : []
+    );
+  } catch (error) {
+    console.error("Contact messages load error:", error);
+    showMessage(error.message || "Unable to load contact messages.");
+    setContactMessages([]);
+  } finally {
+    setContactLoading(false);
+  }
+};
+
+const formatContactDate = (date) => {
+  if (!date) return "N/A";
+
+  const parsedDate = new Date(date);
+
+  if (Number.isNaN(parsedDate.getTime())) return "N/A";
+
+  return parsedDate.toLocaleString("en-PK");
+};
 
   const loadAdminData = async () => {
     try {
@@ -638,6 +690,12 @@ export default function AdminPanel() {
     loadAdminData();
   }, []);
 
+useEffect(() => {
+  if (activeTab === "messages") {
+    loadContactMessages();
+  }
+}, [activeTab]);
+
   const showMessage = (text) => {
     setMessage(text);
 
@@ -657,6 +715,44 @@ export default function AdminPanel() {
     setUsers(nextUsers);
     showMessage(successMessage);
   };
+
+const markMessageAsRead = async (messageId) => {
+  try {
+    await markContactMessageRead(messageId);
+
+    setContactMessages((prevMessages) =>
+      prevMessages.map((contactMessage) =>
+        String(contactMessage.id) === String(messageId)
+          ? { ...contactMessage, status: "read" }
+          : contactMessage
+      )
+    );
+
+    showMessage("Contact message marked as read.");
+  } catch (error) {
+    showMessage(error.message || "Unable to update contact message.");
+  }
+};
+
+const removeContactMessage = async (messageId) => {
+  const confirmed = window.confirm("Delete this contact message?");
+
+  if (!confirmed) return;
+
+  try {
+    await deleteContactMessage(messageId);
+
+    setContactMessages((prevMessages) =>
+      prevMessages.filter(
+        (contactMessage) => String(contactMessage.id) !== String(messageId)
+      )
+    );
+
+    showMessage("Contact message deleted.");
+  } catch (error) {
+    showMessage(error.message || "Unable to delete contact message.");
+  }
+};
 
   const saveMatchDecisions = (nextDecisions) => {
     setMatchDecisions(nextDecisions);
@@ -1712,6 +1808,111 @@ export default function AdminPanel() {
     );
   };
 
+const renderContactMessagesTab = () => {
+  const unreadCount = contactMessages.filter(
+    (contactMessage) => contactMessage.status !== "read"
+  ).length;
+
+  return (
+    <section className="admin-alert-card">
+      <div className="admin-alert-card__heading">
+        <FaEnvelope />
+
+        <div>
+          <h2>Contact Messages</h2>
+          <p>
+            Messages submitted from the Contact page. Unread messages: {unreadCount}
+          </p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="admin-primary-btn"
+        onClick={loadContactMessages}
+        disabled={contactLoading}
+      >
+        <FaRedo /> {contactLoading ? "Loading..." : "Refresh Messages"}
+      </button>
+
+      {contactLoading ? (
+        <div className="admin-empty-box">
+          <FaEnvelope />
+          <h3>Loading contact messages...</h3>
+          <p>Please wait while admin messages are fetched from backend.</p>
+        </div>
+      ) : contactMessages.length > 0 ? (
+        <section className="admin-users-grid">
+          {contactMessages.map((contactMessage) => (
+            <article className="admin-user-card" key={contactMessage.id}>
+              <div className="admin-user-avatar">
+                {(contactMessage.name || "U")
+                  .split(" ")
+                  .map((part) => part[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase()}
+              </div>
+
+              <div className="admin-user-info">
+                <h3>{contactMessage.subject}</h3>
+
+                <p>
+                  <FaUser /> {contactMessage.name}
+                </p>
+
+                <p>
+                  <FaEnvelope /> {contactMessage.email}
+                </p>
+
+                <p>
+                  <FaCalendarAlt /> {formatContactDate(contactMessage.createdAt)}
+                </p>
+
+                <p>{contactMessage.message}</p>
+              </div>
+
+              <span
+                className={`admin-user-status admin-user-status--${
+                  contactMessage.status === "read" ? "verified" : "pending"
+                }`}
+              >
+                {contactMessage.status === "read" ? "Read" : "Unread"}
+              </span>
+
+              <div className="admin-report-actions">
+                {contactMessage.status !== "read" && (
+                  <button
+                    type="button"
+                    className="admin-action-success"
+                    onClick={() => markMessageAsRead(contactMessage.id)}
+                  >
+                    <FaCheckCircle /> Mark Read
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="admin-action-danger"
+                  onClick={() => removeContactMessage(contactMessage.id)}
+                >
+                  <FaTrash /> Delete
+                </button>
+              </div>
+            </article>
+          ))}
+        </section>
+      ) : (
+        <div className="admin-empty-box">
+          <FaEnvelope />
+          <h3>No contact messages yet</h3>
+          <p>Messages submitted from Contact page will appear here.</p>
+        </div>
+      )}
+    </section>
+  );
+};
+
   const renderAlertsTab = () => {
     return (
       <section className="admin-alert-card">
@@ -1960,7 +2161,11 @@ export default function AdminPanel() {
             </button>
 
             {activeTab !== "matches" && (
-  <button type="button" onClick={() => openAlertModal(selectedReport)}>
+  <button
+    type="button"
+    className="admin-action-alert"
+    onClick={() => openAlertModal(selectedReport)}
+  >
     <FaBell /> Send Alert
   </button>
 )}
@@ -2219,6 +2424,14 @@ export default function AdminPanel() {
               <FaPaperPlane /> Alerts
             </button>
 
+<button
+  type="button"
+  className={activeTab === "messages" ? "admin-tab--active" : ""}
+  onClick={() => setActiveTab("messages")}
+>
+  <FaEnvelope /> Messages
+</button>
+
             <button
               type="button"
               className={activeTab === "logs" ? "admin-tab--active" : ""}
@@ -2233,6 +2446,7 @@ export default function AdminPanel() {
           {activeTab === "matched" && renderMatchedTab()}
           {activeTab === "users" && renderUsersTab()}
           {activeTab === "alerts" && renderAlertsTab()}
+          {activeTab === "messages" && renderContactMessagesTab()}
           {activeTab === "logs" && renderLogsTab()}
 
           {renderDetailsModal()}

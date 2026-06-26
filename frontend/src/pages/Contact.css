@@ -204,6 +204,10 @@
   text-decoration: none;
   transition: 0.25s;
 }
+.contact-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
 
 .contact-socials a:hover {
   transform: translateY(-3px);

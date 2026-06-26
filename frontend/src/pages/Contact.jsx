@@ -17,6 +17,7 @@ import {
 
 export default function Contact() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -69,12 +70,17 @@ export default function Contact() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
   e.preventDefault();
 
+  if (isSubmitting) return;
   if (!validateForm()) return;
 
   try {
+    setIsSubmitting(true);
+    setSuccess("");
+    setErrors({});
+
     const response = await submitContactMessage({
       name: formData.name.trim(),
       email: formData.email.trim(),
@@ -84,16 +90,20 @@ export default function Contact() {
 
     setSuccess(response?.message || "Your message has been sent successfully!");
 
-    setFormData({
-      name: "",
-      email: "",
-      subject: "",
-      message: "",
-    });
+    if (!response?.duplicate) {
+      setFormData({
+        name: "",
+        email: "",
+        subject: "",
+        message: "",
+      });
+    }
   } catch (error) {
     setErrors({
       submit: error.message || "Failed to send message. Please try again.",
     });
+  } finally {
+    setIsSubmitting(false);
   }
 };
 
@@ -203,10 +213,10 @@ export default function Contact() {
                 {success && <p className="contact-success">{success}</p>}
                 {errors.submit && <small>{errors.submit}</small>}
 
-                <button type="submit" className="contact-submit">
-                  <FaPaperPlane />
-                  Send Message
-                </button>
+                <button type="submit" className="contact-submit" disabled={isSubmitting}>
+  <FaPaperPlane />
+  {isSubmitting ? "Sending..." : "Send Message"}
+</button>
               </form>
             </div>
 

@@ -17,6 +17,7 @@ export default function Login() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
   const handleChange = (e) => {
@@ -97,17 +98,30 @@ export default function Login() {
               />
             </div>
 
-            <div className="login__field">
-              <label>Password</label>
-              <input
-                type="password"
-                name="password"
-                placeholder="Enter password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-            </div>
+            
+<div className="login__field">
+  <label>Password</label>
+
+  <div className="login__password-wrap">
+    <input
+      type={showPassword ? "text" : "password"}
+      name="password"
+      placeholder="Enter password"
+      value={formData.password}
+      onChange={handleChange}
+      required
+    />
+
+    <button
+      type="button"
+      className="login__password-toggle"
+      onClick={() => setShowPassword((prev) => !prev)}
+      aria-label={showPassword ? "Hide password" : "Show password"}
+    >
+      {showPassword ? "Hide" : "Show"}
+    </button>
+  </div>
+</div>
 
             <div className="login__options">
               <label className="login__remember">

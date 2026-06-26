@@ -20,6 +20,8 @@ export default function SignUp() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
   const handleChange = (e) => {
@@ -173,28 +175,52 @@ export default function SignUp() {
             </div>
 
             <div className="signup__field">
-              <label>Password</label>
-              <input
-                type="password"
-                name="password"
-                placeholder="Create password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-            </div>
+  <label>Password</label>
+
+  <div className="signup__password-wrap">
+    <input
+      type={showPassword ? "text" : "password"}
+      name="password"
+      placeholder="Create password"
+      value={formData.password}
+      onChange={handleChange}
+      required
+    />
+
+    <button
+      type="button"
+      className="signup__password-toggle"
+      onClick={() => setShowPassword((prev) => !prev)}
+      aria-label={showPassword ? "Hide password" : "Show password"}
+    >
+      {showPassword ? "Hide" : "Show"}
+    </button>
+  </div>
+</div>
 
             <div className="signup__field">
-              <label>Confirm Password</label>
-              <input
-                type="password"
-                name="confirmPassword"
-                placeholder="Confirm password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-              />
-            </div>
+  <label>Confirm Password</label>
+
+  <div className="signup__password-wrap">
+    <input
+      type={showConfirmPassword ? "text" : "password"}
+      name="confirmPassword"
+      placeholder="Confirm password"
+      value={formData.confirmPassword}
+      onChange={handleChange}
+      required
+    />
+
+    <button
+      type="button"
+      className="signup__password-toggle"
+      onClick={() => setShowConfirmPassword((prev) => !prev)}
+      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+    >
+      {showConfirmPassword ? "Hide" : "Show"}
+    </button>
+  </div>
+</div>
 
             <button className="signup__btn" disabled={isSubmitting}>
               {isSubmitting ? "Sending OTP..." : "Create Account"}

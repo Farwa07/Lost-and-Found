@@ -206,6 +206,34 @@
   text-decoration: underline;
 }
 
+.login__password-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.login__password-wrap input {
+  width: 100%;
+  padding-right: 78px;
+}
+
+.login__password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #7c3aed;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.login__password-toggle:hover {
+  color: #0ea5e9;
+}
+
 /* RESPONSIVE */
 
 @media (max-width: 900px) {
