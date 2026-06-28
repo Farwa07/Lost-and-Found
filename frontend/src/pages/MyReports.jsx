@@ -8,6 +8,7 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 import CommentsButton from "../components/CommentsButton";
+import ImagePreviewModal from "../components/ImagePreviewModal";
 import { getMyReports, deleteMyReport, updateMyReportStatus, updateMyReport } from "../api/reportApi";
 import {
   getFallbackReportImage,
@@ -154,6 +155,7 @@ export default function MyReports() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [allReports, setAllReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
   const [editingReport, setEditingReport] = useState(null);
   const [editImageFile, setEditImageFile] = useState(null);
   const [message, setMessage] = useState("");
@@ -570,11 +572,14 @@ export default function MyReports() {
                 >
                   <div className="myreports-card__image">
                     <img
+                      className="clickable-report-image"
                       src={report.image}
                       alt={report.title}
+                      title="Click to view full image"
+                      onClick={() => setPreviewImage({ src: report.image, alt: report.title })}
                       onError={(event) => handleReportImageError(event, report.category)}
                     />
-
+  
                     <span
                       className={`myreports-type ${
                         report.type === "Found"
@@ -705,8 +710,11 @@ export default function MyReports() {
                 </button>
 
                 <img
+                  className="clickable-report-image"
                   src={selectedReport.image}
                   alt={selectedReport.title}
+                  title="Click to view full image"
+                  onClick={() => setPreviewImage({ src: selectedReport.image, alt: selectedReport.title })}
                   onError={(event) =>
                     handleReportImageError(event, selectedReport.category)
                   }
@@ -1118,6 +1126,12 @@ export default function MyReports() {
               </div>
             </div>
           )}
+
+          <ImagePreviewModal
+            image={previewImage?.src}
+            alt={previewImage?.alt}
+            onClose={() => setPreviewImage(null)}
+          />
 
           <Footer />
         </main>

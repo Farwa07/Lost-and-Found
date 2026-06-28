@@ -29,6 +29,7 @@ import { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
+import ImagePreviewModal from "../components/ImagePreviewModal";
 
 import {
   FaBan,
@@ -142,6 +143,7 @@ export default function AdminPanel() {
   const [adminLogs, setAdminLogs] = useState([]);
   const [apiMatchSuggestions, setApiMatchSuggestions] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
   const [alertReport, setAlertReport] = useState(null);
   const [showAlertPopup, setShowAlertPopup] = useState(false);
   const [message, setMessage] = useState("");
@@ -784,8 +786,11 @@ export default function AdminPanel() {
       >
         <div className="admin-report-card__image">
           <img
+            className="clickable-report-image"
             src={report.image}
             alt={report.title}
+            title="Click to view full image"
+            onClick={() => setPreviewImage({ src: report.image, alt: report.title })}
             onError={(event) => handleReportImageError(event, report.category)}
           />
 
@@ -912,7 +917,7 @@ export default function AdminPanel() {
               className="admin-action-danger"
               onClick={() => deleteReport(report.id)}
             >
-              <FaTrash /> Delete 
+              <FaTrash /> Delete Fake
             </button>
           </div>
         </div>
@@ -1076,8 +1081,11 @@ export default function AdminPanel() {
     return (
       <div className="admin-match-report">
         <img
+          className="clickable-report-image"
           src={report.image}
           alt={report.title}
+          title="Click to view full image"
+          onClick={() => setPreviewImage({ src: report.image, alt: report.title })}
           onError={(event) => handleReportImageError(event, report.category)}
         />
 
@@ -1402,8 +1410,11 @@ export default function AdminPanel() {
           </button>
 
           <img
+          className="clickable-report-image"
           src={selectedReport.image}
           alt={selectedReport.title}
+          title="Click to view full image"
+          onClick={() => setPreviewImage({ src: selectedReport.image, alt: selectedReport.title })}
           onError={(event) =>
             handleReportImageError(event, selectedReport.category)
           }
@@ -1809,6 +1820,12 @@ export default function AdminPanel() {
 
           {renderDetailsModal()}
           {renderAlertModal()}
+
+          <ImagePreviewModal
+            image={previewImage?.src}
+            alt={previewImage?.alt}
+            onClose={() => setPreviewImage(null)}
+          />
 
           <Footer />
         </main>

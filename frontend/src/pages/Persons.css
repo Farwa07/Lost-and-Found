@@ -240,7 +240,8 @@
 .details-modal img{
   width:100%;
   height:280px;
-  object-fit:cover;
+  object-fit:contain;
+  background:#0f172a;
   border-radius:18px;
   margin-bottom:18px;
 }

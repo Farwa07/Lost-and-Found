@@ -6,6 +6,7 @@ import Sidebar from "../components/Sidebar";
 import HeroSection from "../components/HeroSection";
 import CommentsButton from "../components/CommentsButton";
 import ReportPostButton from "../components/ReportPostButton";
+import ImagePreviewModal from "../components/ImagePreviewModal";
 
 import {
   FaSearch,
@@ -38,6 +39,7 @@ export default function Home() {
   const [homeReports, setHomeReports] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [previewImage, setPreviewImage] = useState(null);
 
   const navigate = useNavigate();
 
@@ -213,8 +215,11 @@ export default function Home() {
                   </div>
 
                   <img
+                    className="clickable-report-image"
                     src={report.image}
                     alt={report.title}
+                    title="Click to view full image"
+                    onClick={() => setPreviewImage({ src: report.image, alt: report.title })}
                     onError={(event) =>
                       handleHomeReportImageError(event, report.category)
                     }
@@ -282,8 +287,11 @@ export default function Home() {
                 </button>
 
                 <img
+                  className="clickable-report-image"
                   src={selectedReport.image}
                   alt={selectedReport.title}
+                  title="Click to view full image"
+                  onClick={() => setPreviewImage({ src: selectedReport.image, alt: selectedReport.title })}
                   onError={(event) =>
                     handleHomeReportImageError(event, selectedReport.category)
                   }
@@ -412,6 +420,12 @@ export default function Home() {
               </div>
             </div>
           )}
+
+          <ImagePreviewModal
+            image={previewImage?.src}
+            alt={previewImage?.alt}
+            onClose={() => setPreviewImage(null)}
+          />
 
           <Footer />
         </main>

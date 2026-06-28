@@ -86,7 +86,7 @@
   padding: 0 7px;
 
   border-radius: 999px;
-  background: #ef4444;
+  background: #22c55e;
   color: white;
 
   display: inline-flex;
@@ -97,12 +97,12 @@
   font-weight: 800;
   line-height: 1;
 
-  box-shadow: 0 6px 14px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 6px 14px rgba(34, 197, 94, 0.32);
 }
 
 .sidebar__link--active .sidebar__notification-badge {
-  background: white;
-  color: #ef4444;
+  background: #22c55e;
+  color: white;
 }
 
 .sidebar__link:hover {

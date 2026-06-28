@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./LostItem.css";
 import { createLostItemReport } from "../api/reportApi";
+import { useAuth } from "../context/AuthContext";
+import { applyReporterFields, getReporterFieldsFromUser, normalizeEmail } from "../utils/reporterInfo";
 
 import { FaBoxOpen, FaUpload, FaIdCard } from "react-icons/fa";
 
@@ -137,8 +139,21 @@ const inferCity = (...values) => {
 };
 
 const LostItem = () => {
-  const [formData, setFormData] = useState(initialState);
+  const { currentUser } = useAuth();
+  const [formData, setFormData] = useState(() => applyReporterFields(initialState, currentUser));
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const reporterDefaults = useMemo(
+    () => getReporterFieldsFromUser(currentUser),
+    [currentUser]
+  );
+
+  useEffect(() => {
+    setFormData((previousData) => ({
+      ...previousData,
+      ...reporterDefaults,
+    }));
+  }, [reporterDefaults]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -166,6 +181,22 @@ const LostItem = () => {
       return;
     }
 
+    const loggedInEmail = normalizeEmail(currentUser?.email || "");
+
+    if (!loggedInEmail) {
+      alert("Please login again before submitting a report.");
+      return;
+    }
+
+    if (normalizeEmail(formData.reporterEmail) !== loggedInEmail) {
+      alert("Reporter email must match your logged-in account email.");
+      setFormData((previousData) => ({
+        ...previousData,
+        reporterEmail: loggedInEmail,
+      }));
+      return;
+    }
+
     const formElement = e.currentTarget;
 
     try {
@@ -190,7 +221,7 @@ const LostItem = () => {
         "reporterContactNumber",
         formData.reporterContactNumber.trim()
       );
-      payload.append("reporterEmail", formData.reporterEmail.trim());
+      payload.append("reporterEmail", normalizeEmail(currentUser?.email || formData.reporterEmail));
       payload.append("reporterAddress", formData.reporterAddress.trim());
 
       if (formData.lostItemImage) {
@@ -210,7 +241,7 @@ const LostItem = () => {
           "Lost Item Report Submitted Successfully! It is now pending admin verification."
       );
 
-      setFormData(initialState);
+      setFormData(applyReporterFields(initialState, currentUser));
       formElement.reset();
     } catch (error) {
       console.error("Lost Item Submit Error:", error);
@@ -384,6 +415,9 @@ const LostItem = () => {
                   placeholder="Enter reporter email"
                   value={formData.reporterEmail}
                   onChange={handleChange}
+                  readOnly
+                  autoComplete="email"
+                  title="Reporter email is locked to your logged-in account email"
                   required
                 />
               </div>

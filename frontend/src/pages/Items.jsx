@@ -18,6 +18,7 @@ import {
 import "./Items.css";
 import CommentsButton from "../components/CommentsButton";
 import ReportPostButton from "../components/ReportPostButton";
+import ImagePreviewModal from "../components/ImagePreviewModal";
 import { getPublicItemReports } from "../api/reportApi";
 import { getFallbackReportImage, normalizeItemReport } from "../utils/reportMapper";
 
@@ -56,6 +57,7 @@ export default function Items() {
   const [categories, setCategories] = useState(defaultCategories);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [previewImage, setPreviewImage] = useState(null);
 
   useEffect(() => {
     let ignore = false;
@@ -210,8 +212,11 @@ export default function Items() {
                 </span>
 
                 <img
+                  className="clickable-report-image"
                   src={item.image}
                   alt={item.itemName}
+                  title="Click to view full image"
+                  onClick={() => setPreviewImage({ src: item.image, alt: item.itemName })}
                   onError={handleItemImageError}
                 />
 
@@ -287,8 +292,11 @@ export default function Items() {
                 </button>
 
                 <img
+                  className="clickable-report-image"
                   src={selectedItem.image}
                   alt={selectedItem.itemName}
+                  title="Click to view full image"
+                  onClick={() => setPreviewImage({ src: selectedItem.image, alt: selectedItem.itemName })}
                   onError={handleItemImageError}
                 />
 
@@ -370,6 +378,12 @@ export default function Items() {
               </div>
             </div>
           )}
+
+          <ImagePreviewModal
+            image={previewImage?.src}
+            alt={previewImage?.alt}
+            onClose={() => setPreviewImage(null)}
+          />
 
           <Footer />
         </main>

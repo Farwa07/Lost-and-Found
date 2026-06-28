@@ -23,6 +23,44 @@ const getCity = (city, location = "") => {
   return parts.length > 0 ? parts[parts.length - 1] : "";
 };
 
+const normalizeEmail = (email = "") => String(email || "").trim().toLowerCase();
+
+const sendErrorResponse = (res, error) => {
+  return res.status(error.statusCode || 500).json({
+    message: error.message,
+  });
+};
+
+const getAuthenticatedReporter = async (req) => {
+  const user = await User.findById(req.user.id).select("fullName email phone address city");
+
+  if (!user) {
+    const error = new Error("Logged-in user not found. Please login again.");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const loggedInEmail = normalizeEmail(user.email);
+  const submittedEmail = normalizeEmail(req.body.reporterEmail);
+
+  if (submittedEmail && submittedEmail !== loggedInEmail) {
+    const error = new Error("Reporter email must match the logged-in account email.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    reporterFullName: user.fullName || String(req.body.reporterFullName || "").trim(),
+    reporterContactNumber: user.phone || String(req.body.reporterContactNumber || "").trim(),
+    reporterEmail: loggedInEmail,
+    reporterAddress:
+      user.address ||
+      String(req.body.reporterAddress || "").trim() ||
+      user.city ||
+      "",
+  };
+};
+
 const escapeRegex = (value = "") => {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
@@ -210,6 +248,8 @@ const createLostItemReport = async (req, res) => {
       reporterAddress,
     } = req.body;
 
+    const reporter = await getAuthenticatedReporter(req);
+
     const newReport = new Report({
       userId: req.user ? req.user.id : null,
       reportType: "lost",
@@ -224,10 +264,7 @@ const createLostItemReport = async (req, res) => {
       lostDate,
       itemDescription,
 
-      reporterFullName,
-      reporterContactNumber,
-      reporterEmail,
-      reporterAddress,
+      ...reporter,
 
       lostItemImage: req.files?.lostItemImage
         ? getImageUrl(req, req.files.lostItemImage[0].path)
@@ -245,9 +282,7 @@ const createLostItemReport = async (req, res) => {
       report: newReport,
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    sendErrorResponse(res, error);
   }
 };
 
@@ -270,6 +305,8 @@ const createFoundItemReport = async (req, res) => {
       reporterAddress,
     } = req.body;
 
+    const reporter = await getAuthenticatedReporter(req);
+
     const newReport = new Report({
       userId: req.user ? req.user.id : null,
       reportType: "found",
@@ -285,10 +322,7 @@ const createFoundItemReport = async (req, res) => {
       currentLocation,
       itemDescription,
 
-      reporterFullName,
-      reporterContactNumber,
-      reporterEmail,
-      reporterAddress,
+      ...reporter,
 
       foundItemImage: req.files?.foundItemImage
         ? getImageUrl(req, req.files.foundItemImage[0].path)
@@ -306,9 +340,7 @@ const createFoundItemReport = async (req, res) => {
       report: newReport,
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    sendErrorResponse(res, error);
   }
 };
 
@@ -330,6 +362,8 @@ const createMissingPersonReport = async (req, res) => {
       reporterRelationship,
     } = req.body;
 
+    const reporter = await getAuthenticatedReporter(req);
+
     const newReport = new Report({
       userId: req.user ? req.user.id : null,
       reportType: "lost",
@@ -343,10 +377,7 @@ const createMissingPersonReport = async (req, res) => {
       missingPersonLastSeenDate,
       missingPersonDescription,
 
-      reporterFullName,
-      reporterContactNumber,
-      reporterEmail,
-      reporterAddress,
+      ...reporter,
       reporterRelationship,
 
       missingPersonImage: req.files?.missingPersonImage
@@ -369,9 +400,7 @@ const createMissingPersonReport = async (req, res) => {
       report: newReport,
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    sendErrorResponse(res, error);
   }
 };
 
@@ -394,6 +423,8 @@ const createFoundPersonReport = async (req, res) => {
       reporterRelationship,
     } = req.body;
 
+    const reporter = await getAuthenticatedReporter(req);
+
     const newReport = new Report({
       userId: req.user ? req.user.id : null,
       reportType: "found",
@@ -408,10 +439,7 @@ const createFoundPersonReport = async (req, res) => {
       currentLocation,
       foundPersonDescription,
 
-      reporterFullName,
-      reporterContactNumber,
-      reporterEmail,
-      reporterAddress,
+      ...reporter,
       reporterRelationship,
 
       foundPersonImage: req.files?.foundPersonImage
@@ -430,9 +458,7 @@ const createFoundPersonReport = async (req, res) => {
       report: newReport,
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    sendErrorResponse(res, error);
   }
 };
 
@@ -492,9 +518,7 @@ const getReportById = async (req, res) => {
       report,
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    sendErrorResponse(res, error);
   }
 };
 
@@ -510,9 +534,7 @@ const getMyReports = async (req, res) => {
       reports,
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    sendErrorResponse(res, error);
   }
 };
 
@@ -587,9 +609,7 @@ const reportPost = async (req, res) => {
       report: updatedReport,
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    sendErrorResponse(res, error);
   }
 };
 
@@ -611,9 +631,7 @@ const deleteMyReport = async (req, res) => {
       message: "Report deleted successfully",
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    sendErrorResponse(res, error);
   }
 };
 
@@ -655,9 +673,7 @@ const updateMyReportStatus = async (req, res) => {
       report,
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    sendErrorResponse(res, error);
   }
 };
 
@@ -677,6 +693,12 @@ const updateMyReport = async (req, res) => {
     delete updateData.matchedFields;
     delete updateData.matchedAt;
     delete updateData.matchedBy;
+
+    const reporter = await getAuthenticatedReporter(req);
+    updateData.reporterFullName = reporter.reporterFullName;
+    updateData.reporterContactNumber = reporter.reporterContactNumber;
+    updateData.reporterEmail = reporter.reporterEmail;
+    updateData.reporterAddress = reporter.reporterAddress;
 
     const imageFieldNames = [
       "lostItemImage",
@@ -714,9 +736,7 @@ const updateMyReport = async (req, res) => {
       report,
     });
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    sendErrorResponse(res, error);
   }
 };
 

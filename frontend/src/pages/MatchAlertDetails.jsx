@@ -6,6 +6,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
+import ImagePreviewModal from "../components/ImagePreviewModal";
 
 import {
   FaArrowLeft,
@@ -265,6 +266,7 @@ export default function MatchAlertDetails() {
   const [match, setMatch] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [previewImage, setPreviewImage] = useState(null);
 
   useEffect(() => {
     const loadMatch = async () => {
@@ -295,7 +297,13 @@ export default function MatchAlertDetails() {
       <article className="match-alert-case-card">
         <div className="match-alert-case-image">
           {report.image ? (
-            <img src={report.image} alt={report.title} />
+            <img
+              className="clickable-report-image"
+              src={report.image}
+              alt={report.title}
+              title="Click to view full image"
+              onClick={() => setPreviewImage({ src: report.image, alt: report.title })}
+            />
           ) : (
             <div className="match-alert-empty-image">No Image</div>
           )}
@@ -531,6 +539,12 @@ export default function MatchAlertDetails() {
               </button>
             </section>
           )}
+
+          <ImagePreviewModal
+            image={previewImage?.src}
+            alt={previewImage?.alt}
+            onClose={() => setPreviewImage(null)}
+          />
 
           <Footer />
         </main>

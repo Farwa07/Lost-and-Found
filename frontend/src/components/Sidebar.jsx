@@ -34,8 +34,9 @@ export default function Sidebar({ open }) {
 
     try {
       const response = await getNotificationSummary();
-      const unreadCount = Number(response?.counts?.unread || 0);
-      setUnreadNotificationCount(unreadCount);
+      const summary = response?.summary || response?.counts || {};
+      const unreadCount = Number(summary?.unread ?? response?.unread ?? 0);
+      setUnreadNotificationCount(Number.isFinite(unreadCount) ? unreadCount : 0);
     } catch (error) {
       setUnreadNotificationCount(0);
     }

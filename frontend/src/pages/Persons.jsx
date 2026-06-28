@@ -15,6 +15,7 @@ import {
 import "./Persons.css";
 import CommentsButton from "../components/CommentsButton";
 import ReportPostButton from "../components/ReportPostButton";
+import ImagePreviewModal from "../components/ImagePreviewModal";
 import { getPublicPersonReports } from "../api/reportApi";
 import { getFallbackReportImage, normalizePersonReport } from "../utils/reportMapper";
 
@@ -37,6 +38,7 @@ export default function Persons() {
   const [cities, setCities] = useState(["All"]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [previewImage, setPreviewImage] = useState(null);
 
   const navigate = useNavigate();
 
@@ -194,8 +196,11 @@ export default function Persons() {
                   </span>
 
                   <img
+                    className="clickable-report-image"
                     src={person.image}
                     alt={person.name}
+                    title="Click to view full image"
+                    onClick={() => setPreviewImage({ src: person.image, alt: person.name })}
                     onError={handlePersonImageError}
                   />
 
@@ -266,8 +271,11 @@ export default function Persons() {
                 </button>
 
                 <img
+                  className="clickable-report-image"
                   src={selectedPerson.image}
                   alt={selectedPerson.name}
+                  title="Click to view full image"
+                  onClick={() => setPreviewImage({ src: selectedPerson.image, alt: selectedPerson.name })}
                   onError={handlePersonImageError}
                 />
 
@@ -360,6 +368,12 @@ export default function Persons() {
               </div>
             </div>
           )}
+
+          <ImagePreviewModal
+            image={previewImage?.src}
+            alt={previewImage?.alt}
+            onClose={() => setPreviewImage(null)}
+          />
 
           <Footer />
         </main>
