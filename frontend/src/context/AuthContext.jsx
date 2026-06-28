@@ -28,8 +28,19 @@ const toFrontendStatus = (status = "active") => {
   return String(status).toLowerCase() === "blocked" ? "Blocked" : "Active";
 };
 
+const toBackendRole = (role = "user") => {
+  return String(role).trim().toLowerCase() === "admin" ? "admin" : "user";
+};
+
+const toBackendStatus = (status = "active") => {
+  return String(status).trim().toLowerCase() === "blocked" ? "blocked" : "active";
+};
+
 const normalizeBackendUser = (user = {}) => {
   if (!user) return null;
+
+  const rawRole = user.backendRole || user.role || "user";
+  const rawStatus = user.backendStatus || user.status || "active";
 
   return {
     id: user.id || user._id || "",
@@ -41,10 +52,10 @@ const normalizeBackendUser = (user = {}) => {
     address: user.address || "",
     bio: user.bio || "",
     profileImage: user.profileImage || "",
-    role: toFrontendRole(user.role),
-    backendRole: user.role || "user",
-    status: toFrontendStatus(user.status),
-    backendStatus: user.status || "active",
+    role: toFrontendRole(rawRole),
+    backendRole: toBackendRole(rawRole),
+    status: toFrontendStatus(rawStatus),
+    backendStatus: toBackendStatus(rawStatus),
     joinedAt: user.createdAt || user.joinedAt || "",
   };
 };
@@ -67,6 +78,8 @@ const writeCurrentUser = (user, token = localStorage.getItem(AUTH_TOKEN_KEY)) =>
       profileImage: user.profileImage,
       role: user.role,
       status: user.status,
+      backendRole: user.backendRole,
+backendStatus: user.backendStatus,
     })
   );
 
@@ -238,7 +251,13 @@ export function AuthProvider({ children }) {
 
   const isRegistered = Boolean(registeredUser);
   const isLoggedIn = Boolean(authToken && currentUser);
-  const isAdmin = Boolean(isLoggedIn && currentUser?.role === "Admin");
+ const isAdmin = Boolean(
+  isLoggedIn &&
+    (
+      String(currentUser?.role || "").trim().toLowerCase() === "admin" ||
+      String(currentUser?.backendRole || "").trim().toLowerCase() === "admin"
+    )
+);
 
   const authValue = useMemo(
     () => ({
