@@ -75,29 +75,31 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
       return;
     }
 
+    const userData = {
+      fullName: formData.fullName.trim(),
+      email: cleanEmail,
+      phone: formData.phone.trim(),
+      password: formData.password,
+    };
+
     const pendingSignup = {
-      userData: {
-        fullName: formData.fullName.trim(),
-        email: cleanEmail,
-        phone: formData.phone.trim(),
-        password: formData.password,
-      },
+      email: cleanEmail,
       expiresAt: Date.now() + 5 * 60 * 1000,
     };
 
     setIsSubmitting(true);
 
     try {
-      await sendSignupOtp(pendingSignup.userData);
+      await sendSignupOtp(userData);
 
-      localStorage.setItem("lostFoundPendingSignup", JSON.stringify(pendingSignup));
+      sessionStorage.setItem("lostFoundPendingSignup", JSON.stringify(pendingSignup));
 
       setMessage({
         type: "success",
         text: "OTP sent successfully. Please verify your email.",
       });
 
-      navigate("/verify-otp", { state: { email: cleanEmail } });
+      navigate("/verify-otp", { state: { email: cleanEmail, userData } });
     } catch (error) {
       setMessage({
         type: "error",

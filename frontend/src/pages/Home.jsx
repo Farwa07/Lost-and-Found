@@ -246,7 +246,7 @@ export default function Home() {
   reportId={report.id}
   reportTitle={report.title}
   initialComments={report.comments || []}
-  currentUser="John Doe"
+  currentUser="User"
 />
 
                       <ReportPostButton report={report} />

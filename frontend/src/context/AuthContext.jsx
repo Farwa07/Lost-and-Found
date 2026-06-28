@@ -1,40 +1,26 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { loginUser as loginUserApi, getProfile as getProfileApi } from "../api/authApi";
+import { getProfile as getProfileApi, loginUser as loginUserApi } from "../api/authApi";
 import { setToken as saveApiToken } from "../api/apiClient";
 
 const AuthContext = createContext();
 
-const REGISTERED_USER_KEY = "lostFoundRegisteredUser";
-const USERS_KEY = "lostFoundUsers";
-const CURRENT_USER_KEY = "lostFoundCurrentUser";
 const AUTH_TOKEN_KEY = "lostFoundAuthToken";
-const PROFILE_DATA_KEY = "lostFoundProfileData";
-
-const safeParse = (value, fallback = null) => {
-  try {
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-};
 
 const normalizeEmail = (email = "") => String(email).trim().toLowerCase();
 
-const toFrontendRole = (role = "user") => {
-  return String(role).toLowerCase() === "admin" ? "Admin" : "Registered User";
-};
+const toBackendRole = (role = "user") =>
+  String(role).trim().toLowerCase() === "admin" ? "admin" : "user";
 
-const toFrontendStatus = (status = "active") => {
-  return String(status).toLowerCase() === "blocked" ? "Blocked" : "Active";
-};
+const toFrontendRole = (role = "user") =>
+  toBackendRole(role) === "admin" ? "Admin" : "Registered User";
 
-const toBackendRole = (role = "user") => {
-  return String(role).trim().toLowerCase() === "admin" ? "admin" : "user";
-};
+const toBackendStatus = (status = "active") =>
+  String(status).trim().toLowerCase() === "blocked" ? "blocked" : "active";
 
-const toBackendStatus = (status = "active") => {
-  return String(status).trim().toLowerCase() === "blocked" ? "blocked" : "active";
-};
+const toFrontendStatus = (status = "active") =>
+  toBackendStatus(status) === "blocked" ? "Blocked" : "Active";
+
+const getUserFromResponse = (response) => response?.user || response?.data || response || null;
 
 const normalizeBackendUser = (user = {}) => {
   if (!user) return null;
@@ -60,128 +46,76 @@ const normalizeBackendUser = (user = {}) => {
   };
 };
 
-const writeCurrentUser = (user, token = localStorage.getItem(AUTH_TOKEN_KEY)) => {
-  if (!user) return;
-
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-  localStorage.setItem(REGISTERED_USER_KEY, JSON.stringify(user));
-  localStorage.setItem(
-    PROFILE_DATA_KEY,
-    JSON.stringify({
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      city: user.city,
-      address: user.address,
-      bio: user.bio,
-      profileImage: user.profileImage,
-      role: user.role,
-      status: user.status,
-      backendRole: user.backendRole,
-backendStatus: user.backendStatus,
-    })
-  );
-
-  const users = safeParse(localStorage.getItem(USERS_KEY), []);
-  const validUsers = Array.isArray(users) ? users : [];
-  const exists = validUsers.some(
-    (item) => normalizeEmail(item.email) === normalizeEmail(user.email)
-  );
-
-  const nextUsers = exists
-    ? validUsers.map((item) =>
-        normalizeEmail(item.email) === normalizeEmail(user.email)
-          ? { ...item, ...user }
-          : item
-      )
-    : [user, ...validUsers];
-
-  localStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
-
-  if (token) {
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
-  }
-};
-
 export function AuthProvider({ children }) {
-  const [registeredUser, setRegisteredUser] = useState(() =>
-    safeParse(localStorage.getItem(REGISTERED_USER_KEY))
-  );
-  const [users, setUsers] = useState(() =>
-    safeParse(localStorage.getItem(USERS_KEY), []) || []
-  );
-  const [currentUser, setCurrentUser] = useState(() =>
-    safeParse(localStorage.getItem(CURRENT_USER_KEY))
-  );
   const [authToken, setAuthToken] = useState(
     () => localStorage.getItem(AUTH_TOKEN_KEY) || ""
   );
-  const [authLoading, setAuthLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(() => Boolean(localStorage.getItem(AUTH_TOKEN_KEY)));
 
-  const refreshStorageState = () => {
-    setRegisteredUser(safeParse(localStorage.getItem(REGISTERED_USER_KEY)));
-    setUsers(safeParse(localStorage.getItem(USERS_KEY), []) || []);
-    setCurrentUser(safeParse(localStorage.getItem(CURRENT_USER_KEY)));
-    setAuthToken(localStorage.getItem(AUTH_TOKEN_KEY) || "");
+  const loadProfile = async (token = localStorage.getItem(AUTH_TOKEN_KEY) || "") => {
+    if (!token) {
+      setCurrentUser(null);
+      setAuthToken("");
+      setAuthLoading(false);
+      return null;
+    }
+
+    try {
+      setAuthLoading(true);
+      const data = await getProfileApi();
+      const normalizedUser = normalizeBackendUser(getUserFromResponse(data));
+      setCurrentUser(normalizedUser);
+      setAuthToken(token);
+      return normalizedUser;
+    } catch (error) {
+      saveApiToken("");
+      setAuthToken("");
+      setCurrentUser(null);
+      return null;
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   useEffect(() => {
-    window.addEventListener("authChanged", refreshStorageState);
-    window.addEventListener("storage", refreshStorageState);
-
-    return () => {
-      window.removeEventListener("authChanged", refreshStorageState);
-      window.removeEventListener("storage", refreshStorageState);
-    };
+    loadProfile(authToken);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    const handleAuthChanged = () => {
+      const token = localStorage.getItem(AUTH_TOKEN_KEY) || "";
+      setAuthToken(token);
+      loadProfile(token);
+    };
 
-    if (!token || currentUser) return;
-
-    let mounted = true;
-
-    const loadProfile = async () => {
-      try {
-        const data = await getProfileApi();
-        const normalizedUser = normalizeBackendUser(data.user);
-
-        if (!mounted || !normalizedUser) return;
-
-        writeCurrentUser(normalizedUser, token);
-        refreshStorageState();
-      } catch {
-        saveApiToken("");
-        localStorage.removeItem(CURRENT_USER_KEY);
-        localStorage.removeItem(REGISTERED_USER_KEY);
-        localStorage.removeItem(PROFILE_DATA_KEY);
-        refreshStorageState();
+    const handleStorage = (event) => {
+      if (!event.key || event.key === AUTH_TOKEN_KEY) {
+        handleAuthChanged();
       }
     };
 
-    loadProfile();
+    window.addEventListener("authChanged", handleAuthChanged);
+    window.addEventListener("storage", handleStorage);
 
     return () => {
-      mounted = false;
+      window.removeEventListener("authChanged", handleAuthChanged);
+      window.removeEventListener("storage", handleStorage);
     };
-  }, [currentUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const login = async (email, password) => {
     setAuthLoading(true);
 
     try {
       const data = await loginUserApi({ email, password });
-      const normalizedUser = normalizeBackendUser(data.user);
+      const normalizedUser = normalizeBackendUser(getUserFromResponse(data));
 
       saveApiToken(data.token);
-      writeCurrentUser(normalizedUser, data.token);
-
       setAuthToken(data.token || "");
       setCurrentUser(normalizedUser);
-      setRegisteredUser(normalizedUser);
-      setUsers(safeParse(localStorage.getItem(USERS_KEY), []) || []);
 
       window.dispatchEvent(new Event("authChanged"));
       window.dispatchEvent(new Event("profileUpdated"));
@@ -204,65 +138,62 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     saveApiToken("");
-    localStorage.removeItem(CURRENT_USER_KEY);
-
     setAuthToken("");
     setCurrentUser(null);
-
     window.dispatchEvent(new Event("authChanged"));
   };
 
-  const updateUserInList = (updatedUserData) => {
-    const updatedUser = {
+  const updateUserInList = (updatedUserData = {}) => {
+    const normalizedUser = normalizeBackendUser({
       ...(currentUser || {}),
       ...updatedUserData,
-      email: normalizeEmail(updatedUserData.email || currentUser?.email || ""),
-    };
-
-    writeCurrentUser(updatedUser, authToken);
-    refreshStorageState();
-    window.dispatchEvent(new Event("authChanged"));
-    window.dispatchEvent(new Event("profileUpdated"));
-
-    return updatedUser;
-  };
-
-  const register = (userData) => {
-    const normalizedUser = normalizeBackendUser({
-      ...userData,
-      role: userData.role || "user",
-      status: userData.status || "active",
+      email: updatedUserData.email || currentUser?.email || "",
+      backendRole:
+        updatedUserData.backendRole ||
+        updatedUserData.role ||
+        currentUser?.backendRole ||
+        currentUser?.role ||
+        "user",
+      backendStatus:
+        updatedUserData.backendStatus ||
+        updatedUserData.status ||
+        currentUser?.backendStatus ||
+        currentUser?.status ||
+        "active",
     });
 
-    writeCurrentUser(normalizedUser, authToken);
-    refreshStorageState();
-    window.dispatchEvent(new Event("authChanged"));
+    setCurrentUser(normalizedUser);
+    window.dispatchEvent(new Event("profileUpdated"));
 
     return normalizedUser;
   };
 
+  const register = (userData) => normalizeBackendUser(userData);
+
   const findUserByEmail = (email) => {
     const cleanEmail = normalizeEmail(email);
-    return (
-      users.find((user) => normalizeEmail(user.email) === cleanEmail) ||
-      (normalizeEmail(registeredUser?.email) === cleanEmail ? registeredUser : null)
-    );
+
+    if (normalizeEmail(currentUser?.email) === cleanEmail) {
+      return currentUser;
+    }
+
+    return null;
   };
 
-  const isRegistered = Boolean(registeredUser);
-  const isLoggedIn = Boolean(authToken && currentUser);
- const isAdmin = Boolean(
-  isLoggedIn &&
-    (
-      String(currentUser?.role || "").trim().toLowerCase() === "admin" ||
-      String(currentUser?.backendRole || "").trim().toLowerCase() === "admin"
-    )
-);
+  const isRegistered = Boolean(authToken || currentUser);
+  const isLoggedIn = Boolean(authToken);
+  const isAdmin = Boolean(
+    isLoggedIn &&
+      (
+        String(currentUser?.backendRole || "").trim().toLowerCase() === "admin" ||
+        String(currentUser?.role || "").trim().toLowerCase() === "admin"
+      )
+  );
 
   const authValue = useMemo(
     () => ({
-      registeredUser,
-      users,
+      registeredUser: currentUser,
+      users: currentUser ? [currentUser] : [],
       currentUser,
       authToken,
       authLoading,
@@ -275,17 +206,9 @@ export function AuthProvider({ children }) {
       findUserByEmail,
       updateUserInList,
       normalizeBackendUser,
+      refreshProfile: loadProfile,
     }),
-    [
-      registeredUser,
-      users,
-      currentUser,
-      authToken,
-      authLoading,
-      isRegistered,
-      isLoggedIn,
-      isAdmin,
-    ]
+    [currentUser, authToken, authLoading, isRegistered, isLoggedIn, isAdmin]
   );
 
   return <AuthContext.Provider value={authValue}>{children}</AuthContext.Provider>;

@@ -31,7 +31,7 @@ const reportMatchSchema = new mongoose.Schema(
 
     threshold: {
       type: Number,
-      default: 60,
+      default: 55,
     },
 
     status: {

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getNotificationSummary } from "../api/notificationApi";
-import { getProfile } from "../api/authApi";
 
 import {
   FaTachometerAlt,
@@ -17,70 +16,15 @@ import {
   FaUserShield,
 } from "react-icons/fa";
 
-const CURRENT_USER_KEY = "lostFoundCurrentUser";
-
-const safeParse = (value, fallback = null) => {
-  try {
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const normalizeUser = (user = {}) => ({
-  ...(user || {}),
-  id: user.id || user._id || "",
-  _id: user._id || user.id || "",
-  fullName: user.fullName || user.name || "User",
-  email: user.email || "",
-  profileImage: user.profileImage || "",
-});
-
 export default function Sidebar({ open }) {
   const { isLoggedIn, isAdmin, currentUser } = useAuth();
   const location = useLocation();
 
-  const [profileImage, setProfileImage] = useState("");
-  const [profileName, setProfileName] = useState("User");
+  const [profileImage, setProfileImage] = useState(currentUser?.profileImage || "");
+  const [profileName, setProfileName] = useState(
+    currentUser?.fullName || currentUser?.name || "User"
+  );
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-
-  const applyUserToSidebar = useCallback((user) => {
-    const normalizedUser = normalizeUser(user);
-
-    setProfileImage(normalizedUser.profileImage || "");
-    setProfileName(normalizedUser.fullName || "User");
-  }, []);
-
-  const loadProfileData = useCallback(async () => {
-    if (!isLoggedIn) return;
-
-    const storedUser = safeParse(localStorage.getItem(CURRENT_USER_KEY));
-
-    if (storedUser) {
-      applyUserToSidebar(storedUser);
-    } else if (currentUser) {
-      applyUserToSidebar(currentUser);
-    }
-
-    try {
-      const response = await getProfile();
-      const backendUser = response?.user || response?.data || response;
-
-      if (backendUser) {
-        const normalizedUser = normalizeUser(backendUser);
-
-        applyUserToSidebar(normalizedUser);
-
-        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(normalizedUser));
-
-        
-      }
-    } catch (error) {
-      if (currentUser) {
-        applyUserToSidebar(currentUser);
-      }
-    }
-  }, [isLoggedIn, currentUser, applyUserToSidebar]);
 
   const loadNotificationBadge = useCallback(async () => {
     if (!isLoggedIn) {
@@ -92,31 +36,36 @@ export default function Sidebar({ open }) {
       const response = await getNotificationSummary();
       const unreadCount = Number(response?.counts?.unread || 0);
       setUnreadNotificationCount(unreadCount);
-    } catch {
+    } catch (error) {
       setUnreadNotificationCount(0);
     }
   }, [isLoggedIn]);
+
+  const loadProfileData = () => {
+    setProfileImage(currentUser?.profileImage || "");
+    setProfileName(currentUser?.fullName || currentUser?.name || "User");
+  };
 
   useEffect(() => {
     loadProfileData();
 
     window.addEventListener("profileUpdated", loadProfileData);
     window.addEventListener("authChanged", loadProfileData);
-    window.addEventListener("storage", loadProfileData);
 
     return () => {
       window.removeEventListener("profileUpdated", loadProfileData);
       window.removeEventListener("authChanged", loadProfileData);
-      window.removeEventListener("storage", loadProfileData);
     };
-  }, [loadProfileData]);
+  }, [currentUser]);
 
   useEffect(() => {
     loadNotificationBadge();
   }, [loadNotificationBadge, location.pathname]);
 
   useEffect(() => {
-    if (!isLoggedIn) return undefined;
+    if (!isLoggedIn) {
+      return undefined;
+    }
 
     const handleNotificationUpdate = () => {
       loadNotificationBadge();
@@ -128,10 +77,7 @@ export default function Sidebar({ open }) {
     const intervalId = window.setInterval(handleNotificationUpdate, 30000);
 
     return () => {
-      window.removeEventListener(
-        "lostFoundNotificationsUpdated",
-        handleNotificationUpdate
-      );
+      window.removeEventListener("lostFoundNotificationsUpdated", handleNotificationUpdate);
       window.removeEventListener("focus", handleNotificationUpdate);
       window.clearInterval(intervalId);
     };
@@ -185,7 +131,6 @@ export default function Sidebar({ open }) {
         <NavLink to="/notifications" className={getLinkClass}>
           <FaBell />
           <span className="sidebar__link-text">Notifications</span>
-
           {unreadNotificationCount > 0 && (
             <span
               className="sidebar__notification-badge"
@@ -212,7 +157,7 @@ export default function Sidebar({ open }) {
             {profileImage ? <img src={profileImage} alt="Profile" /> : initials}
           </div>
 
-          <div className="sidebar__profile-info">
+          <div>
             <h4>{profileName}</h4>
             <p>View Profile</p>
           </div>

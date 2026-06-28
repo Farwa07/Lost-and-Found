@@ -9,7 +9,6 @@ import {
   FaIdCard,
 } from "react-icons/fa";
 
-const REPORTS_KEY = "lostFoundReports";
 
 const cityOptions = [
   "Lahore",
@@ -128,66 +127,6 @@ const inferCity = (...values) => {
   }
 
   return "Unknown";
-};
-
-const readReports = () => {
-  try {
-    const savedReports = localStorage.getItem(REPORTS_KEY);
-    const parsedReports = savedReports ? JSON.parse(savedReports) : [];
-
-    return Array.isArray(parsedReports) ? parsedReports : [];
-  } catch {
-    return [];
-  }
-};
-
-const writeReports = (nextReports) => {
-  localStorage.setItem(REPORTS_KEY, JSON.stringify(nextReports));
-  window.dispatchEvent(new Event("lostFoundReportsUpdated"));
-};
-
-const getCurrentUser = () => {
-  try {
-    const currentUser = localStorage.getItem("lostFoundCurrentUser");
-    const registeredUser = localStorage.getItem("lostFoundRegisteredUser");
-
-    if (currentUser) {
-      return JSON.parse(currentUser);
-    }
-
-    if (registeredUser) {
-      return JSON.parse(registeredUser);
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-};
-
-const fileToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    if (!file) {
-      resolve("");
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      resolve(reader.result);
-    };
-
-    reader.onerror = () => {
-      reject(new Error("File could not be read"));
-    };
-
-    reader.readAsDataURL(file);
-  });
-};
-
-const createReportId = () => {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
 const FoundItem = () => {

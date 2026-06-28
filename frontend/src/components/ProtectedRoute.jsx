@@ -8,7 +8,11 @@ export default function ProtectedRoute({
 }) {
   const location = useLocation();
 
-  const { isLoggedIn, isRegistered, currentUser, isAdmin } = useAuth();
+  const { isLoggedIn, isRegistered, currentUser, isAdmin, authLoading } = useAuth();
+
+  if (authLoading) {
+    return null;
+  }
 
   if (!isRegistered && !isLoggedIn) {
     return (

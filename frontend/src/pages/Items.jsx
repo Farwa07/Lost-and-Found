@@ -246,7 +246,7 @@ export default function Items() {
   reportId={item.id}
   reportTitle={item.title || item.itemName}
   initialComments={item.comments || []}
-  currentUser="John Doe"
+  currentUser="User"
 />
                     <ReportPostButton report={item} />
 

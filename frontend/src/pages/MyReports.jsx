@@ -2,6 +2,7 @@ import "./MyReports.css";
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -30,224 +31,6 @@ import {
   FaCamera,
   FaExclamationCircle,
 } from "react-icons/fa";
-
-const REPORTS_KEY = "lostFoundReports";
-
-const initialReports = [
-  {
-    id: 1,
-    type: "Missing",
-    category: "Person",
-    title: "Ali Hassan",
-    age: "10",
-    gender: "Male",
-    itemCategory: "",
-    color: "",
-    brand: "",
-    city: "Lahore",
-    location: "Anarkali Bazaar, Lahore",
-    currentLocation: "",
-    date: "2026-05-12",
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-    description:
-      "Last seen wearing blue shirt and black trousers near Anarkali Bazaar.",
-    reporterName: "John Doe",
-    reporterContact: "03001234567",
-    reporterEmail: "john@example.com",
-    reporterAddress: "Gujranwala",
-    relation: "Father",
-    ownerName: "John Doe",
-    ownerEmail: "john@example.com",
-    ownerId: "john@example.com",
-    image:
-      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    flags: [],
-    flagCount: 0,
-    createdAt: "2026-05-12T10:30:00.000Z",
-  },
-  {
-    id: 2,
-    type: "Lost",
-    category: "Item",
-    title: "Black Wallet",
-    age: "",
-    gender: "",
-    itemCategory: "Wallet",
-    color: "Black",
-    brand: "Leather Hub",
-    city: "Gujranwala",
-    location: "Satellite Town Market, Gujranwala",
-    currentLocation: "",
-    date: "2026-05-20",
-    adminStatus: "Pending Review",
-    caseStatus: "Unsolved",
-    description:
-      "Black leather wallet with CNIC copy and some cash inside. Lost near market area.",
-    reporterName: "John Doe",
-    reporterContact: "03001234567",
-    reporterEmail: "john@example.com",
-    reporterAddress: "Satellite Town, Gujranwala",
-    relation: "",
-    ownerName: "John Doe",
-    ownerEmail: "john@example.com",
-    ownerId: "john@example.com",
-    image:
-      "https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    flags: [],
-    flagCount: 0,
-    createdAt: "2026-05-20T09:20:00.000Z",
-  },
-  {
-    id: 3,
-    type: "Found",
-    category: "Item",
-    title: "Samsung Mobile",
-    age: "",
-    gender: "",
-    itemCategory: "Mobile",
-    color: "Blue",
-    brand: "Samsung",
-    city: "Sialkot",
-    location: "Paris Road, Sialkot",
-    currentLocation: "Nearby shop at Paris Road",
-    date: "2026-05-22",
-    adminStatus: "Matched",
-    caseStatus: "Solved",
-    description:
-      "Samsung mobile found near roadside. Owner can contact with proof.",
-    reporterName: "John Doe",
-    reporterContact: "03001234567",
-    reporterEmail: "john@example.com",
-    reporterAddress: "Gujranwala",
-    relation: "",
-    ownerName: "John Doe",
-    ownerEmail: "john@example.com",
-    ownerId: "john@example.com",
-    image:
-      "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    flags: [],
-    flagCount: 0,
-    createdAt: "2026-05-22T13:10:00.000Z",
-  },
-  {
-    id: 4,
-    type: "Found",
-    category: "Person",
-    title: "Unknown Child",
-    age: "7",
-    gender: "Female",
-    itemCategory: "",
-    color: "",
-    brand: "",
-    city: "Karachi",
-    location: "Saddar Market, Karachi",
-    currentLocation: "Edhi Center Karachi",
-    date: "2026-04-30",
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-    description:
-      "Child found crying near market area. Wearing pink dress and white shoes.",
-    reporterName: "John Doe",
-    reporterContact: "03001234567",
-    reporterEmail: "john@example.com",
-    reporterAddress: "Gujranwala",
-    relation: "Citizen",
-    ownerName: "John Doe",
-    ownerEmail: "john@example.com",
-    ownerId: "john@example.com",
-    image:
-      "https://images.unsplash.com/photo-1516627145497-ae6968895b74?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    flags: [],
-    flagCount: 0,
-    createdAt: "2026-04-30T13:10:00.000Z",
-  },
-  {
-    id: 5,
-    type: "Lost",
-    category: "Item",
-    title: "School Backpack",
-    age: "",
-    gender: "",
-    itemCategory: "Bag",
-    color: "Blue",
-    brand: "Nike",
-    city: "Lahore",
-    location: "Liberty Market, Lahore",
-    currentLocation: "",
-    date: "2026-05-10",
-    adminStatus: "Pending Review",
-    caseStatus: "Unsolved",
-    description:
-      "Blue school backpack lost near Liberty Market. It has books, notebooks and a cartoon keychain attached.",
-    reporterName: "John Doe",
-    reporterContact: "03001234567",
-    reporterEmail: "john@example.com",
-    reporterAddress: "Johar Town, Lahore",
-    relation: "",
-    ownerName: "John Doe",
-    ownerEmail: "john@example.com",
-    ownerId: "john@example.com",
-    image:
-      "https://images.unsplash.com/photo-1581605405669-fcdf81165afa?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    flags: [],
-    flagCount: 0,
-    createdAt: "2026-05-10T17:45:00.000Z",
-  },
-  {
-    id: 6,
-    type: "Lost",
-    category: "Item",
-    title: "Dell Laptop Bag",
-    age: "",
-    gender: "",
-    itemCategory: "Laptop Bag",
-    color: "Black",
-    brand: "Dell",
-    city: "Faisalabad",
-    location: "D Ground Faisalabad",
-    currentLocation: "",
-    date: "2026-03-18",
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-    description:
-      "Black Dell laptop bag lost near D Ground Faisalabad. It contains charger, documents and some personal notes.",
-    reporterName: "John Doe",
-    reporterContact: "03001234567",
-    reporterEmail: "john@example.com",
-    reporterAddress: "Peoples Colony, Faisalabad",
-    relation: "",
-    ownerName: "John Doe",
-    ownerEmail: "john@example.com",
-    ownerId: "john@example.com",
-    image:
-      "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=1200&auto=format&fit=crop",
-    comments: [],
-    flags: [],
-    flagCount: 0,
-    createdAt: "2026-03-18T08:40:00.000Z",
-  },
-];
-
-const safeParse = (value, fallback = null) => {
-  try {
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const getCurrentUser = () => {
-  const currentUser = safeParse(localStorage.getItem("lostFoundCurrentUser"));
-  const registeredUser = safeParse(localStorage.getItem("lostFoundRegisteredUser"));
-
-  return currentUser || registeredUser || null;
-};
 
 const getSafeImage = (report) => {
   if (report.image) {
@@ -353,28 +136,6 @@ const normalizeReport = (report) => {
   };
 };
 
-const readReports = () => {
-  try {
-    const savedReports = localStorage.getItem(REPORTS_KEY);
-
-    if (savedReports) {
-      const parsedReports = JSON.parse(savedReports);
-      return Array.isArray(parsedReports)
-        ? parsedReports.map(normalizeReport)
-        : initialReports.map(normalizeReport);
-    }
-
-    return initialReports.map(normalizeReport);
-  } catch {
-    return initialReports.map(normalizeReport);
-  }
-};
-
-const writeReports = (nextReports) => {
-  localStorage.setItem(REPORTS_KEY, JSON.stringify(nextReports));
-  window.dispatchEvent(new Event("lostFoundReportsUpdated"));
-};
-
 const getStatusClass = (status = "") => {
   const normalized = String(status).toLowerCase();
 
@@ -385,39 +146,13 @@ const getStatusClass = (status = "") => {
   return normalized.replace(/\s+/g, "-");
 };
 
-const isOwnReport = (report, currentUser) => {
-  if (!currentUser) {
-    return true;
-  }
-
-  const userEmail = String(currentUser.email || "").trim().toLowerCase();
-  const userName = String(currentUser.fullName || currentUser.name || "")
-    .trim()
-    .toLowerCase();
-
-  const ownerEmail = String(report.ownerEmail || "").trim().toLowerCase();
-  const reporterEmail = String(report.reporterEmail || "").trim().toLowerCase();
-  const ownerName = String(report.ownerName || "").trim().toLowerCase();
-  const reporterName = String(report.reporterName || "").trim().toLowerCase();
-
-  if (userEmail && (ownerEmail === userEmail || reporterEmail === userEmail)) {
-    return true;
-  }
-
-  if (userName && !ownerEmail && !reporterEmail) {
-    return ownerName === userName || reporterName === userName;
-  }
-
-  return false;
-};
-
 export default function MyReports() {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [allReports, setAllReports] = useState([]);
-  const [currentUser, setCurrentUser] = useState(() => getCurrentUser());
   const [selectedReport, setSelectedReport] = useState(null);
   const [editingReport, setEditingReport] = useState(null);
   const [editImageFile, setEditImageFile] = useState(null);
@@ -429,8 +164,6 @@ export default function MyReports() {
   const [highlightedCommentId, setHighlightedCommentId] = useState("");
 
   const loadMyReports = async () => {
-    setCurrentUser(getCurrentUser());
-
     try {
       const response = await getMyReports();
       const apiReports = mapBackendReportsToUi(response?.reports || []).map(normalizeReport);
@@ -917,7 +650,7 @@ export default function MyReports() {
   reportId={report.id}
   reportTitle={report.title || report.name}
   initialComments={report.comments || []}
-  currentUser={currentUser?.fullName || "John Doe"}
+  currentUser={currentUser?.fullName || "User"}
   autoOpenKey={
     autoOpenCommentReportId === String(report.id)
       ? autoOpenCommentKey

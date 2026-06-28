@@ -6,6 +6,7 @@ import {
   deleteAdminReport,
   deleteAdminUser,
   dismissMatchSuggestion,
+  getAdminLogs,
   getAdminReports,
   getAdminUsers,
   getMatchSuggestions,
@@ -57,13 +58,6 @@ import {
   FaUserShield,
 } from "react-icons/fa";
 
-const REPORTS_KEY = "lostFoundReports";
-const NOTIFICATIONS_KEY = "lostFoundNotifications";
-const USERS_KEY = "lostFoundUsers";
-const ADMIN_LOG_KEY = "lostFoundAdminActionLog";
-const CONFIRMED_MATCHES_KEY = "lostFoundConfirmedMatches";
-const MATCH_DECISIONS_KEY = "lostFoundMatchDecisions";
-
 const handleReportImageError = (event, category = "Item") => {
   const fallbackImage = getFallbackReportImage(category);
 
@@ -71,277 +65,6 @@ const handleReportImageError = (event, category = "Item") => {
     event.currentTarget.src = fallbackImage;
   }
 };
-
-const defaultReports = [
-  {
-    id: 1,
-    type: "Missing",
-    category: "Person",
-    title: "Ali Hassan",
-    age: "10",
-    gender: "Male",
-    itemCategory: "",
-    color: "",
-    brand: "",
-    city: "Lahore",
-    location: "Anarkali Bazaar, Lahore",
-    currentLocation: "",
-    date: "2026-05-12",
-    adminStatus: "Pending Review",
-    caseStatus: "Unsolved",
-    description:
-      "Last seen wearing blue shirt and black trousers near Anarkali Bazaar.",
-    reporterName: "John Doe",
-    reporterContact: "03001234567",
-    reporterEmail: "john@example.com",
-    reporterAddress: "Gujranwala",
-    relation: "Father",
-    image:
-      "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop",
-    flags: [],
-    flagCount: 0,
-    createdAt: "2026-05-12T10:30:00.000Z",
-  },
-  {
-    id: 2,
-    type: "Lost",
-    category: "Item",
-    title: "Black Wallet",
-    age: "",
-    gender: "",
-    itemCategory: "Wallet",
-    color: "Black",
-    brand: "Leather Hub",
-    city: "Gujranwala",
-    location: "Satellite Town Market, Gujranwala",
-    currentLocation: "",
-    date: "2026-05-20",
-    adminStatus: "Pending Review",
-    caseStatus: "Unsolved",
-    description:
-      "Black leather wallet with CNIC copy and some cash inside. Lost near market area.",
-    reporterName: "John Doe",
-    reporterContact: "03001234567",
-    reporterEmail: "john@example.com",
-    reporterAddress: "Satellite Town, Gujranwala",
-    relation: "",
-    image:
-      "https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=1200&auto=format&fit=crop",
-    flags: [
-      { user: "Ahsan", reason: "Duplicate post", date: "2026-05-21" },
-      { user: "Sana", reason: "Contact number not responding", date: "2026-05-22" },
-      { user: "Bilal", reason: "Incomplete information", date: "2026-05-23" },
-      { user: "Nimra", reason: "Looks suspicious", date: "2026-05-24" },
-      { user: "Hassan", reason: "Possible fake post", date: "2026-05-25" },
-    ],
-    flagCount: 5,
-    createdAt: "2026-05-20T09:20:00.000Z",
-  },
-  {
-    id: 3,
-    type: "Found",
-    category: "Item",
-    title: "Black Leather Wallet",
-    age: "",
-    gender: "",
-    itemCategory: "Wallet",
-    color: "Black",
-    brand: "Leather Hub",
-    city: "Gujranwala",
-    location: "Satellite Town Market, Gujranwala",
-    currentLocation: "Shop number 14, Satellite Town Market",
-    date: "2026-05-22",
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-    description:
-      "Found black leather wallet near Satellite Town Market. It contains CNIC copy and cash.",
-    reporterName: "Ayesha Malik",
-    reporterContact: "03123456789",
-    reporterEmail: "ayesha@example.com",
-    reporterAddress: "Gujranwala",
-    relation: "Citizen",
-    image:
-      "https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=1200&auto=format&fit=crop",
-    flags: [],
-    flagCount: 0,
-    createdAt: "2026-05-22T15:00:00.000Z",
-  },
-  {
-    id: 4,
-    type: "Found",
-    category: "Person",
-    title: "Unknown Child",
-    age: "7",
-    gender: "Female",
-    itemCategory: "",
-    color: "",
-    brand: "",
-    city: "Karachi",
-    location: "Saddar Market, Karachi",
-    currentLocation: "Edhi Center Karachi",
-    date: "2026-04-30",
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-    description:
-      "Child found crying near market area. Wearing pink dress and white shoes.",
-    reporterName: "Sadia Ahmed",
-    reporterContact: "03125556666",
-    reporterEmail: "sadia@example.com",
-    reporterAddress: "Karachi",
-    relation: "Citizen",
-    image:
-      "https://images.unsplash.com/photo-1516627145497-ae6968895b74?q=80&w=1200&auto=format&fit=crop",
-    flags: [],
-    flagCount: 0,
-    createdAt: "2026-04-30T13:10:00.000Z",
-  },
-  {
-    id: 5,
-    type: "Lost",
-    category: "Item",
-    title: "School Backpack",
-    age: "",
-    gender: "",
-    itemCategory: "Bag",
-    color: "Blue",
-    brand: "Nike",
-    city: "Lahore",
-    location: "Liberty Market, Lahore",
-    currentLocation: "",
-    date: "2026-05-10",
-    adminStatus: "Rejected",
-    caseStatus: "Unsolved",
-    description:
-      "Blue school backpack lost near Liberty Market. It has books, notebooks and a cartoon keychain attached.",
-    reporterName: "Hamza Ali",
-    reporterContact: "03008887777",
-    reporterEmail: "hamza@example.com",
-    reporterAddress: "Johar Town, Lahore",
-    relation: "",
-    image:
-      "https://images.unsplash.com/photo-1581605405669-fcdf81165afa?q=80&w=1200&auto=format&fit=crop",
-    flags: [{ user: "Admin", reason: "Image unclear", date: "2026-05-11" }],
-    flagCount: 1,
-    createdAt: "2026-05-10T17:45:00.000Z",
-  },
-  {
-    id: 6,
-    type: "Lost",
-    category: "Item",
-    title: "Dell Laptop Bag",
-    age: "",
-    gender: "",
-    itemCategory: "Laptop Bag",
-    color: "Black",
-    brand: "Dell",
-    city: "Faisalabad",
-    location: "D Ground Faisalabad",
-    currentLocation: "",
-    date: "2026-03-18",
-    adminStatus: "Verified",
-    caseStatus: "Unsolved",
-    description:
-      "Black Dell laptop bag lost near D Ground Faisalabad. It contains charger, documents and personal notes.",
-    reporterName: "Naveed Ahmed",
-    reporterContact: "03450001122",
-    reporterEmail: "naveed@example.com",
-    reporterAddress: "Peoples Colony, Faisalabad",
-    relation: "",
-    image:
-      "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=1200&auto=format&fit=crop",
-    flags: [],
-    flagCount: 0,
-    createdAt: "2026-03-18T08:40:00.000Z",
-  },
-  {
-    id: 7,
-    type: "Found",
-    category: "Item",
-    title: "Black Dell Laptop Bag",
-    age: "",
-    gender: "",
-    itemCategory: "Laptop Bag",
-    color: "Black",
-    brand: "Dell",
-    city: "Faisalabad",
-    location: "D Ground Faisalabad",
-    currentLocation: "Security office near D Ground",
-    date: "2026-03-20",
-    adminStatus: "Pending Review",
-    caseStatus: "Unsolved",
-    description:
-      "Found a black Dell laptop bag with charger near D Ground parking area.",
-    reporterName: "Farhan Raza",
-    reporterContact: "03212223333",
-    reporterEmail: "farhan@example.com",
-    reporterAddress: "Faisalabad",
-    relation: "Citizen",
-    image:
-      "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?q=80&w=1200&auto=format&fit=crop",
-    flags: [],
-    flagCount: 0,
-    createdAt: "2026-03-20T11:15:00.000Z",
-  },
-  {
-    id: 8,
-    type: "Missing",
-    category: "Person",
-    title: "Areeba Noor",
-    age: "9",
-    gender: "Female",
-    itemCategory: "",
-    color: "",
-    brand: "",
-    city: "Karachi",
-    location: "Saddar Market, Karachi",
-    currentLocation: "",
-    date: "2026-04-29",
-    adminStatus: "Pending Review",
-    caseStatus: "Unsolved",
-    description:
-      "Missing girl wearing pink frock and white sandals. Last seen near Saddar Market.",
-    reporterName: "Noor Ahmed",
-    reporterContact: "03029998877",
-    reporterEmail: "noor@example.com",
-    reporterAddress: "Karachi",
-    relation: "Father",
-    image:
-      "https://images.unsplash.com/photo-1519457431-44ccd64a579b?q=80&w=1200&auto=format&fit=crop",
-    flags: [],
-    flagCount: 0,
-    createdAt: "2026-04-29T18:10:00.000Z",
-  },
-];
-
-const defaultUsers = [
-  {
-    id: 1,
-    fullName: "John Doe",
-    email: "john@example.com",
-    phone: "03001234567",
-    role: "Registered User",
-    status: "Active",
-    joinedAt: "2026-05-01",
-  },
-  {
-    id: 2,
-    fullName: "Ayesha Malik",
-    email: "ayesha@example.com",
-    phone: "03123456789",
-    role: "Registered User",
-    status: "Active",
-    joinedAt: "2026-05-10",
-  },
-  {
-    id: 3,
-    fullName: "Hamza Ali",
-    email: "hamza@example.com",
-    phone: "03008887777",
-    role: "Registered User",
-    status: "Blocked",
-    joinedAt: "2026-05-08",
-  },
-];
 
 const statusOptions = [
   "All",
@@ -368,27 +91,6 @@ const adminStatusToBackend = (status = "") => {
   if (normalized === "closed") return "closed";
 
   return "pending";
-};
-
-const readStorage = (key, fallback) => {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const writeStorage = (key, value) => {
-  localStorage.setItem(key, JSON.stringify(value));
-};
-
-const dispatchReportsUpdate = () => {
-  window.dispatchEvent(new Event("lostFoundReportsUpdated"));
-};
-
-const dispatchNotificationsUpdate = () => {
-  window.dispatchEvent(new Event("lostFoundNotificationsUpdated"));
 };
 
 const getPairKey = (lostId, foundId) => `${lostId}-${foundId}`;
@@ -432,144 +134,12 @@ const removeDuplicateReports = (reports) => {
   });
 };
 
-const getDateScore = (lostDate, foundDate) => {
-  if (!lostDate || !foundDate) return 0;
-
-  const firstDate = new Date(lostDate);
-  const secondDate = new Date(foundDate);
-
-  if (Number.isNaN(firstDate.getTime()) || Number.isNaN(secondDate.getTime())) {
-    return 0;
-  }
-
-  const diffDays = Math.abs(secondDate - firstDate) / (1000 * 60 * 60 * 24);
-
-  if (diffDays <= 3) return 15;
-  if (diffDays <= 10) return 10;
-  if (diffDays <= 30) return 6;
-
-  return 0;
-};
-
-const keywordScore = (left = "", right = "") => {
-  const leftWords = normalize(left)
-    .split(/\W+/)
-    .filter((word) => word.length > 3);
-
-  const rightWords = normalize(right)
-    .split(/\W+/)
-    .filter((word) => word.length > 3);
-
-  if (!leftWords.length || !rightWords.length) return 0;
-
-  const matchedWords = leftWords.filter((word) => rightWords.includes(word));
-
-  return Math.min(matchedWords.length * 5, 15);
-};
-
-const calculateMatchScore = (lostReport, foundReport) => {
-  let score = 0;
-  const reasons = [];
-  const matchedFields = [];
-
-  if (lostReport.category === foundReport.category) {
-    score += 15;
-    reasons.push("Same report category");
-    matchedFields.push("Category");
-  }
-
-  if (normalize(lostReport.city) === normalize(foundReport.city)) {
-    score += 20;
-    reasons.push("Same city");
-    matchedFields.push("City");
-  }
-
-  const locationMatch =
-    normalize(lostReport.location) === normalize(foundReport.location) ||
-    normalize(lostReport.location).includes(normalize(foundReport.city)) ||
-    normalize(foundReport.location).includes(normalize(lostReport.city));
-
-  if (locationMatch) {
-    score += 10;
-    reasons.push("Location information is similar");
-    matchedFields.push("Location");
-  }
-
-  const datePoints = getDateScore(lostReport.date, foundReport.date);
-
-  if (datePoints > 0) {
-    score += datePoints;
-    reasons.push("Dates are close");
-    matchedFields.push("Date");
-  }
-
-  if (lostReport.category === "Person") {
-    if (normalize(lostReport.gender) === normalize(foundReport.gender)) {
-      score += 15;
-      reasons.push("Same gender");
-      matchedFields.push("Gender");
-    }
-
-    const ageDiff = Math.abs(Number(lostReport.age) - Number(foundReport.age));
-
-    if (!Number.isNaN(ageDiff) && ageDiff <= 3) {
-      score += 10;
-      reasons.push("Similar age");
-      matchedFields.push("Age");
-    }
-  }
-
-  if (lostReport.category === "Item") {
-    if (normalize(lostReport.itemCategory) === normalize(foundReport.itemCategory)) {
-      score += 18;
-      reasons.push("Same item category");
-      matchedFields.push("Item Category");
-    }
-
-    if (lostReport.color && normalize(lostReport.color) === normalize(foundReport.color)) {
-      score += 10;
-      reasons.push("Same color");
-      matchedFields.push("Color");
-    }
-
-    if (lostReport.brand && normalize(lostReport.brand) === normalize(foundReport.brand)) {
-      score += 10;
-      reasons.push("Same brand");
-      matchedFields.push("Brand");
-    }
-  }
-
-  const titlePoints = keywordScore(lostReport.title, foundReport.title);
-  const descriptionPoints = keywordScore(
-    lostReport.description,
-    foundReport.description
-  );
-
-  if (titlePoints > 0) {
-    score += titlePoints;
-    reasons.push("Title keywords are similar");
-    matchedFields.push("Title Keywords");
-  }
-
-  if (descriptionPoints > 0) {
-    score += descriptionPoints;
-    reasons.push("Description keywords are similar");
-    matchedFields.push("Description Keywords");
-  }
-
-  return {
-    score: Math.min(score, 100),
-    reasons: [...new Set(reasons)],
-    matchedFields: [...new Set(matchedFields)],
-  };
-};
-
 export default function AdminPanel() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("reports");
   const [reports, setReports] = useState([]);
   const [users, setUsers] = useState([]);
-  const [matchDecisions, setMatchDecisions] = useState([]);
+  const [adminLogs, setAdminLogs] = useState([]);
   const [apiMatchSuggestions, setApiMatchSuggestions] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [alertReport, setAlertReport] = useState(null);
@@ -595,6 +165,7 @@ export default function AdminPanel() {
     ...user,
     id: user._id || user.id,
     name: user.fullName || user.name || "User",
+    fullName: user.fullName || user.name || "User",
     email: user.email || "",
     phone: user.phone || "",
     role: user.role === "admin" ? "Admin" : "Registered User",
@@ -602,17 +173,36 @@ export default function AdminPanel() {
     joinedAt: user.createdAt || user.joinedAt || "",
   });
 
+  const normalizeAdminLog = (log = {}) => ({
+    id: log._id || log.id || `${log.action}-${log.createdAt}`,
+    action: log.action || "Admin action",
+    reportTitle: log.details || log.targetType || "System",
+    date: log.createdAt
+      ? new Date(log.createdAt).toLocaleString("en-PK")
+      : "Just now",
+  });
+
+  const loadAdminLogs = async () => {
+    try {
+      const logsResponse = await getAdminLogs();
+      setAdminLogs((logsResponse?.logs || []).map(normalizeAdminLog));
+    } catch (error) {
+      setAdminLogs([]);
+    }
+  };
+
   const loadAdminData = async () => {
     try {
-      const [reportsResponse, usersResponse, matchesResponse] = await Promise.all([
+      const [reportsResponse, usersResponse, matchesResponse, logsResponse] = await Promise.all([
         getAdminReports(),
         getAdminUsers(),
         getMatchSuggestions().catch(() => ({ suggestions: [] })),
+        getAdminLogs().catch(() => ({ logs: [] })),
       ]);
 
       setReports(removeDuplicateReports(mapBackendReportsToUi(reportsResponse?.reports || [])));
       setUsers((usersResponse?.users || []).map(normalizeAdminUser));
-      setMatchDecisions([]);
+      setAdminLogs((logsResponse?.logs || []).map(normalizeAdminLog));
       setApiMatchSuggestions(
         Array.isArray(matchesResponse?.suggestions)
           ? matchesResponse.suggestions.map((suggestion) => {
@@ -629,7 +219,7 @@ export default function AdminPanel() {
                 matchedFields: Array.isArray(suggestion.matchedFields)
                   ? suggestion.matchedFields
                   : [],
-                threshold: suggestion.threshold || 60,
+                threshold: suggestion.threshold || 55,
                 status: suggestion.status || "suggested",
                 lostReport,
                 foundReport,
@@ -670,50 +260,8 @@ export default function AdminPanel() {
     showMessage(successMessage);
   };
 
-  const saveMatchDecisions = (nextDecisions) => {
-    setMatchDecisions(nextDecisions);
-    writeStorage(MATCH_DECISIONS_KEY, nextDecisions);
-  };
-
-  const addAdminLog = (action, reportTitle = "") => {
-    const previousLogs = readStorage(ADMIN_LOG_KEY, []);
-
-    const nextLogs = [
-      {
-        id: `${Date.now()}-${Math.random()}`,
-        action,
-        reportTitle,
-        date: new Date().toLocaleString("en-PK"),
-      },
-      ...previousLogs,
-    ].slice(0, 60);
-
-    writeStorage(ADMIN_LOG_KEY, nextLogs);
-  };
-
-  const addNotification = (report, type, title, text, extraData = {}) => {
-    const previousNotifications = readStorage(NOTIFICATIONS_KEY, []);
-
-    const nextNotification = {
-      id: `${Date.now()}-${Math.random()}`,
-      reportId: report?.id || null,
-      type,
-      title,
-      message: text,
-      caseTitle: report?.title || "System Update",
-      city: report?.city || "All Cities",
-      time: "Just now",
-      isRead: false,
-      createdAt: new Date().toISOString(),
-      ...extraData,
-    };
-
-    writeStorage(NOTIFICATIONS_KEY, [
-      nextNotification,
-      ...previousNotifications,
-    ]);
-
-    dispatchNotificationsUpdate();
+  const addAdminLog = () => {
+    loadAdminLogs();
   };
 
   const stats = useMemo(() => {
@@ -1364,7 +912,7 @@ export default function AdminPanel() {
               className="admin-action-danger"
               onClick={() => deleteReport(report.id)}
             >
-              <FaTrash /> Delete Fake
+              <FaTrash /> Delete 
             </button>
           </div>
         </div>
@@ -1599,7 +1147,7 @@ export default function AdminPanel() {
           <div>
             <h2>Rule-Based Match Comparison</h2>
             <p>
-              Only 60% or higher lost/missing vs found candidates are shown for admin decision.
+              Only 55% or higher lost/missing vs found candidates are shown for admin decision.
             </p>
           </div>
         </section>
@@ -1634,7 +1182,7 @@ export default function AdminPanel() {
                 </span>
 
                 <span>
-                  <b>Threshold:</b> 60%
+                  <b>Threshold:</b> {match.threshold || 55}%
                 </span>
               </div>
 
@@ -1668,7 +1216,7 @@ export default function AdminPanel() {
         ) : (
           <div className="admin-empty-box">
             <FaPeopleArrows />
-            <h3>No 60%+ potential matches</h3>
+            <h3>No 55%+ potential matches</h3>
             <p>
               New possible matches will appear here when lost/missing and found reports have strong similarity.
             </p>
@@ -1805,8 +1353,6 @@ export default function AdminPanel() {
   };
 
   const renderLogsTab = () => {
-    const logs = readStorage(ADMIN_LOG_KEY, []);
-
     return (
       <section className="admin-alert-card">
         <div className="admin-alert-card__heading">
@@ -1814,13 +1360,13 @@ export default function AdminPanel() {
 
           <div>
             <h2>Admin Activity Log</h2>
-            <p>Recent frontend admin actions saved in localStorage.</p>
+            <p>Recent admin actions loaded from backend.</p>
           </div>
         </div>
 
-        {logs.length > 0 ? (
+        {adminLogs.length > 0 ? (
           <div className="admin-report-info-grid">
-            {logs.map((log) => (
+            {adminLogs.map((log) => (
               <span key={log.id}>
                 <b>{log.action}</b>
                 <br />
@@ -2112,7 +1658,7 @@ export default function AdminPanel() {
 
               <p>
                 Verify reports, review flagged content, manage users, update case status,
-                compare 60%+ rule-based matches and send alerts to users.
+                compare 55%+ rule-based matches and send alerts to users.
               </p>
             </div>
 
@@ -2188,7 +1734,7 @@ export default function AdminPanel() {
 
               <div>
                 <h3>{potentialMatches.length}</h3>
-                <p>60%+ Matches</p>
+                <p>55%+ Matches</p>
               </div>
             </button>
 

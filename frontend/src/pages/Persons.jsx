@@ -230,7 +230,7 @@ export default function Persons() {
   reportId={person.id}
   reportTitle={person.title || person.name}
   initialComments={person.comments || []}
-  currentUser="John Doe"
+  currentUser="User"
 />
 
                       <ReportPostButton report={person} />

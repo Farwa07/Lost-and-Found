@@ -5,7 +5,7 @@ const Notification = require("../models/notification");
 const AdminLog = require("../models/adminLog");
 const ReportMatch = require("../models/reportMatch");
 
-const MATCH_THRESHOLD = 60;
+const MATCH_THRESHOLD = 55;
 
 const createAdminLog = async (adminId, action, targetType, targetId, details = "") => {
   try {
@@ -65,14 +65,159 @@ const wordsFrom = (text = "") =>
     .split(/\s+/)
     .filter((word) => word.length >= 3);
 
+const STOP_WORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "with",
+  "this",
+  "that",
+  "near",
+  "from",
+  "lost",
+  "found",
+  "missing",
+  "person",
+  "child",
+  "boy",
+  "girl",
+  "male",
+  "female",
+  "wearing",
+  "last",
+  "seen",
+]);
+
+const GENERIC_LOCATION_WORDS = new Set([
+  "near",
+  "road",
+  "street",
+  "colony",
+  "city",
+  "area",
+  "block",
+  "sector",
+  "home",
+  "house",
+  "town",
+  "lahore",
+  "gujranwala",
+  "karachi",
+  "islamabad",
+  "rawalpindi",
+  "faisalabad",
+  "multan",
+  "sialkot",
+  "pakistan",
+]);
+
+const PLACEHOLDER_NAMES = new Set([
+  "unknown",
+  "naamaloam",
+  "namaloom",
+  "نامعلوم",
+  "na maloom",
+  "not known",
+  "n/a",
+  "na",
+]);
+
+const meaningfulWordsFrom = (text = "") =>
+  wordsFrom(text).filter((word) => !STOP_WORDS.has(word));
+
 const sharedWordScore = (left = "", right = "", maxScore = 15) => {
-  const leftWords = [...new Set(wordsFrom(left))];
-  const rightWords = new Set(wordsFrom(right));
+  const leftWords = [...new Set(meaningfulWordsFrom(left))];
+  const rightWords = new Set(meaningfulWordsFrom(right));
 
   if (leftWords.length === 0 || rightWords.size === 0) return 0;
 
   const common = leftWords.filter((word) => rightWords.has(word)).length;
   return Math.min(common * 5, maxScore);
+};
+
+const sharedWordCount = (left = "", right = "") => {
+  const leftWords = [...new Set(meaningfulWordsFrom(left))];
+  const rightWords = new Set(meaningfulWordsFrom(right));
+  return leftWords.filter((word) => rightWords.has(word)).length;
+};
+
+const locationWordsFrom = (text = "") =>
+  wordsFrom(text).filter((word) => !GENERIC_LOCATION_WORDS.has(word));
+
+const hasStrongLocationMatch = (left = "", right = "") => {
+  const leftText = normalizeText(left);
+  const rightText = normalizeText(right);
+  if (!leftText || !rightText) return false;
+  if (leftText === rightText) return true;
+
+  const leftWords = [...new Set(locationWordsFrom(leftText))];
+  const rightWords = new Set(locationWordsFrom(rightText));
+  if (leftWords.length === 0 || rightWords.size === 0) return false;
+
+  return leftWords.some((word) => rightWords.has(word));
+};
+
+const levenshteinDistance = (left = "", right = "") => {
+  const a = normalizeText(left);
+  const b = normalizeText(right);
+  if (a === b) return 0;
+  if (!a) return b.length;
+  if (!b) return a.length;
+
+  const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  const current = Array(b.length + 1).fill(0);
+
+  for (let i = 1; i <= a.length; i += 1) {
+    current[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      current[j] = Math.min(
+        previous[j] + 1,
+        current[j - 1] + 1,
+        previous[j - 1] + cost
+      );
+    }
+    for (let j = 0; j <= b.length; j += 1) previous[j] = current[j];
+  }
+
+  return previous[b.length];
+};
+
+const textSimilarity = (left = "", right = "") => {
+  const a = normalizeText(left);
+  const b = normalizeText(right);
+  if (!a || !b) return 0;
+  const longest = Math.max(a.length, b.length);
+  if (longest === 0) return 0;
+  return (longest - levenshteinDistance(a, b)) / longest;
+};
+
+const isPlaceholderName = (name = "") => {
+  const normalized = normalizeText(name);
+  return !normalized || PLACEHOLDER_NAMES.has(normalized);
+};
+
+const getNameMatch = (left = "", right = "") => {
+  const leftName = normalizeText(left);
+  const rightName = normalizeText(right);
+
+  if (isPlaceholderName(leftName) || isPlaceholderName(rightName)) {
+    return { compatible: true, exact: false, similar: false, hasKnownNames: false };
+  }
+
+  if (leftName === rightName) {
+    return { compatible: true, exact: true, similar: false, hasKnownNames: true };
+  }
+
+  const sharedNameWords = sharedWordCount(leftName, rightName);
+  const similarEnough = textSimilarity(leftName, rightName) >= 0.72;
+
+  return {
+    compatible: sharedNameWords > 0 || similarEnough,
+    exact: false,
+    similar: sharedNameWords > 0 || similarEnough,
+    hasKnownNames: true,
+  };
 };
 
 const datesCloseEnough = (leftDate, rightDate, maxDays = 30) => {
@@ -84,7 +229,7 @@ const datesCloseEnough = (leftDate, rightDate, maxDays = 30) => {
   return diffDays <= maxDays;
 };
 
-const calculateMatchScore = (lostReport, foundReport) => {
+const calculatePersonMatchScore = (lostReport, foundReport) => {
   let score = 0;
   const reasons = [];
   const matchedFields = [];
@@ -95,12 +240,82 @@ const calculateMatchScore = (lostReport, foundReport) => {
     matchedFields.push(field);
   };
 
-  if (normalizeText(lostReport.category) !== normalizeText(foundReport.category)) {
+  const lostName = getReportTitle(lostReport);
+  const foundName = getReportTitle(foundReport);
+  const nameMatch = getNameMatch(lostName, foundName);
+
+  // Important guard: if both reports have clear person names and names are different,
+  // do not suggest the match only because age/gender/location/date are close.
+  if (nameMatch.hasKnownNames && !nameMatch.compatible) {
     return { score: 0, reasons: [], matchedFields: [] };
   }
 
-  // Same major report category: item with item, person with person.
-  addScore(15, "Same report category", "category");
+  addScore(10, "Same report category", "category");
+
+  if (nameMatch.exact) {
+    addScore(55, "Same person name", "title/name");
+  } else if (nameMatch.similar) {
+    addScore(35, "Similar person name", "title/name");
+  }
+
+  const lostGender = normalizeText(getPersonGender(lostReport));
+  const foundGender = normalizeText(getPersonGender(foundReport));
+  if (lostGender && foundGender && lostGender === foundGender) {
+    addScore(12, "Same gender", "gender");
+  }
+
+  const lostAge = getPersonAge(lostReport);
+  const foundAge = getPersonAge(foundReport);
+  if (lostAge !== null && foundAge !== null) {
+    const diff = Math.abs(lostAge - foundAge);
+    if (diff === 0) addScore(12, "Same age", "age");
+    else if (diff <= 3) addScore(8, "Close age", "age");
+  }
+
+  const lostCity = normalizeText(lostReport.city);
+  const foundCity = normalizeText(foundReport.city);
+  if (lostCity && foundCity && lostCity === foundCity) {
+    addScore(8, "Same city", "city");
+  }
+
+  const lostLocation = getReportLocation(lostReport);
+  const foundLocation = getReportLocation(foundReport);
+  if (hasStrongLocationMatch(lostLocation, foundLocation)) {
+    addScore(8, "Similar location", "location");
+  }
+
+  if (datesCloseEnough(getReportDate(lostReport), getReportDate(foundReport), 30)) {
+    addScore(5, "Dates are close", "date");
+  }
+
+  const descriptionScore = sharedWordScore(
+    getReportDescription(lostReport),
+    getReportDescription(foundReport),
+    10
+  );
+  if (descriptionScore > 0) {
+    addScore(descriptionScore, "Similar description keywords", "description");
+  }
+
+  return {
+    score: Math.min(score, 100),
+    reasons: [...new Set(reasons)],
+    matchedFields: [...new Set(matchedFields)],
+  };
+};
+
+const calculateItemMatchScore = (lostReport, foundReport) => {
+  let score = 0;
+  const reasons = [];
+  const matchedFields = [];
+
+  const addScore = (points, reason, field) => {
+    score += points;
+    reasons.push(reason);
+    matchedFields.push(field);
+  };
+
+  addScore(10, "Same report category", "category");
 
   const lostTitle = getReportTitle(lostReport);
   const foundTitle = getReportTitle(foundReport);
@@ -114,71 +329,45 @@ const calculateMatchScore = (lostReport, foundReport) => {
     if (titleScore > 0) addScore(titleScore, "Similar title/name keywords", "title/name");
   }
 
+  const lostItemCategory = normalizeText(lostReport.itemCategory);
+  const foundItemCategory = normalizeText(foundReport.itemCategory);
+  if (lostItemCategory && foundItemCategory && lostItemCategory === foundItemCategory) {
+    addScore(15, "Same item category", "itemCategory");
+  }
+
+  const lostColor = normalizeText(lostReport.itemColor);
+  const foundColor = normalizeText(foundReport.itemColor);
+  if (lostColor && foundColor && lostColor === foundColor) {
+    addScore(10, "Same color", "color");
+  }
+
+  const lostBrand = normalizeText(lostReport.itemBrand);
+  const foundBrand = normalizeText(foundReport.itemBrand);
+  if (lostBrand && foundBrand && lostBrand === foundBrand) {
+    addScore(10, "Same brand", "brand");
+  }
+
   const lostCity = normalizeText(lostReport.city);
   const foundCity = normalizeText(foundReport.city);
   if (lostCity && foundCity && lostCity === foundCity) {
-    addScore(10, "Same city", "city");
+    addScore(8, "Same city", "city");
   }
 
-  const lostLocation = getReportLocation(lostReport);
-  const foundLocation = getReportLocation(foundReport);
-  const lostLocationNormalized = normalizeText(lostLocation);
-  const foundLocationNormalized = normalizeText(foundLocation);
-  if (
-    lostLocationNormalized &&
-    foundLocationNormalized &&
-    (lostLocationNormalized === foundLocationNormalized ||
-      lostLocationNormalized.includes(foundLocationNormalized) ||
-      foundLocationNormalized.includes(lostLocationNormalized))
-  ) {
-    addScore(10, "Similar location", "location");
+  if (hasStrongLocationMatch(getReportLocation(lostReport), getReportLocation(foundReport))) {
+    addScore(7, "Similar location", "location");
   }
 
-  if (datesCloseEnough(getReportDate(lostReport), getReportDate(foundReport), 45)) {
+  if (datesCloseEnough(getReportDate(lostReport), getReportDate(foundReport), 30)) {
     addScore(5, "Dates are close", "date");
   }
 
-  const lostDescription = getReportDescription(lostReport);
-  const foundDescription = getReportDescription(foundReport);
-  const descriptionScore = sharedWordScore(lostDescription, foundDescription, 15);
+  const descriptionScore = sharedWordScore(
+    getReportDescription(lostReport),
+    getReportDescription(foundReport),
+    10
+  );
   if (descriptionScore > 0) {
     addScore(descriptionScore, "Similar description keywords", "description");
-  }
-
-  if (normalizeText(lostReport.category) === "person") {
-    const lostGender = normalizeText(getPersonGender(lostReport));
-    const foundGender = normalizeText(getPersonGender(foundReport));
-    if (lostGender && foundGender && lostGender === foundGender) {
-      addScore(10, "Same gender", "gender");
-    }
-
-    const lostAge = getPersonAge(lostReport);
-    const foundAge = getPersonAge(foundReport);
-    if (lostAge !== null && foundAge !== null) {
-      const diff = Math.abs(lostAge - foundAge);
-      if (diff === 0) addScore(10, "Same age", "age");
-      else if (diff <= 3) addScore(7, "Close age", "age");
-    }
-  }
-
-  if (normalizeText(lostReport.category) === "item") {
-    const lostItemCategory = normalizeText(lostReport.itemCategory);
-    const foundItemCategory = normalizeText(foundReport.itemCategory);
-    if (lostItemCategory && foundItemCategory && lostItemCategory === foundItemCategory) {
-      addScore(15, "Same item category", "itemCategory");
-    }
-
-    const lostColor = normalizeText(lostReport.itemColor);
-    const foundColor = normalizeText(foundReport.itemColor);
-    if (lostColor && foundColor && lostColor === foundColor) {
-      addScore(10, "Same color", "color");
-    }
-
-    const lostBrand = normalizeText(lostReport.itemBrand);
-    const foundBrand = normalizeText(foundReport.itemBrand);
-    if (lostBrand && foundBrand && lostBrand === foundBrand) {
-      addScore(10, "Same brand", "brand");
-    }
   }
 
   return {
@@ -186,6 +375,44 @@ const calculateMatchScore = (lostReport, foundReport) => {
     reasons: [...new Set(reasons)],
     matchedFields: [...new Set(matchedFields)],
   };
+};
+
+const calculateMatchScore = (lostReport, foundReport) => {
+  const category = normalizeText(lostReport.category);
+  if (category !== normalizeText(foundReport.category)) {
+    return { score: 0, reasons: [], matchedFields: [] };
+  }
+
+  if (category === "person") {
+    return calculatePersonMatchScore(lostReport, foundReport);
+  }
+
+  if (category === "item") {
+    return calculateItemMatchScore(lostReport, foundReport);
+  }
+
+  return { score: 0, reasons: [], matchedFields: [] };
+};
+
+const shouldResurfaceDismissedMatch = (lostReport, foundReport, score, matchedFields = []) => {
+  const category = normalizeText(lostReport.category);
+  if (score < MATCH_THRESHOLD) return false;
+
+  // When the matching algorithm is improved, a previously dismissed suggestion with
+  // a strong identity field should be allowed to appear again for admin review.
+  if (category === "person") {
+    return matchedFields.includes("title/name") && matchedFields.includes("gender") && matchedFields.includes("age");
+  }
+
+  if (category === "item") {
+    return matchedFields.includes("title/name") && (
+      matchedFields.includes("itemCategory") ||
+      matchedFields.includes("color") ||
+      matchedFields.includes("brand")
+    );
+  }
+
+  return false;
 };
 
 const syncConfirmedMatchReports = async (match) => {
@@ -650,7 +877,7 @@ const getMatchSuggestions = async (req, res) => {
           continue;
         }
 
-        if (match?.status === "dismissed") {
+        if (match?.status === "dismissed" && !shouldResurfaceDismissedMatch(lostReport, foundReport, score, matchedFields)) {
           continue;
         }
 
@@ -685,6 +912,8 @@ const getMatchSuggestions = async (req, res) => {
         });
       }
     }
+
+    suggestions.sort((left, right) => right.score - left.score);
 
     res.status(200).json({
       message: "Match suggestions fetched successfully",

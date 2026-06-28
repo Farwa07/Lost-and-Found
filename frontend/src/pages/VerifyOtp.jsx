@@ -25,12 +25,14 @@ export default function VerifyOtp() {
   const [isResending, setIsResending] = useState(false);
 
   const emailFromState = location.state?.email || "";
+  const userDataFromState = location.state?.userData || null;
   const enteredOtp = useMemo(() => otpValues.join(""), [otpValues]);
 
   const getPendingSignup = () => {
     try {
-      const savedData = localStorage.getItem("lostFoundPendingSignup");
-      return savedData ? JSON.parse(savedData) : null;
+      const savedData = sessionStorage.getItem("lostFoundPendingSignup");
+      const parsedData = savedData ? JSON.parse(savedData) : null;
+      return parsedData ? { ...parsedData, userData: userDataFromState } : null;
     } catch {
       return null;
     }
@@ -39,7 +41,7 @@ export default function VerifyOtp() {
   useEffect(() => {
     const savedPendingSignup = getPendingSignup();
 
-    if (!savedPendingSignup?.userData?.email) {
+    if (!savedPendingSignup?.email) {
       alert("No signup request found. Please sign up first.");
       navigate("/signup");
       return;
@@ -113,7 +115,7 @@ export default function VerifyOtp() {
 
     const savedPendingSignup = getPendingSignup();
 
-    if (!savedPendingSignup?.userData?.email) {
+    if (!savedPendingSignup?.email) {
       setMessage({ type: "error", text: "Signup request expired. Please sign up again." });
       navigate("/signup");
       return;
@@ -128,11 +130,11 @@ export default function VerifyOtp() {
 
     try {
       await verifySignupOtp({
-        email: savedPendingSignup.userData.email,
+        email: savedPendingSignup.email,
         otp: enteredOtp,
       });
 
-      localStorage.removeItem("lostFoundPendingSignup");
+      sessionStorage.removeItem("lostFoundPendingSignup");
 
       setMessage({ type: "success", text: "OTP verified successfully. Account created." });
 
@@ -148,7 +150,7 @@ export default function VerifyOtp() {
     const savedPendingSignup = getPendingSignup();
 
     if (!savedPendingSignup?.userData) {
-      navigate("/signup");
+      setMessage({ type: "error", text: "Please go back to Sign Up to request a fresh OTP." });
       return;
     }
 
@@ -162,7 +164,13 @@ export default function VerifyOtp() {
         expiresAt: Date.now() + 5 * 60 * 1000,
       };
 
-      localStorage.setItem("lostFoundPendingSignup", JSON.stringify(updatedPendingSignup));
+      sessionStorage.setItem(
+        "lostFoundPendingSignup",
+        JSON.stringify({
+          email: updatedPendingSignup.email,
+          expiresAt: updatedPendingSignup.expiresAt,
+        })
+      );
       setPendingSignup(updatedPendingSignup);
       setOtpValues(["", "", "", "", "", ""]);
       setSecondsLeft(5 * 60);
@@ -175,7 +183,7 @@ export default function VerifyOtp() {
     }
   };
 
-  const shownEmail = emailFromState || pendingSignup?.userData?.email || "your email";
+  const shownEmail = emailFromState || pendingSignup?.email || "your email";
 
   return (
     <div className="verify-otp">

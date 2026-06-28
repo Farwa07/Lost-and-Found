@@ -48,7 +48,7 @@ export default function CommentsButton({
   reportId = "",
   reportTitle,
   initialComments = [],
-  currentUser = "John Doe",
+  currentUser = "User",
   autoOpenKey = "",
   highlightedCommentId = "",
 }) {
@@ -57,7 +57,7 @@ export default function CommentsButton({
 
   const { isLoggedIn, isRegistered, currentUser: authUser } = useAuth();
 
-  const activeUserName = authUser?.fullName || currentUser || "John Doe";
+  const activeUserName = authUser?.fullName || currentUser || "User";
   const activeUserEmail = authUser?.email || "";
 
   const [open, setOpen] = useState(false);

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { changePassword, deleteMyAccount } from "../api/authApi";
+import { getMyReports } from "../api/reportApi";
 
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -28,13 +29,6 @@ import {
 } from "react-icons/fa";
 
 const SETTINGS_KEY = "lostFoundSettings";
-const REGISTERED_USER_KEY = "lostFoundRegisteredUser";
-const CURRENT_USER_KEY = "lostFoundCurrentUser";
-const AUTH_TOKEN_KEY = "lostFoundAuthToken";
-const PROFILE_DATA_KEY = "lostFoundProfileData";
-const PROFILE_IMAGE_KEY = "lostFoundProfileImage";
-const USERS_KEY = "lostFoundUsers";
-const REPORTS_KEY = "lostFoundReports";
 
 const defaultSettings = {
   emailNotifications: true,
@@ -56,64 +50,14 @@ const safeParse = (value, fallback = null) => {
   }
 };
 
-const normalizeEmail = (email = "") => {
-  return String(email).trim().toLowerCase();
-};
-
-const getCurrentUserFromStorage = () => {
-  const currentUser = safeParse(localStorage.getItem(CURRENT_USER_KEY));
-  const registeredUser = safeParse(localStorage.getItem(REGISTERED_USER_KEY));
-
-  return currentUser || registeredUser || null;
-};
-
-const getRegisteredUser = () => {
-  return safeParse(localStorage.getItem(REGISTERED_USER_KEY));
-};
-
-const getUsers = () => {
-  const users = safeParse(localStorage.getItem(USERS_KEY), []);
-  return Array.isArray(users) ? users : [];
-};
-
-const getReports = () => {
-  const reports = safeParse(localStorage.getItem(REPORTS_KEY), []);
-  return Array.isArray(reports) ? reports : [];
-};
-
-const isOwnReport = (report, user) => {
-  const userEmail = normalizeEmail(user?.email);
-  const userName = String(user?.fullName || user?.name || "")
-    .trim()
-    .toLowerCase();
-
-  const ownerEmail = normalizeEmail(report.ownerEmail);
-  const reporterEmail = normalizeEmail(report.reporterEmail);
-  const ownerName = String(report.ownerName || "").trim().toLowerCase();
-  const reporterName = String(report.reporterName || report.reporterFullName || "")
-    .trim()
-    .toLowerCase();
-
-  if (userEmail && (ownerEmail === userEmail || reporterEmail === userEmail)) {
-    return true;
-  }
-
-  if (userName && (ownerName === userName || reporterName === userName)) {
-    return true;
-  }
-
-  return false;
-};
-
 export default function Settings() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, currentUser } = useAuth();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settings, setSettings] = useState(defaultSettings);
   const [message, setMessage] = useState("");
   const [confirmAction, setConfirmAction] = useState(null);
-  const [currentUser, setCurrentUser] = useState(() => getCurrentUserFromStorage());
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -130,7 +74,6 @@ export default function Settings() {
         ...(savedSettings || {}),
       });
 
-      setCurrentUser(getCurrentUserFromStorage());
     };
 
     loadSettings();
@@ -239,35 +182,35 @@ export default function Settings() {
   }
 };
 
-  const handleExportData = () => {
-    const user = getCurrentUserFromStorage();
-    const reports = getReports();
-    const ownReports = reports.filter((report) => isOwnReport(report, user));
+  const handleExportData = async () => {
+    try {
+      const response = await getMyReports();
+      const ownReports = Array.isArray(response?.reports) ? response.reports : [];
 
-    const exportData = {
-      exportedAt: new Date().toISOString(),
-      currentUser: user,
-      registeredUser: getRegisteredUser(),
-      profileData: safeParse(localStorage.getItem(PROFILE_DATA_KEY)),
-      settings,
-      myReportsCount: ownReports.length,
-      myReports: ownReports,
-    };
+      const exportData = {
+        exportedAt: new Date().toISOString(),
+        currentUser,
+        settings,
+        myReportsCount: ownReports.length,
+        myReports: ownReports,
+      };
 
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: "application/json",
-    });
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: "application/json",
+      });
 
-    const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
 
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "lost-found-user-data.json";
-    link.click();
+      link.href = url;
+      link.download = "lost-found-user-data.json";
+      link.click();
 
-    URL.revokeObjectURL(url);
-
-    showMessage("Your data file has been downloaded.");
+      URL.revokeObjectURL(url);
+      showMessage("Your data file has been downloaded.");
+    } catch (error) {
+      alert(error.message || "Unable to export your data.");
+    }
   };
 
   const handleResetSettings = () => {
@@ -276,24 +219,14 @@ export default function Settings() {
   };
 
   const handleLogout = () => {
-    if (logout) {
-      logout();
-    } else {
-      localStorage.removeItem(AUTH_TOKEN_KEY);
-      localStorage.removeItem(CURRENT_USER_KEY);
-      window.dispatchEvent(new Event("authChanged"));
-    }
-
+    logout?.();
     setConfirmAction(null);
-
     alert("You have been logged out.");
     navigate("/login");
   };
 
  const handleDeleteAccount = async () => {
-  const activeUser = getCurrentUserFromStorage();
-
-  if (activeUser?.role === "Admin" || activeUser?.role === "admin") {
+  if (currentUser?.role === "Admin" || currentUser?.backendRole === "admin") {
     alert("Admin account cannot be deleted from settings.");
     setConfirmAction(null);
     return;
@@ -302,15 +235,8 @@ export default function Settings() {
   try {
     const response = await deleteMyAccount();
 
-    localStorage.removeItem(REGISTERED_USER_KEY);
-    localStorage.removeItem(CURRENT_USER_KEY);
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(PROFILE_DATA_KEY);
-    localStorage.removeItem(PROFILE_IMAGE_KEY);
     localStorage.removeItem(SETTINGS_KEY);
-
-    window.dispatchEvent(new Event("authChanged"));
-    window.dispatchEvent(new Event("profileUpdated"));
+    logout?.();
 
     setConfirmAction(null);
 

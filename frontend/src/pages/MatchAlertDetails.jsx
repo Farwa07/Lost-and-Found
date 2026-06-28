@@ -246,7 +246,7 @@ const normalizeBackendMatch = (backendMatch) => {
     id: backendMatch._id || backendMatch.id,
     matchId: backendMatch._id || backendMatch.id,
     score: backendMatch.score || 0,
-    threshold: backendMatch.threshold || 60,
+    threshold: backendMatch.threshold || 55,
     reasons: backendMatch.reasons || [],
     matchedFields: backendMatch.matchedFields || [],
     lostReport,
