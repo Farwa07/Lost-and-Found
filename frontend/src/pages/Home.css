@@ -227,6 +227,19 @@ body{
   background:#22c55e;
 }
 
+.case-solved-tag{
+  position:absolute;
+  top:14px;
+  right:14px;
+  padding:7px 13px;
+  border-radius:30px;
+  font-size:12px;
+  font-weight:800;
+  color:white;
+  background:#0f766e;
+  z-index:2;
+}
+
 .case-category{
   display:inline-block;
   margin-bottom:10px;

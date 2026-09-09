@@ -214,6 +214,13 @@ export default function Home() {
                     {report.type}
                   </div>
 
+                  {report.adminStatus === "Matched" &&
+  report.caseStatus === "Solved" && (
+    <div className="case-solved-tag">
+      Solved
+    </div>
+)}
+
                   <img
                     className="clickable-report-image"
                     src={report.image}
