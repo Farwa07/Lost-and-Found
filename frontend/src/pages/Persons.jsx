@@ -195,6 +195,10 @@ export default function Persons() {
                     {person.status}
                   </span>
 
+                  {person.caseStatus === "Solved" && (
+  <span className="person-solved-status">Solved</span>
+)}
+
                   <img
                     className="clickable-report-image"
                     src={person.image}

@@ -162,6 +162,19 @@
   z-index:2;
 }
 
+.person-solved-status{
+  position:absolute;
+  top:16px;
+  right:16px;
+  padding:7px 14px;
+  border-radius:30px;
+  color:white;
+  background:#0f766e;
+  font-size:12px;
+  font-weight:800;
+  z-index:2;
+}
+
 .status-missing{
   background:#ef4444;
 }

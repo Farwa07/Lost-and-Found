@@ -211,6 +211,10 @@ export default function Items() {
                   {item.status}
                 </span>
 
+                {item.caseStatus === "Solved" && (
+  <span className="item-solved-status">Solved</span>
+)}
+
                 <img
                   className="clickable-report-image"
                   src={item.image}

@@ -322,12 +322,28 @@ const calculateItemMatchScore = (lostReport, foundReport) => {
   const lostTitleNormalized = normalizeText(lostTitle);
   const foundTitleNormalized = normalizeText(foundTitle);
 
-  if (lostTitleNormalized && foundTitleNormalized && lostTitleNormalized === foundTitleNormalized) {
-    addScore(25, "Same title/name", "title/name");
-  } else {
-    const titleScore = sharedWordScore(lostTitle, foundTitle, 15);
-    if (titleScore > 0) addScore(titleScore, "Similar title/name keywords", "title/name");
+  if (
+  lostTitleNormalized &&
+  foundTitleNormalized &&
+  lostTitleNormalized === foundTitleNormalized
+) {
+  addScore(25, "Same title/name", "title/name");
+} else if (
+  lostTitleNormalized.includes(foundTitleNormalized) ||
+  foundTitleNormalized.includes(lostTitleNormalized)
+) {
+  addScore(20, "Closely related title/name", "title/name");
+} else {
+  const titleScore = sharedWordScore(lostTitle, foundTitle, 15);
+
+  if (titleScore > 0) {
+    addScore(
+      titleScore,
+      "Similar title/name keywords",
+      "title/name"
+    );
   }
+}
 
   const lostItemCategory = normalizeText(lostReport.itemCategory);
   const foundItemCategory = normalizeText(foundReport.itemCategory);
