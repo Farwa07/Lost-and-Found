@@ -50,6 +50,14 @@ const sendSignupOtp = async (req, res) => {
       });
     }
 
+      const phoneRegex = /^\+92[0-9]{10}$/;
+
+if (!phoneRegex.test(String(phone).trim())) {
+  return res.status(400).json({
+    message: "Phone number must start with +92 and contain exactly 10 digits after it.",
+  });
+}
+
     const cleanEmail = String(email).trim().toLowerCase();
 
     const existingUser = await User.findOne({ email: cleanEmail });
@@ -122,6 +130,9 @@ const verifySignupOtp = async (req, res) => {
       });
     }
 
+
+  
+
     const newUser = new User({
       fullName: pendingSignup.fullName,
       email: pendingSignup.email,
@@ -164,6 +175,14 @@ const registerUser = async (req, res) => {
         message: "Email already exists",
       });
     }
+
+    const phoneRegex = /^\+92[0-9]{10}$/;
+
+if (!phoneRegex.test(String(phone).trim())) {
+  return res.status(400).json({
+    message: "Phone number must start with +92 and contain exactly 10 digits after it.",
+  });
+}
 
     const hashedPassword = await bcrypt.hash(password, 10);
 

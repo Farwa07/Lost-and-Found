@@ -336,6 +336,16 @@ export default function Profile() {
 
     if (isSaving) return;
 
+    const phoneRegex = /^\+92[0-9]{10}$/;
+
+if (!phoneRegex.test(profileData.phone.trim())) {
+  setMessage({
+    type: "error",
+    text: "Phone number must start with +92 and contain exactly 10 digits.",
+  });
+  return;
+}s
+
     try {
       setIsSaving(true);
 
@@ -560,11 +570,14 @@ export default function Profile() {
                       <label>Phone Number</label>
                       <input
                         type="tel"
-                        name="phone"
-                        value={profileData.phone}
-                        onChange={handleChange}
-                        placeholder="Enter phone number"
-                        required
+  name="phone"
+  value={profileData.phone}
+  onChange={handleChange}
+  placeholder="+923001234567"
+  pattern="\+92[0-9]{10}"
+  maxLength={13}
+  title="Phone number must start with +92 and contain exactly 10 digits after it"
+  required
                       />
                     </div>
 

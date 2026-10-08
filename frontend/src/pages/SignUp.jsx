@@ -33,7 +33,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     e.preventDefault();
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-    const phoneRegex = /^[0-9+\-\s]{10,15}$/;
+    const phoneRegex = /^\+92[0-9]{10}$/;
     const passwordRegex =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
@@ -163,18 +163,20 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
             </div>
 
             <div className="signup__field">
-              <label>Phone Number</label>
-              <input
-                type="tel"
-                name="phone"
-                placeholder="Enter your phone number"
-                value={formData.phone}
-                onChange={handleChange}
-                pattern="[0-9+\-\s]{10,15}"
-                title="Phone number should be 10 to 15 digits"
-                required
-              />
-            </div>
+  <label>Phone Number</label>
+
+  <input
+    type="tel"
+    name="phone"
+    placeholder="+923001234567"
+    value={formData.phone}
+    onChange={handleChange}
+    pattern="\+92[0-9]{10}"
+    maxLength={13}
+    title="Phone number must start with +92 and contain exactly 10 digits after it"
+    required
+  />
+</div>
 
             <div className="signup__field">
   <label>Password</label>
