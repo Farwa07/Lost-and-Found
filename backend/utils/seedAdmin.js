@@ -17,7 +17,7 @@ const seedAdmin = async () => {
     await User.create({
       fullName: "System Admin",
       email: "admin@lostfound.com",
-      phone: "03000000000",
+      phone: "+923000000000",
       password: hashedPassword,
       role: "admin",
       status: "active",

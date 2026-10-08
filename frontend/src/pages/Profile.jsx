@@ -3,6 +3,7 @@ import "./Profile.css";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { isValidPhoneNumber, normalizePhoneNumber } from "../utils/phoneNumber";
 
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -31,7 +32,7 @@ import { getMyReports } from "../api/reportApi";
 const defaultProfileData = {
   fullName: "",
   email: "",
-  phone: "",
+  phone: "+92",
   city: "",
   address: "",
   bio: "",
@@ -55,7 +56,7 @@ const getUserFromResponse = (response) => {
 const buildProfileData = (user) => ({
   fullName: user?.fullName || user?.name || "",
   email: user?.email || "",
-  phone: user?.phone || "",
+  phone: normalizePhoneNumber(user?.phone || ""),
   city: user?.city || "",
   address: user?.address || "",
   bio: user?.bio || "",
@@ -137,7 +138,7 @@ export default function Profile() {
         _id: user._id || user.id,
         fullName: user.fullName || user.name || "",
         email: user.email || "",
-        phone: user.phone || "",
+        phone: normalizePhoneNumber(user.phone || ""),
         city: user.city || "",
         address: user.address || "",
         bio: user.bio || "",
@@ -325,7 +326,7 @@ export default function Profile() {
   const handleChange = (e) => {
     setProfileData({
       ...profileData,
-      [e.target.name]: e.target.value,
+      [e.target.name]: e.target.name === "phone" ? normalizePhoneNumber(e.target.value) : e.target.value,
     });
 
     setMessage("");
@@ -336,15 +337,13 @@ export default function Profile() {
 
     if (isSaving) return;
 
-    const phoneRegex = /^\+92[0-9]{10}$/;
-
-if (!phoneRegex.test(profileData.phone.trim())) {
-  setMessage({
-    type: "error",
-    text: "Phone number must start with +92 and contain exactly 10 digits.",
-  });
-  return;
-}s
+    if (!isValidPhoneNumber(profileData.phone)) {
+      setMessage({
+        type: "error",
+        text: "Enter 10 digits after the +92 prefix.",
+      });
+      return;
+    }
 
     try {
       setIsSaving(true);

@@ -16,6 +16,7 @@ const pendingSignupSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: true,
+      match: [/^\+92[0-9]{10}$/, "Phone number must start with +92 and contain exactly 10 digits after it."],
     },
 
     password: {

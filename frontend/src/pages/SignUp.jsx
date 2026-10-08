@@ -3,6 +3,7 @@ import "./SignUp.css";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { sendSignupOtp } from "../api/authApi";
+import { isValidPhoneNumber, normalizePhoneNumber } from "../utils/phoneNumber";
 
 const defaultAdminEmail = "admin@lostfound.com";
 
@@ -14,7 +15,7 @@ export default function SignUp() {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    phone: "",
+    phone: "+92",
     password: "",
     confirmPassword: "",
   });
@@ -25,7 +26,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData({ ...formData, [e.target.name]: e.target.name === "phone" ? normalizePhoneNumber(e.target.value) : e.target.value });
     setMessage({ type: "", text: "" });
   };
 
@@ -33,7 +34,6 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     e.preventDefault();
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-    const phoneRegex = /^\+92[0-9]{10}$/;
     const passwordRegex =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
@@ -57,8 +57,8 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
       return;
     }
 
-    if (!phoneRegex.test(formData.phone)) {
-      setMessage({ type: "error", text: "Please enter a valid phone number." });
+    if (!isValidPhoneNumber(formData.phone)) {
+      setMessage({ type: "error", text: "Enter 10 digits after the +92 prefix." });
       return;
     }
 

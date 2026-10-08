@@ -1,8 +1,10 @@
+import { normalizePhoneNumber } from "./phoneNumber";
+
 export const normalizeEmail = (email = "") => String(email || "").trim().toLowerCase();
 
 export const getReporterFieldsFromUser = (currentUser = {}) => {
   const fullName = currentUser?.fullName || currentUser?.name || "";
-  const phone = currentUser?.phone || currentUser?.contactNumber || "";
+  const phone = normalizePhoneNumber(currentUser?.phone || currentUser?.contactNumber || "");
   const email = normalizeEmail(currentUser?.email || "");
   const address = currentUser?.address || currentUser?.city || "";
 

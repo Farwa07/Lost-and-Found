@@ -4,6 +4,7 @@ import "./FoundItem.css";
 import { createFoundItemReport } from "../api/reportApi";
 import { useAuth } from "../context/AuthContext";
 import { applyReporterFields, getReporterFieldsFromUser, normalizeEmail } from "../utils/reporterInfo";
+import { isValidPhoneNumber, normalizePhoneNumber } from "../utils/phoneNumber";
 
 import {
   FaBoxOpen,
@@ -145,7 +146,7 @@ const FoundItem = () => {
     itemDescription: "",
 
     reporterFullName: "",
-    reporterContactNumber: "",
+    reporterContactNumber: "+92",
     reporterEmail: "",
     reporterAddress: "",
 
@@ -169,9 +170,10 @@ const FoundItem = () => {
   }, [reporterDefaults]);
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: name === "reporterContactNumber" ? normalizePhoneNumber(value) : value,
     });
   };
 
@@ -184,6 +186,10 @@ const FoundItem = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!isValidPhoneNumber(formData.reporterContactNumber)) {
+      alert("Enter 10 digits after the +92 prefix.");
+      return;
+    }
 
     if (isSubmitting) {
       return;
@@ -418,12 +424,12 @@ const FoundItem = () => {
                 <input
                   type="tel"
                   name="reporterContactNumber"
-                  placeholder="03XXXXXXXXX"
+                  placeholder="+923XXXXXXXXX"
                   value={formData.reporterContactNumber}
                   onChange={handleChange}
-                  pattern="[0-9]{11}"
-                  maxLength="11"
-                  title="Enter valid 11 digit phone number"
+                  pattern="\+92[0-9]{10}"
+                  maxLength="13"
+                  title="Enter +92 followed by exactly 10 digits"
                   required
                 />
               </div>

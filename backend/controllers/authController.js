@@ -424,6 +424,12 @@ const getProfile = async (req, res) => {
 // UPDATE USER PROFILE
 const updateProfile = async (req, res) => {
   try {
+    if (req.body.phone !== undefined && !/^\+92[0-9]{10}$/.test(String(req.body.phone).trim())) {
+      return res.status(400).json({
+        message: "Phone number must start with +92 and contain exactly 10 digits after it.",
+      });
+    }
+
     const allowedFields = [
       "fullName",
       "phone",

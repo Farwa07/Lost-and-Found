@@ -15,6 +15,7 @@ import {
   mapBackendReportsToUi,
   mapUiReportToUpdatePayload,
 } from "../utils/reportMapper";
+import { isValidPhoneNumber, normalizePhoneNumber } from "../utils/phoneNumber";
 
 import {
   FaBoxOpen,
@@ -110,8 +111,9 @@ const normalizeReport = (report) => {
       report.reporterFullName ||
       report.ownerName ||
       "Unknown Reporter",
-    reporterContact:
-      report.reporterContact || report.reporterContactNumber || "",
+    reporterContact: report.reporterContact || report.reporterContactNumber
+      ? normalizePhoneNumber(report.reporterContact || report.reporterContactNumber)
+      : "",
     reporterEmail: report.reporterEmail || report.ownerEmail || "",
     reporterAddress: report.reporterAddress || "",
     relation: report.relation || report.reporterRelationship || "",
@@ -356,9 +358,10 @@ export default function MyReports() {
   };
 
   const handleEditChange = (e) => {
+    const { name, value } = e.target;
     setEditingReport({
       ...editingReport,
-      [e.target.name]: e.target.value,
+      [name]: name === "reporterContact" ? normalizePhoneNumber(value) : value,
     });
   };
 
@@ -394,6 +397,11 @@ export default function MyReports() {
     e.preventDefault();
 
     if (!editingReport) {
+      return;
+    }
+
+    if (!isValidPhoneNumber(editingReport.reporterContact)) {
+      setMessage("Enter 10 digits after the +92 prefix for the reporter contact.");
       return;
     }
 
@@ -1081,6 +1089,10 @@ export default function MyReports() {
                         name="reporterContact"
                         value={editingReport.reporterContact}
                         onChange={handleEditChange}
+                        placeholder="+923XXXXXXXXX"
+                        pattern="\+92[0-9]{10}"
+                        maxLength={13}
+                        title="Enter +92 followed by exactly 10 digits"
                         required
                       />
                     </div>

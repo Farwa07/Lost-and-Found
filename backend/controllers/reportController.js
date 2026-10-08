@@ -25,6 +25,15 @@ const getCity = (city, location = "") => {
 
 const normalizeEmail = (email = "") => String(email || "").trim().toLowerCase();
 
+const validateReporterPhone = (phone) => {
+  const normalizedPhone = String(phone || "").trim();
+  if (!/^\+92[0-9]{10}$/.test(normalizedPhone)) {
+    const error = new Error("Phone number must start with +92 and contain exactly 10 digits after it.");
+    error.statusCode = 400;
+    throw error;
+  }
+};
+
 const sendErrorResponse = (res, error) => {
   return res.status(error.statusCode || 500).json({
     message: error.message,
@@ -249,6 +258,7 @@ const createLostItemReport = async (req, res) => {
     } = req.body;
 
     const reporter = await getAuthenticatedReporter(req);
+    validateReporterPhone(reporter.reporterContactNumber);
 
     const newReport = new Report({
       userId: req.user ? req.user.id : null,
@@ -306,6 +316,7 @@ const createFoundItemReport = async (req, res) => {
     } = req.body;
 
     const reporter = await getAuthenticatedReporter(req);
+    validateReporterPhone(reporter.reporterContactNumber);
 
     const newReport = new Report({
       userId: req.user ? req.user.id : null,
@@ -363,6 +374,7 @@ const createMissingPersonReport = async (req, res) => {
     } = req.body;
 
     const reporter = await getAuthenticatedReporter(req);
+    validateReporterPhone(reporter.reporterContactNumber);
 
     const newReport = new Report({
       userId: req.user ? req.user.id : null,
@@ -424,6 +436,7 @@ const createFoundPersonReport = async (req, res) => {
     } = req.body;
 
     const reporter = await getAuthenticatedReporter(req);
+    validateReporterPhone(reporter.reporterContactNumber);
 
     const newReport = new Report({
       userId: req.user ? req.user.id : null,
@@ -695,8 +708,12 @@ const updateMyReport = async (req, res) => {
     delete updateData.matchedBy;
 
     const reporter = await getAuthenticatedReporter(req);
+    const submittedReporterPhone = req.body?.reporterContactNumber;
     updateData.reporterFullName = reporter.reporterFullName;
-    updateData.reporterContactNumber = reporter.reporterContactNumber;
+    updateData.reporterContactNumber = submittedReporterPhone === undefined
+      ? reporter.reporterContactNumber
+      : String(submittedReporterPhone).trim();
+    validateReporterPhone(updateData.reporterContactNumber);
     updateData.reporterEmail = reporter.reporterEmail;
     updateData.reporterAddress = reporter.reporterAddress;
 
