@@ -1,16 +1,61 @@
 const Report = require("../models/report");
 const ReportComplaint = require("../models/reportComplaint");
 const User = require("../models/user");
+const {
+  PRIVATE_FIELDS,
+  toStoredPath,
+  resolveStoredFile,
+  removeStoredFiles,
+  removeUploadedRequestFiles,
+} = require("../utils/uploads");
+const { deleteReportsCascade } = require("../utils/cleanup");
+const { removeSuggestedMatchesForReport } = require("./adminController");
 
 const publicStatuses = ["verified", "matched", "closed"];
 
-const getImageUrl = (req, filePath) => {
-  if (!filePath) return "";
+const EDITABLE_REPORT_FIELDS = [
+  "city",
+  "caseStatus",
+  "itemName",
+  "itemCategory",
+  "itemColor",
+  "itemBrand",
+  "itemDescription",
+  "lostLocation",
+  "lostDate",
+  "foundLocation",
+  "foundDate",
+  "currentLocation",
+  "missingPersonName",
+  "missingPersonAge",
+  "missingPersonGender",
+  "missingPersonLastSeenLocation",
+  "missingPersonLastSeenDate",
+  "missingPersonDescription",
+  "reporterRelationship",
+  "foundPersonName",
+  "estimatedAge",
+  "foundPersonGender",
+  "foundPersonDescription",
+];
 
-  const cleanPath = filePath.replace(/\\/g, "/").replace(/^\/+/, "");
+// Sensitive fields that must never be sent to the public.
+const PUBLIC_HIDDEN_FIELDS = "-reporterIdCardImage -firReportImage -flags";
 
-  return `${req.protocol}://${req.get("host")}/${cleanPath}`;
+const stripPrivateFields = (report) => {
+  const data = typeof report?.toObject === "function" ? report.toObject() : { ...report };
+  delete data.reporterIdCardImage;
+  delete data.firReportImage;
+  delete data.flags;
+  return data;
 };
+
+const isOwnerOrAdmin = (req, report) =>
+  Boolean(
+    req.user &&
+      (req.user.role === "admin" ||
+        (report.userId && String(report.userId) === String(req.user.id)))
+  );
 
 const getCity = (city, location = "") => {
   if (city) return city;
@@ -34,7 +79,11 @@ const validateReporterPhone = (phone) => {
   }
 };
 
-const sendErrorResponse = (res, error) => {
+const sendErrorResponse = async (res, error, req) => {
+  if (req) {
+    await removeUploadedRequestFiles(req);
+  }
+
   return res.status(error.statusCode || 500).json({
     message: error.message,
   });
@@ -213,7 +262,9 @@ const getPublicReportsResponse = async (req, res, fixedCategory = "", message = 
     const limitValue = Number(req.query.limit || 0);
     const limit = Number.isFinite(limitValue) && limitValue > 0 ? limitValue : 0;
 
-    const reportsQuery = Report.find(query).sort({ createdAt: -1 });
+    const reportsQuery = Report.find(query)
+      .select(PUBLIC_HIDDEN_FIELDS)
+      .sort({ createdAt: -1 });
 
     if (limit) {
       reportsQuery.limit(limit);
@@ -277,11 +328,11 @@ const createLostItemReport = async (req, res) => {
       ...reporter,
 
       lostItemImage: req.files?.lostItemImage
-        ? getImageUrl(req, req.files.lostItemImage[0].path)
+        ? toStoredPath(req.files.lostItemImage[0])
         : "",
 
       reporterIdCardImage: req.files?.reporterIdCardImage
-        ? getImageUrl(req, req.files.reporterIdCardImage[0].path)
+        ? toStoredPath(req.files.reporterIdCardImage[0])
         : "",
     });
 
@@ -292,7 +343,7 @@ const createLostItemReport = async (req, res) => {
       report: newReport,
     });
   } catch (error) {
-    sendErrorResponse(res, error);
+    sendErrorResponse(res, error, req);
   }
 };
 
@@ -336,11 +387,11 @@ const createFoundItemReport = async (req, res) => {
       ...reporter,
 
       foundItemImage: req.files?.foundItemImage
-        ? getImageUrl(req, req.files.foundItemImage[0].path)
+        ? toStoredPath(req.files.foundItemImage[0])
         : "",
 
       reporterIdCardImage: req.files?.reporterIdCardImage
-        ? getImageUrl(req, req.files.reporterIdCardImage[0].path)
+        ? toStoredPath(req.files.reporterIdCardImage[0])
         : "",
     });
 
@@ -351,7 +402,7 @@ const createFoundItemReport = async (req, res) => {
       report: newReport,
     });
   } catch (error) {
-    sendErrorResponse(res, error);
+    sendErrorResponse(res, error, req);
   }
 };
 
@@ -393,15 +444,15 @@ const createMissingPersonReport = async (req, res) => {
       reporterRelationship,
 
       missingPersonImage: req.files?.missingPersonImage
-        ? getImageUrl(req, req.files.missingPersonImage[0].path)
+        ? toStoredPath(req.files.missingPersonImage[0])
         : "",
 
       reporterIdCardImage: req.files?.reporterIdCardImage
-        ? getImageUrl(req, req.files.reporterIdCardImage[0].path)
+        ? toStoredPath(req.files.reporterIdCardImage[0])
         : "",
 
       firReportImage: req.files?.firReportImage
-        ? getImageUrl(req, req.files.firReportImage[0].path)
+        ? toStoredPath(req.files.firReportImage[0])
         : "",
     });
 
@@ -412,7 +463,7 @@ const createMissingPersonReport = async (req, res) => {
       report: newReport,
     });
   } catch (error) {
-    sendErrorResponse(res, error);
+    sendErrorResponse(res, error, req);
   }
 };
 
@@ -456,11 +507,11 @@ const createFoundPersonReport = async (req, res) => {
       reporterRelationship,
 
       foundPersonImage: req.files?.foundPersonImage
-        ? getImageUrl(req, req.files.foundPersonImage[0].path)
+        ? toStoredPath(req.files.foundPersonImage[0])
         : "",
 
       reporterIdCardImage: req.files?.reporterIdCardImage
-        ? getImageUrl(req, req.files.reporterIdCardImage[0].path)
+        ? toStoredPath(req.files.reporterIdCardImage[0])
         : "",
     });
 
@@ -471,7 +522,7 @@ const createFoundPersonReport = async (req, res) => {
       report: newReport,
     });
   } catch (error) {
-    sendErrorResponse(res, error);
+    sendErrorResponse(res, error, req);
   }
 };
 
@@ -519,8 +570,10 @@ const searchReports = async (req, res) => {
 const getReportById = async (req, res) => {
   try {
     const report = await Report.findById(req.params.id);
+    const canSeePrivate = report ? isOwnerOrAdmin(req, report) : false;
 
-    if (!report) {
+    // Pending/rejected reports are visible only to their owner or an admin.
+    if (!report || (!publicStatuses.includes(report.status) && !canSeePrivate)) {
       return res.status(404).json({
         message: "Report not found",
       });
@@ -528,10 +581,10 @@ const getReportById = async (req, res) => {
 
     res.status(200).json({
       message: "Report fetched successfully",
-      report,
+      report: canSeePrivate ? report : stripPrivateFields(report),
     });
   } catch (error) {
-    sendErrorResponse(res, error);
+    sendErrorResponse(res, error, req);
   }
 };
 
@@ -547,7 +600,7 @@ const getMyReports = async (req, res) => {
       reports,
     });
   } catch (error) {
-    sendErrorResponse(res, error);
+    sendErrorResponse(res, error, req);
   }
 };
 
@@ -613,26 +666,26 @@ const reportPost = async (req, res) => {
         },
       },
       {
-        new: true,
+        returnDocument: "after",
       }
     );
 
     res.status(201).json({
       message: "Post reported successfully. Admin will review it.",
-      report: updatedReport,
+      report: stripPrivateFields(updatedReport),
     });
   } catch (error) {
-    sendErrorResponse(res, error);
+    sendErrorResponse(res, error, req);
   }
 };
 
 // DELETE MY REPORT
 const deleteMyReport = async (req, res) => {
   try {
-    const report = await Report.findOneAndDelete({
+    const report = await Report.findOne({
       _id: req.params.id,
       userId: req.user.id,
-    });
+    }).select("_id");
 
     if (!report) {
       return res.status(404).json({
@@ -640,11 +693,13 @@ const deleteMyReport = async (req, res) => {
       });
     }
 
+    await deleteReportsCascade([report._id]);
+
     res.status(200).json({
       message: "Report deleted successfully",
     });
   } catch (error) {
-    sendErrorResponse(res, error);
+    sendErrorResponse(res, error, req);
   }
 };
 
@@ -670,7 +725,7 @@ const updateMyReportStatus = async (req, res) => {
         caseStatus,
       },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );
@@ -686,26 +741,45 @@ const updateMyReportStatus = async (req, res) => {
       report,
     });
   } catch (error) {
-    sendErrorResponse(res, error);
+    sendErrorResponse(res, error, req);
   }
 };
 
 // UPDATE MY REPORT DETAILS
 const updateMyReport = async (req, res) => {
   try {
-    const updateData = { ...(req.body || {}) };
+    const existingReport = await Report.findOne({
+      _id: req.params.id,
+      userId: req.user.id,
+    });
 
-    delete updateData.userId;
-    delete updateData.status;
-    delete updateData.isVerified;
-    delete updateData.flags;
-    delete updateData.flagCount;
-    delete updateData.matchedWith;
-    delete updateData.matchId;
-    delete updateData.matchScore;
-    delete updateData.matchedFields;
-    delete updateData.matchedAt;
-    delete updateData.matchedBy;
+    if (!existingReport) {
+      const error = new Error("Report not found or you are not allowed to update it");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (["matched", "closed"].includes(existingReport.status)) {
+      const error = new Error("Matched or closed reports cannot be edited.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Only plain content fields can be changed. Status, verification, match
+    // data and file paths are never taken from the request body.
+    const updateData = {};
+    EDITABLE_REPORT_FIELDS.forEach((field) => {
+      if (req.body?.[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    // Any edit sends a verified/rejected report back to admin review, so
+    // content cannot be changed after verification without a new check.
+    if (existingReport.status !== "pending") {
+      updateData.status = "pending";
+      updateData.isVerified = false;
+    }
 
     const reporter = await getAuthenticatedReporter(req);
     const submittedReporterPhone = req.body?.reporterContactNumber;
@@ -726,7 +800,7 @@ const updateMyReport = async (req, res) => {
 
     imageFieldNames.forEach((fieldName) => {
       if (req.files?.[fieldName]?.[0]) {
-        updateData[fieldName] = getImageUrl(req, req.files[fieldName][0].path);
+        updateData[fieldName] = toStoredPath(req.files[fieldName][0]);
       }
     });
 
@@ -737,7 +811,7 @@ const updateMyReport = async (req, res) => {
       },
       updateData,
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );
@@ -748,9 +822,63 @@ const updateMyReport = async (req, res) => {
       });
     }
 
+    // Remove image files that were replaced.
+    await removeStoredFiles(
+      imageFieldNames
+        .filter((fieldName) => updateData[fieldName] && existingReport[fieldName] !== updateData[fieldName])
+        .map((fieldName) => existingReport[fieldName])
+    );
+
+    const sentForReview = existingReport.status !== "pending";
+
+    if (sentForReview) {
+      await removeSuggestedMatchesForReport(report._id);
+    }
+
     res.status(200).json({
-      message: "Report updated successfully",
+      message: sentForReview
+        ? "Report updated successfully. It will be visible again after admin verification."
+        : "Report updated successfully",
       report,
+    });
+  } catch (error) {
+    sendErrorResponse(res, error, req);
+  }
+};
+
+// GET CNIC / FIR DOCUMENT (owner or admin only)
+const getReportDocument = async (req, res) => {
+  try {
+    const { id, field } = req.params;
+
+    if (!PRIVATE_FIELDS.includes(field)) {
+      return res.status(400).json({
+        message: "Invalid document type",
+      });
+    }
+
+    const report = await Report.findById(id).select(`userId ${field}`);
+
+    if (!report || !isOwnerOrAdmin(req, report)) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
+    const filePath = resolveStoredFile(report[field]);
+
+    if (!filePath) {
+      return res.status(404).json({
+        message: "Document not found",
+      });
+    }
+
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.sendFile(filePath, (error) => {
+      if (error && !res.headersSent) {
+        res.status(404).json({ message: "Document not found" });
+      }
     });
   } catch (error) {
     sendErrorResponse(res, error);
@@ -758,6 +886,7 @@ const updateMyReport = async (req, res) => {
 };
 
 module.exports = {
+  getReportDocument,
   createLostItemReport,
   createFoundItemReport,
   createMissingPersonReport,

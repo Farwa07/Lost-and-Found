@@ -1,3 +1,5 @@
+import { resolveMediaUrl } from "./mediaUrl";
+
 const DEFAULT_PERSON_IMAGE =
   "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1200&auto=format&fit=crop";
 
@@ -76,7 +78,7 @@ export const getReportImage = (report = {}) => {
     "";
 
   if (image) {
-    return image;
+    return resolveMediaUrl(image);
   }
 
   return getFallbackReportImage(getCategoryLabel(report));

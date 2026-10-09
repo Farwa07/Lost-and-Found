@@ -4,7 +4,7 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const fs = require("fs");
+const multer = require("multer");
 const contactRoutes = require("./routes/contactRoutes");
 
 const authRoutes = require("./routes/authRoutes");
@@ -16,19 +16,43 @@ const adminRoutes = require("./routes/adminRoutes");
 const matchRoutes = require("./routes/matchRoutes");
 const profileRoutes = require("./routes/profileRoutes");
 const seedAdmin = require("./utils/seedAdmin");
+const migrateLegacyData = require("./utils/migrateLegacyData");
+const { PUBLIC_UPLOAD_DIR, removeUploadedRequestFiles } = require("./utils/uploads");
+const { recomputeAllMatches, syncAllConfirmedMatchReports } = require("./controllers/adminController");
 
 
 const app = express();
-const uploadPath = path.join(__dirname, "uploads");
 
-if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath);
-}
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://localhost:5173",
+  ...String(process.env.CORS_ORIGINS || "").split(","),
+]
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
 
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use("/uploads", express.static(uploadPath));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Requests without an Origin header (curl, server-to-server) are allowed.
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(null, false);
+    },
+  })
+);
+app.use(express.json({ limit: "1mb" }));
+// Only public images live here. CNIC/FIR documents are stored in
+// private_uploads and served through an authenticated route.
+app.use(
+  "/uploads",
+  express.static(PUBLIC_UPLOAD_DIR, {
+    setHeaders: (res) => {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+    },
+  })
+);
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -46,6 +70,25 @@ app.use("/api/contact", contactRoutes);
 // Testing simple route
 app.get("/", (req, res) => {
   res.send("Hello World!");
+});
+
+// Upload and other unhandled errors
+app.use(async (err, req, res, next) => {
+  await removeUploadedRequestFiles(req);
+
+  if (err instanceof multer.MulterError) {
+    const message =
+      err.code === "LIMIT_FILE_SIZE"
+        ? "File is too large. Maximum size is 5 MB."
+        : err.message || "Invalid file upload.";
+
+    return res.status(400).json({ message });
+  }
+
+  console.log("Unhandled error:", err.message);
+  res.status(err.status || 500).json({
+    message: err.message || "Something went wrong",
+  });
 });
 
 // Database connection + server start
@@ -66,6 +109,9 @@ mongoose
   console.log("MongoDB connected");
 
   await seedAdmin();
+  await migrateLegacyData();
+  await syncAllConfirmedMatchReports();
+  await recomputeAllMatches();
 
   app.listen(port, () => {
     console.log(`Server running on port ${port}`);

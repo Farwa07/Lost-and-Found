@@ -18,6 +18,7 @@ import {
   updateAdminReportCaseStatus,
   verifyAdminReport,
 } from "../api/adminApi";
+import { fetchReportDocument } from "../api/reportApi";
 import {
   getFallbackReportImage,
   mapBackendReportToUi,
@@ -120,11 +121,13 @@ const getVisualPairKey = (lostReport, foundReport) => {
   )}`;
 };
 
+// Only drops the exact same report appearing twice. Reports with identical
+// content are kept on purpose: admins must see them to catch spam/fake posts.
 const removeDuplicateReports = (reports) => {
   const seen = new Set();
 
   return reports.filter((report) => {
-    const key = getReportIdentityKey(report);
+    const key = String(report.id);
 
     if (seen.has(key)) {
       return false;
@@ -193,6 +196,40 @@ export default function AdminPanel() {
     }
   };
 
+  const mapMatchSuggestions = (matchesResponse) =>
+    Array.isArray(matchesResponse?.suggestions)
+      ? matchesResponse.suggestions.map((suggestion) => {
+          const lostReport = mapBackendReportToUi(suggestion.lostReport || {});
+          const foundReport = mapBackendReportToUi(suggestion.foundReport || {});
+
+          return {
+            id: suggestion.matchId || suggestion._id,
+            matchId: suggestion.matchId || suggestion._id,
+            pairKey: getPairKey(lostReport.id, foundReport.id),
+            visualPairKey: getVisualPairKey(lostReport, foundReport),
+            score: suggestion.score || 0,
+            reasons: Array.isArray(suggestion.reasons) ? suggestion.reasons : [],
+            matchedFields: Array.isArray(suggestion.matchedFields)
+              ? suggestion.matchedFields
+              : [],
+            threshold: suggestion.threshold || 55,
+            status: suggestion.status || "suggested",
+            lostReport,
+            foundReport,
+          };
+        })
+      : [];
+
+  // Suggestions are calculated on the server when a report is verified or its
+  // status changes, so reload them after such actions.
+  const loadMatchSuggestions = async () => {
+    try {
+      setApiMatchSuggestions(mapMatchSuggestions(await getMatchSuggestions()));
+    } catch {
+      setApiMatchSuggestions([]);
+    }
+  };
+
   const loadAdminData = async () => {
     try {
       const [reportsResponse, usersResponse, matchesResponse, logsResponse] = await Promise.all([
@@ -205,30 +242,7 @@ export default function AdminPanel() {
       setReports(removeDuplicateReports(mapBackendReportsToUi(reportsResponse?.reports || [])));
       setUsers((usersResponse?.users || []).map(normalizeAdminUser));
       setAdminLogs((logsResponse?.logs || []).map(normalizeAdminLog));
-      setApiMatchSuggestions(
-        Array.isArray(matchesResponse?.suggestions)
-          ? matchesResponse.suggestions.map((suggestion) => {
-              const lostReport = mapBackendReportToUi(suggestion.lostReport || {});
-              const foundReport = mapBackendReportToUi(suggestion.foundReport || {});
-
-              return {
-                id: suggestion.matchId || suggestion._id,
-                matchId: suggestion.matchId || suggestion._id,
-                pairKey: getPairKey(lostReport.id, foundReport.id),
-                visualPairKey: getVisualPairKey(lostReport, foundReport),
-                score: suggestion.score || 0,
-                reasons: Array.isArray(suggestion.reasons) ? suggestion.reasons : [],
-                matchedFields: Array.isArray(suggestion.matchedFields)
-                  ? suggestion.matchedFields
-                  : [],
-                threshold: suggestion.threshold || 55,
-                status: suggestion.status || "suggested",
-                lostReport,
-                foundReport,
-              };
-            })
-          : []
-      );
+      setApiMatchSuggestions(mapMatchSuggestions(matchesResponse));
     } catch (error) {
       console.error("Admin data load error:", error);
       showMessage(error.message || "Unable to load admin data.");
@@ -413,6 +427,7 @@ export default function AdminPanel() {
           : previousReport
       );
       addAdminLog(`Report marked as ${nextStatus}`, targetReport?.title);
+      loadMatchSuggestions();
     } catch (error) {
       console.error("Admin status update error:", error);
       setReports(previousReports);
@@ -465,6 +480,7 @@ export default function AdminPanel() {
           : previousReport
       );
       addAdminLog(`Case status changed to ${nextCaseStatus}`, targetReport?.title);
+      loadMatchSuggestions();
     } catch (error) {
       console.error("Admin case status update error:", error);
       setReports(previousReports);
@@ -744,17 +760,36 @@ export default function AdminPanel() {
     }
   };
 
+  const openReportDocument = async (report, field, label) => {
+    try {
+      const { url, type } = await fetchReportDocument(report.id, field);
+
+      if (type.startsWith("image/")) {
+        setPreviewImage({ src: url, alt: `${label} - ${report.title}` });
+        return;
+      }
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${label.replace(/\s+/g, "-").toLowerCase()}-${report.id}`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (error) {
+      showMessage(error.message || "Unable to open document.");
+    }
+  };
+
   const deleteUser = async (userId) => {
-    const confirmDelete = window.confirm("Delete this user from frontend admin list?");
+    const confirmDelete = window.confirm(
+      "Delete this user permanently? All of their reports, comments and uploaded files will also be deleted."
+    );
 
     if (!confirmDelete) return;
 
     try {
       await deleteAdminUser(userId);
-      saveUsers(
-        users.filter((user) => String(user.id) !== String(userId)),
-        "User removed from admin list."
-      );
+      await loadAdminData();
+      showMessage("User and all related data deleted.");
     } catch (error) {
       showMessage(error.message || "Unable to delete user.");
     }
@@ -1506,6 +1541,46 @@ export default function AdminPanel() {
               <FaMapMarkerAlt /> <b>Address:</b>{" "}
               {selectedReport.reporterAddress || "N/A"}
             </p>
+          </div>
+
+          <h3>Verification Documents (private)</h3>
+
+          <div className="admin-detail-grid">
+            <p>
+              <FaFileAlt /> <b>ID Card:</b>{" "}
+              {selectedReport.reporterIdCardImage ? (
+                <button
+                  type="button"
+                  className="admin-doc-view-btn"
+                  onClick={() =>
+                    openReportDocument(selectedReport, "reporterIdCardImage", "ID Card")
+                  }
+                >
+                  <FaEye /> View
+                </button>
+              ) : (
+                "Not uploaded"
+              )}
+            </p>
+
+            {selectedReport.category === "Person" && selectedReport.type !== "Found" && (
+              <p>
+                <FaFileAlt /> <b>FIR Report:</b>{" "}
+                {selectedReport.firReportImage ? (
+                  <button
+                    type="button"
+                    className="admin-doc-view-btn"
+                    onClick={() =>
+                      openReportDocument(selectedReport, "firReportImage", "FIR Report")
+                    }
+                  >
+                    <FaEye /> View
+                  </button>
+                ) : (
+                  "Not uploaded"
+                )}
+              </p>
+            )}
           </div>
 
           <hr />

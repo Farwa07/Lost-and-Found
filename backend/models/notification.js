@@ -21,6 +21,13 @@ const notificationSchema = new mongoose.Schema(
       default: null,
     },
 
+    commentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Comment",
+      required: false,
+      default: null,
+    },
+
     type: {
       type: String,
       enum: ["Match", "Verification", "Comment", "Alert", "Status"],

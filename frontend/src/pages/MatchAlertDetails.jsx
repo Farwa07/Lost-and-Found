@@ -20,10 +20,8 @@ import {
   FaUser,
 } from "react-icons/fa";
 
-import { API_BASE_URL } from "../api/apiClient";
 import { getMatchById } from "../api/matchApi";
-
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
+import { resolveMediaUrl as resolveImageUrl } from "../utils/mediaUrl";
 
 const normalize = (value = "") => String(value || "").trim().toLowerCase();
 
@@ -38,22 +36,6 @@ const formatDate = (value) => {
     month: "2-digit",
     day: "2-digit",
   });
-};
-
-const resolveImageUrl = (value = "") => {
-  if (!value) return "";
-
-  const path = String(value);
-
-  if (path.startsWith("http") || path.startsWith("data:")) {
-    return path;
-  }
-
-  if (path.startsWith("/")) {
-    return `${API_ORIGIN}${path}`;
-  }
-
-  return `${API_ORIGIN}/${path.replace(/^\/+/, "")}`;
 };
 
 const getReportTitle = (report) => {

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getProfile as getProfileApi, loginUser as loginUserApi } from "../api/authApi";
 import { setToken as saveApiToken } from "../api/apiClient";
+import { resolveMediaUrl } from "../utils/mediaUrl";
 
 const AuthContext = createContext();
 
@@ -37,7 +38,7 @@ const normalizeBackendUser = (user = {}) => {
     city: user.city || "",
     address: user.address || "",
     bio: user.bio || "",
-    profileImage: user.profileImage || "",
+    profileImage: resolveMediaUrl(user.profileImage || ""),
     role: toFrontendRole(rawRole),
     backendRole: toBackendRole(rawRole),
     status: toFrontendStatus(rawStatus),

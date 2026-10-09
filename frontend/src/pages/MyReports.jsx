@@ -431,7 +431,7 @@ export default function MyReports() {
       );
 
       saveAllReports(nextReports);
-      setMessage("Report updated successfully.");
+      setMessage(response?.message || "Report updated successfully.");
       setEditingReport(null);
       setEditImageFile(null);
     } catch (error) {

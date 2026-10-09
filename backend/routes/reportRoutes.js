@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
 const authMiddleware = require("../middleware/authMiddleware");
+const { optionalAuth } = authMiddleware;
+const { upload } = require("../utils/uploads");
 
 const {
   createLostItemReport,
@@ -18,20 +19,8 @@ const {
   updateMyReportStatus,
   updateMyReport,
   searchReports,
+  getReportDocument,
 } = require("../controllers/reportController");
-
-// Multer storage setup
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-
-const upload = multer({ storage: storage });
 
 // Create Lost Item Report
 router.post(
@@ -119,7 +108,10 @@ router.put(
   updateMyReport
 );
 
-// Get single report by ID
-router.get("/:id", getReportById);
+// Get CNIC / FIR document of a report (owner or admin only)
+router.get("/:id/documents/:field", authMiddleware, getReportDocument);
+
+// Get single report by ID (pending/rejected reports only for owner or admin)
+router.get("/:id", optionalAuth, getReportById);
 
 module.exports = router;

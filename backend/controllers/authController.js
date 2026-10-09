@@ -4,11 +4,9 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
-const Report = require("../models/report");
-const Comment = require("../models/comment");
-const Notification = require("../models/notification");
-const ReportComplaint = require("../models/reportComplaint");
-const ReportMatch = require("../models/reportMatch");
+const { isStrongPassword, PASSWORD_RULE_MESSAGE } = require("../utils/password");
+const { deleteUserCascade } = require("../utils/cleanup");
+const { toStoredPath, removeStoredFile, removeUploadedRequestFiles } = require("../utils/uploads");
 
 
 // Email sender setup
@@ -57,6 +55,12 @@ if (!phoneRegex.test(String(phone).trim())) {
     message: "Phone number must start with +92 and contain exactly 10 digits after it.",
   });
 }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        message: PASSWORD_RULE_MESSAGE,
+      });
+    }
 
     const cleanEmail = String(email).trim().toLowerCase();
 
@@ -147,65 +151,6 @@ const verifySignupOtp = async (req, res) => {
 
     res.status(201).json({
       message: "Account verified and registered successfully",
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
-
-// REGISTER USER - old direct signup, optional
-const registerUser = async (req, res) => {
-  try {
-    const { fullName, email, phone, password } = req.body;
-
-    if (!fullName || !email || !phone || !password) {
-      return res.status(400).json({
-        message: "All fields are required",
-      });
-    }
-
-    const cleanEmail = email.toLowerCase();
-
-    const existingUser = await User.findOne({ email: cleanEmail });
-
-    if (existingUser) {
-      return res.status(400).json({
-        message: "Email already exists",
-      });
-    }
-
-    const phoneRegex = /^\+92[0-9]{10}$/;
-
-if (!phoneRegex.test(String(phone).trim())) {
-  return res.status(400).json({
-    message: "Phone number must start with +92 and contain exactly 10 digits after it.",
-  });
-}
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = new User({
-      fullName,
-      email: cleanEmail,
-      phone,
-      password: hashedPassword,
-      status: "active",
-    });
-
-    await newUser.save();
-
-    res.status(201).json({
-      message: "User registered successfully",
-      user: {
-        id: newUser._id,
-        fullName: newUser.fullName,
-        email: newUser.email,
-        phone: newUser.phone,
-        role: newUser.role,
-        status: newUser.status,
-      },
     });
   } catch (error) {
     res.status(500).json({
@@ -311,10 +256,17 @@ const forgotPassword = async (req, res) => {
       .update(resetToken)
       .digest("hex");
 
-    user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
-
-    await user.save();
+    // updateOne only touches these fields, so an old/invalid value in another
+    // field (e.g. phone) cannot block the password flow.
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          resetPasswordToken: hashedToken,
+          resetPasswordExpire: Date.now() + 15 * 60 * 1000,
+        },
+      }
+    );
 
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
@@ -357,9 +309,9 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    if (newPassword.length < 8) {
+    if (!isStrongPassword(newPassword)) {
       return res.status(400).json({
-        message: "Password must be at least 8 characters long",
+        message: PASSWORD_RULE_MESSAGE,
       });
     }
 
@@ -381,11 +333,13 @@ const resetPassword = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    user.password = hashedPassword;
-    user.resetPasswordToken = "";
-    user.resetPasswordExpire = undefined;
-
-    await user.save();
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: { password: hashedPassword, resetPasswordToken: "" },
+        $unset: { resetPasswordExpire: "" },
+      }
+    );
 
     res.status(200).json({
       message: "Password reset successfully",
@@ -436,7 +390,6 @@ const updateProfile = async (req, res) => {
       "city",
       "address",
       "bio",
-      "profileImage",
     ];
 
     const updateData = {};
@@ -447,8 +400,19 @@ const updateProfile = async (req, res) => {
       }
     });
 
+    // The picture itself is set only through the upload route; here it can
+    // only be removed.
+    const removeProfileImage = req.body.profileImage === "";
+    let previousProfileImage = "";
+
+    if (removeProfileImage) {
+      const currentUser = await User.findById(req.user.id).select("profileImage");
+      previousProfileImage = currentUser?.profileImage || "";
+      updateData.profileImage = "";
+    }
+
     const updatedUser = await User.findByIdAndUpdate(req.user.id, updateData, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     }).select("-password -resetOtp -resetOtpExpire");
 
@@ -456,6 +420,10 @@ const updateProfile = async (req, res) => {
       return res.status(404).json({
         message: "User not found",
       });
+    }
+
+    if (previousProfileImage) {
+      await removeStoredFile(previousProfileImage);
     }
 
     res.status(200).json({
@@ -480,6 +448,12 @@ const changePassword = async (req, res) => {
       });
     }
 
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({
+        message: PASSWORD_RULE_MESSAGE,
+      });
+    }
+
     const user = await User.findById(req.user.id);
 
     if (!user) {
@@ -498,8 +472,7 @@ const changePassword = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    user.password = hashedPassword;
-    await user.save();
+    await User.updateOne({ _id: user._id }, { $set: { password: hashedPassword } });
 
     res.status(200).json({
       message: "Password changed successfully",
@@ -511,7 +484,6 @@ const changePassword = async (req, res) => {
   }
 };
 
-// DELETE MY ACCOUNT
 // DELETE MY ACCOUNT
 const deleteMyAccount = async (req, res) => {
   try {
@@ -531,42 +503,7 @@ const deleteMyAccount = async (req, res) => {
       });
     }
 
-    const userReports = await Report.find({ userId }).select("_id");
-    const userReportIds = userReports.map((report) => report._id);
-
-    if (userReportIds.length > 0) {
-      await Comment.deleteMany({
-        reportId: { $in: userReportIds },
-      });
-
-      await Notification.deleteMany({
-        $or: [
-          { userId },
-          { reportId: { $in: userReportIds } },
-        ],
-      });
-
-      await ReportComplaint.deleteMany({
-        reportId: { $in: userReportIds },
-      });
-
-      await ReportMatch.deleteMany({
-        $or: [
-          { lostReportId: { $in: userReportIds } },
-          { foundReportId: { $in: userReportIds } },
-        ],
-      });
-
-      await Report.deleteMany({
-        _id: { $in: userReportIds },
-      });
-    }
-
-    await Comment.deleteMany({ userId });
-    await Notification.deleteMany({ userId });
-    await ReportComplaint.deleteMany({ reportedBy: userId });
-
-    await User.findByIdAndDelete(userId);
+    await deleteUserCascade(user);
 
     res.status(200).json({
       message: "Account and related reports deleted successfully.",
@@ -587,20 +524,25 @@ const updateProfileImage = async (req, res) => {
       });
     }
 
-    const imagePath = `${req.protocol}://${req.get("host")}/uploads/${
-      req.file.filename
-    }`;
+    const imagePath = toStoredPath(req.file);
+
+    const previousUser = await User.findById(req.user.id).select("profileImage");
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { profileImage: imagePath },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).select("-password -resetOtp -resetOtpExpire");
 
     if (!user) {
+      await removeUploadedRequestFiles(req);
       return res.status(404).json({
         message: "User not found",
       });
+    }
+
+    if (previousUser?.profileImage && previousUser.profileImage !== imagePath) {
+      await removeStoredFile(previousUser.profileImage);
     }
 
     res.status(200).json({
@@ -616,7 +558,6 @@ const updateProfileImage = async (req, res) => {
 };
 
 module.exports = {
-  registerUser,
   loginUser,
   forgotPassword,
   resetPassword,

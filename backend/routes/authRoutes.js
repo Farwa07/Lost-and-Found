@@ -1,22 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
-const multer = require("multer");
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-
-const upload = multer({ storage: storage });
+const { upload } = require("../utils/uploads");
 
 const {
-  registerUser,
   loginUser,
   forgotPassword,
   resetPassword,
@@ -29,7 +16,6 @@ const {
   updateProfileImage,
 } = require("../controllers/authController");
 
-router.post("/register", registerUser);
 router.post("/login", loginUser);
 
 router.post("/forgot-password", forgotPassword);

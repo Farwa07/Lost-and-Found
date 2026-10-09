@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { isValidPhoneNumber, normalizePhoneNumber } from "../utils/phoneNumber";
+import { resolveMediaUrl } from "../utils/mediaUrl";
 
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -61,7 +62,7 @@ const buildProfileData = (user) => ({
   address: user?.address || "",
   bio: user?.bio || "",
   role: user?.role || "user",
-  profileImage: user?.profileImage || "",
+  profileImage: resolveMediaUrl(user?.profileImage || ""),
 });
 
 const fileToDataUrl = (file) =>
@@ -142,7 +143,7 @@ export default function Profile() {
         city: user.city || "",
         address: user.address || "",
         bio: user.bio || "",
-        profileImage: user.profileImage || "",
+        profileImage: resolveMediaUrl(user.profileImage || ""),
         role: user.role || "user",
         status: user.status || "active",
       });
@@ -273,7 +274,7 @@ export default function Profile() {
       const response = await updateProfileImage(imageFormData);
       const user = getUserFromResponse(response);
       const nextProfileData = buildProfileData(user);
-      const imageUrl = response?.profileImage || nextProfileData.profileImage || "";
+      const imageUrl = resolveMediaUrl(response?.profileImage || nextProfileData.profileImage || "");
 
       setProfileImage(imageUrl);
       setProfileData({

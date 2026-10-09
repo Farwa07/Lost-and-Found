@@ -4,6 +4,7 @@ const ReportComplaint = require("../models/reportComplaint");
 const Notification = require("../models/notification");
 const AdminLog = require("../models/adminLog");
 const ReportMatch = require("../models/reportMatch");
+const { deleteReportsCascade, deleteUserCascade } = require("../utils/cleanup");
 
 const MATCH_THRESHOLD = 55;
 
@@ -454,22 +455,185 @@ const syncConfirmedMatchReports = async (match) => {
     Report.findByIdAndUpdate(
       lostReportId,
       { ...baseUpdate, matchedWith: foundReportId },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ),
     Report.findByIdAndUpdate(
       foundReportId,
       { ...baseUpdate, matchedWith: lostReportId },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ),
   ]);
 };
 
 const syncAllConfirmedMatchReports = async () => {
-  const confirmedMatches = await ReportMatch.find({ status: "confirmed" });
-  for (const match of confirmedMatches) {
-    await syncConfirmedMatchReports(match);
+  try {
+    const confirmedMatches = await ReportMatch.find({ status: "confirmed" });
+    for (const match of confirmedMatches) {
+      await syncConfirmedMatchReports(match);
+    }
+  } catch (error) {
+    console.log("Confirmed match sync error:", error.message);
   }
 };
+
+// ---------------------------------------------------------------------------
+// Match suggestions are calculated when a report is verified (or its status
+// changes) and stored in ReportMatch. The admin GET endpoint only reads them.
+// ---------------------------------------------------------------------------
+
+const ELIGIBLE_MATCH_QUERY = {
+  status: "verified",
+  caseStatus: { $ne: "Solved" },
+};
+
+const isEligibleForMatching = (report) =>
+  Boolean(report) && report.status === "verified" && report.caseStatus !== "Solved";
+
+const getPairKey = (lostId, foundId) => `${getId(lostId)}_${getId(foundId)}`;
+
+// Builds bulkWrite operations for the given lost x found pairs, comparing with
+// the matches already stored so unchanged suggestions are not rewritten.
+const buildMatchOperations = (lostReports, foundReports, existingMatches) => {
+  const existingByPair = new Map(
+    existingMatches.map((match) => [getPairKey(match.lostReportId, match.foundReportId), match])
+  );
+
+  const foundByCategory = new Map();
+  for (const foundReport of foundReports) {
+    const category = normalizeText(foundReport.category);
+    if (!foundByCategory.has(category)) foundByCategory.set(category, []);
+    foundByCategory.get(category).push(foundReport);
+  }
+
+  const operations = [];
+
+  for (const lostReport of lostReports) {
+    const candidates = foundByCategory.get(normalizeText(lostReport.category)) || [];
+
+    for (const foundReport of candidates) {
+      const match = existingByPair.get(getPairKey(lostReport._id, foundReport._id));
+      const { score, reasons, matchedFields } = calculateMatchScore(lostReport, foundReport);
+
+      if (match?.status === "confirmed") continue;
+
+      if (score < MATCH_THRESHOLD) {
+        if (match?.status === "suggested") {
+          operations.push({ deleteOne: { filter: { _id: match._id } } });
+        }
+        continue;
+      }
+
+      if (
+        match?.status === "dismissed" &&
+        !shouldResurfaceDismissedMatch(lostReport, foundReport, score, matchedFields)
+      ) {
+        continue;
+      }
+
+      const unchanged =
+        match?.status === "suggested" &&
+        match.score === score &&
+        match.threshold === MATCH_THRESHOLD &&
+        JSON.stringify(match.reasons) === JSON.stringify(reasons) &&
+        JSON.stringify(match.matchedFields) === JSON.stringify(matchedFields);
+
+      if (unchanged) continue;
+
+      operations.push({
+        updateOne: {
+          filter: { lostReportId: lostReport._id, foundReportId: foundReport._id },
+          update: {
+            $set: {
+              score,
+              reasons,
+              matchedFields,
+              threshold: MATCH_THRESHOLD,
+              status: "suggested",
+            },
+          },
+          upsert: true,
+        },
+      });
+    }
+  }
+
+  return operations;
+};
+
+const removeSuggestedMatchesForReport = async (reportId) => {
+  await ReportMatch.deleteMany({
+    status: "suggested",
+    $or: [{ lostReportId: reportId }, { foundReportId: reportId }],
+  });
+};
+
+// Recalculates suggestions for one report against all eligible opposite reports.
+const refreshMatchesForReport = async (report) => {
+  try {
+    if (!isEligibleForMatching(report)) {
+      await removeSuggestedMatchesForReport(report._id);
+      return;
+    }
+
+    const isLost = report.reportType === "lost";
+
+    const [candidates, existingMatches] = await Promise.all([
+      Report.find({
+        ...ELIGIBLE_MATCH_QUERY,
+        reportType: isLost ? "found" : "lost",
+        category: report.category,
+      }),
+      ReportMatch.find(isLost ? { lostReportId: report._id } : { foundReportId: report._id }),
+    ]);
+
+    const operations = isLost
+      ? buildMatchOperations([report], candidates, existingMatches)
+      : buildMatchOperations(candidates, [report], existingMatches);
+
+    if (operations.length > 0) {
+      await ReportMatch.bulkWrite(operations, { ordered: false });
+    }
+  } catch (error) {
+    console.log("Match refresh error:", error.message);
+  }
+};
+
+// Full recalculation (startup / admin "recompute"): 3 reads + 1 bulk write,
+// instead of one query per lost x found pair.
+const recomputeAllMatches = async () => {
+  try {
+    const [lostReports, foundReports, existingMatches] = await Promise.all([
+      Report.find({ ...ELIGIBLE_MATCH_QUERY, reportType: "lost" }),
+      Report.find({ ...ELIGIBLE_MATCH_QUERY, reportType: "found" }),
+      ReportMatch.find(),
+    ]);
+
+    // Suggestions whose reports are no longer verified/open are stale.
+    await ReportMatch.deleteMany({
+      status: "suggested",
+      $or: [
+        { lostReportId: { $nin: lostReports.map((report) => report._id) } },
+        { foundReportId: { $nin: foundReports.map((report) => report._id) } },
+      ],
+    });
+
+    const operations = buildMatchOperations(lostReports, foundReports, existingMatches);
+
+    if (operations.length > 0) {
+      await ReportMatch.bulkWrite(operations, { ordered: false });
+    }
+
+    return operations.length;
+  } catch (error) {
+    console.log("Match recompute error:", error.message);
+    return 0;
+  }
+};
+
+const populateReportWithOwner = (path) => ({
+  path,
+  populate: { path: "userId", select: "fullName email phone role status" },
+});
 
 const createMatchNotification = async (userId, report, match, otherReport) => {
   if (!userId) return;
@@ -492,8 +656,6 @@ const createMatchNotification = async (userId, report, match, otherReport) => {
 
 const getAdminReports = async (req, res) => {
   try {
-    await syncAllConfirmedMatchReports();
-
     const reports = await Report.find()
       .populate("userId", "fullName email phone role status")
       .sort({ createdAt: -1 });
@@ -520,10 +682,12 @@ const updateReportStatus = async (req, res) => {
     const report = await Report.findByIdAndUpdate(
       req.params.id,
       { status, isVerified: ["verified", "matched"].includes(status) },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!report) return res.status(404).json({ message: "Report not found" });
+
+    await refreshMatchesForReport(report);
 
     if (report.userId && ["verified", "rejected", "matched"].includes(status)) {
       let notificationTitle = "Report Status Updated";
@@ -584,10 +748,12 @@ const updateReportCaseStatus = async (req, res) => {
     const report = await Report.findByIdAndUpdate(
       req.params.id,
       { caseStatus },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!report) return res.status(404).json({ message: "Report not found" });
+
+    await refreshMatchesForReport(report);
 
     if (report.userId) {
       await Notification.create({
@@ -617,23 +783,21 @@ const updateReportCaseStatus = async (req, res) => {
 };
 
 const verifyReport = (req, res) => {
-  req.body.status = "verified";
+  req.body = { ...(req.body || {}), status: "verified" };
   return updateReportStatus(req, res);
 };
 
 const rejectReport = (req, res) => {
-  req.body.status = "rejected";
+  req.body = { ...(req.body || {}), status: "rejected" };
   return updateReportStatus(req, res);
 };
 
 const deleteAdminReport = async (req, res) => {
   try {
-    const report = await Report.findByIdAndDelete(req.params.id);
+    const report = await Report.findById(req.params.id).select("_id");
     if (!report) return res.status(404).json({ message: "Report not found" });
 
-    await ReportMatch.deleteMany({
-      $or: [{ lostReportId: report._id }, { foundReportId: report._id }],
-    });
+    await deleteReportsCascade([report._id]);
 
     await createAdminLog(
       req.user?.id || req.user?._id,
@@ -654,7 +818,7 @@ const clearReportFlags = async (req, res) => {
     const report = await Report.findByIdAndUpdate(
       req.params.id,
       { flags: [], flagCount: 0 },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!report) return res.status(404).json({ message: "Report not found" });
@@ -695,7 +859,7 @@ const updateUserRole = async (req, res) => {
     const allowedRoles = ["user", "admin"];
     if (!allowedRoles.includes(role)) return res.status(400).json({ message: "Invalid role value" });
 
-    const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true, runValidators: true }).select(
+    const user = await User.findByIdAndUpdate(req.params.id, { role }, { returnDocument: "after", runValidators: true }).select(
       "-password -resetOtp -resetOtpExpire"
     );
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -713,8 +877,8 @@ const deleteAdminUser = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
     if (user.role === "admin") return res.status(403).json({ message: "Admin account cannot be deleted" });
 
-    await User.findByIdAndDelete(req.params.id);
-    await createAdminLog(req.user?.id || req.user?._id, "User deleted", "user", user._id, "Admin deleted a user account");
+    await deleteUserCascade(user);
+    await createAdminLog(req.user?.id || req.user?._id, "User deleted", "user", user._id, "Admin deleted a user account and all of their reports");
     res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -739,7 +903,7 @@ const updateComplaintStatus = async (req, res) => {
     const allowedStatuses = ["pending", "reviewed", "dismissed"];
     if (!allowedStatuses.includes(status)) return res.status(400).json({ message: "Invalid complaint status" });
 
-    const complaint = await ReportComplaint.findByIdAndUpdate(req.params.id, { status }, { new: true, runValidators: true });
+    const complaint = await ReportComplaint.findByIdAndUpdate(req.params.id, { status }, { returnDocument: "after", runValidators: true });
     if (!complaint) return res.status(404).json({ message: "Complaint not found" });
 
     await createAdminLog(req.user?.id || req.user?._id, `Complaint status updated to ${status}`, "complaint", complaint._id, `Admin updated complaint status to ${status}`);
@@ -751,7 +915,7 @@ const updateComplaintStatus = async (req, res) => {
 
 const blockUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, { status: "blocked" }, { new: true, runValidators: true }).select(
+    const user = await User.findByIdAndUpdate(req.params.id, { status: "blocked" }, { returnDocument: "after", runValidators: true }).select(
       "-password -resetOtp -resetOtpExpire"
     );
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -764,7 +928,7 @@ const blockUser = async (req, res) => {
 
 const unblockUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, { status: "active" }, { new: true, runValidators: true }).select(
+    const user = await User.findByIdAndUpdate(req.params.id, { status: "active" }, { returnDocument: "after", runValidators: true }).select(
       "-password -resetOtp -resetOtpExpire"
     );
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -860,82 +1024,50 @@ const getAdminLogs = async (req, res) => {
 
 const getMatchSuggestions = async (req, res) => {
   try {
-    await syncAllConfirmedMatchReports();
+    const matches = await ReportMatch.find({ status: "suggested" })
+      .populate(populateReportWithOwner("lostReportId"))
+      .populate(populateReportWithOwner("foundReportId"))
+      .sort({ score: -1 });
 
-    const lostReports = await Report.find({
-      reportType: "lost",
-      status: "verified",
-      caseStatus: { $ne: "Solved" },
-    }).populate("userId", "fullName email phone role status");
-
-    const foundReports = await Report.find({
-      reportType: "found",
-      status: "verified",
-      caseStatus: { $ne: "Solved" },
-    }).populate("userId", "fullName email phone role status");
-
-    const suggestions = [];
-
-    for (const lostReport of lostReports) {
-      for (const foundReport of foundReports) {
-        if (normalizeText(lostReport.category) !== normalizeText(foundReport.category)) continue;
-
-        const { score, reasons, matchedFields } = calculateMatchScore(lostReport, foundReport);
-        if (score < MATCH_THRESHOLD) continue;
-
-        let match = await ReportMatch.findOne({
-          lostReportId: lostReport._id,
-          foundReportId: foundReport._id,
-        });
-
-        if (match?.status === "confirmed") {
-          await syncConfirmedMatchReports(match);
-          continue;
-        }
-
-        if (match?.status === "dismissed" && !shouldResurfaceDismissedMatch(lostReport, foundReport, score, matchedFields)) {
-          continue;
-        }
-
-        if (!match) {
-          match = await ReportMatch.create({
-            lostReportId: lostReport._id,
-            foundReportId: foundReport._id,
-            score,
-            reasons,
-            matchedFields,
-            threshold: MATCH_THRESHOLD,
-            status: "suggested",
-          });
-        } else {
-          match.score = score;
-          match.reasons = reasons;
-          match.matchedFields = matchedFields;
-          match.threshold = MATCH_THRESHOLD;
-          match.status = "suggested";
-          await match.save();
-        }
-
-        suggestions.push({
-          matchId: match._id,
-          score: match.score,
-          reasons: match.reasons,
-          matchedFields: match.matchedFields,
-          threshold: match.threshold,
-          status: match.status,
-          lostReport,
-          foundReport,
-        });
-      }
-    }
-
-    suggestions.sort((left, right) => right.score - left.score);
+    const suggestions = matches
+      .filter(
+        (match) =>
+          isEligibleForMatching(match.lostReportId) && isEligibleForMatching(match.foundReportId)
+      )
+      .map((match) => ({
+        matchId: match._id,
+        score: match.score,
+        reasons: match.reasons,
+        matchedFields: match.matchedFields,
+        threshold: match.threshold,
+        status: match.status,
+        lostReport: match.lostReportId,
+        foundReport: match.foundReportId,
+      }));
 
     res.status(200).json({
       message: "Match suggestions fetched successfully",
       count: suggestions.length,
       suggestions,
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const recomputeMatches = async (req, res) => {
+  try {
+    const changes = await recomputeAllMatches();
+
+    await createAdminLog(
+      req.user?.id || req.user?._id,
+      "Match suggestions recomputed",
+      "match",
+      null,
+      `Admin recomputed match suggestions (${changes} changes)`
+    );
+
+    res.status(200).json({ message: "Match suggestions recomputed successfully", changes });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -995,7 +1127,7 @@ const dismissMatch = async (req, res) => {
     const match = await ReportMatch.findByIdAndUpdate(
       req.params.matchId,
       { status: "dismissed" },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!match) return res.status(404).json({ message: "Match not found" });
@@ -1014,6 +1146,28 @@ const dismissMatch = async (req, res) => {
   }
 };
 
+const canViewMatch = (req, match) => {
+  if (req.user?.role === "admin") return true;
+
+  const userId = getId(req.user?.id || req.user?._id);
+  return [getId(match.lostReportId?.userId), getId(match.foundReportId?.userId)].includes(userId);
+};
+
+// Non-admin users never receive CNIC/FIR documents or flag details of reports.
+const toMatchResponse = (req, match) => {
+  if (req.user?.role === "admin") return match;
+
+  const data = match.toObject();
+  ["lostReportId", "foundReportId"].forEach((key) => {
+    if (data[key]) {
+      delete data[key].reporterIdCardImage;
+      delete data[key].firReportImage;
+      delete data[key].flags;
+    }
+  });
+  return data;
+};
+
 const getMatchById = async (req, res) => {
   try {
     const match = await ReportMatch.findById(req.params.matchId)
@@ -1023,20 +1177,11 @@ const getMatchById = async (req, res) => {
 
     if (!match) return res.status(404).json({ message: "Match not found" });
 
-    if (match.status === "confirmed") {
-      await syncConfirmedMatchReports(match);
-    }
-
-    const userId = getId(req.user?.id || req.user?._id);
-    const role = req.user?.role;
-    const lostOwnerId = getId(match.lostReportId?.userId);
-    const foundOwnerId = getId(match.foundReportId?.userId);
-
-    if (role !== "admin" && ![lostOwnerId, foundOwnerId].includes(userId)) {
+    if (!canViewMatch(req, match)) {
       return res.status(403).json({ message: "You are not allowed to view this match" });
     }
 
-    res.status(200).json({ message: "Match fetched successfully", match });
+    res.status(200).json({ message: "Match fetched successfully", match: toMatchResponse(req, match) });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1055,8 +1200,11 @@ const getMatchByReportId = async (req, res) => {
 
     if (!match) return res.status(404).json({ message: "Match not found for this report" });
 
-    await syncConfirmedMatchReports(match);
-    res.status(200).json({ message: "Match fetched successfully", match });
+    if (!canViewMatch(req, match)) {
+      return res.status(403).json({ message: "You are not allowed to view this match" });
+    }
+
+    res.status(200).json({ message: "Match fetched successfully", match: toMatchResponse(req, match) });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1081,6 +1229,10 @@ module.exports = {
   sendGeneralAlert,
   getAdminLogs,
   getMatchSuggestions,
+  recomputeMatches,
+  recomputeAllMatches,
+  syncAllConfirmedMatchReports,
+  removeSuggestedMatchesForReport,
   confirmMatch,
   dismissMatch,
   getMatchById,

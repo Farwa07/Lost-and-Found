@@ -192,6 +192,7 @@ const deleteComment = async (req, res) => {
     }
 
     await Comment.findByIdAndDelete(commentId);
+    await Notification.deleteMany({ commentId });
 
     res.status(200).json({
       message: "Comment deleted successfully",

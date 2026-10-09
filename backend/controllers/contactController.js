@@ -116,7 +116,7 @@ const markContactMessageRead = async (req, res) => {
     const message = await ContactMessage.findByIdAndUpdate(
       req.params.id,
       { status: "read" },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!message) {

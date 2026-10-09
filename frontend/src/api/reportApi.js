@@ -1,4 +1,4 @@
-import { apiRequest } from "./apiClient";
+import { apiRequest, API_BASE_URL, getToken } from "./apiClient";
 
 const buildQueryString = (params = {}) => {
   const query = new URLSearchParams();
@@ -77,3 +77,24 @@ export const updateMyReport = (id, payload) =>
     method: "PUT",
     body: payload instanceof FormData ? payload : JSON.stringify(payload),
   });
+
+// CNIC / FIR documents are private: they are fetched with the auth token
+// (owner or admin only) and returned as a local object URL.
+export const fetchReportDocument = async (id, field) => {
+  const response = await fetch(`${API_BASE_URL}/reports/${id}/documents/${field}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+
+  if (!response.ok) {
+    let message = "Unable to load document.";
+    try {
+      message = (await response.json())?.message || message;
+    } catch {
+      // Non-JSON error body.
+    }
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  return { url: URL.createObjectURL(blob), type: blob.type };
+};
