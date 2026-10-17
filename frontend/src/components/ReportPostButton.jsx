@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { FaFlag, FaTimes } from "react-icons/fa";
 import { reportPost } from "../api/reportApi";
 import { useAuth } from "../context/AuthContext";
+import { toast } from "../utils/notify";
 
 export default function ReportPostButton({ report }) {
   const { currentUser } = useAuth();
@@ -30,7 +31,7 @@ export default function ReportPostButton({ report }) {
     e.preventDefault();
     e.stopPropagation();
     if (isOwnReport()) {
-      alert("You cannot report your own post.");
+      toast("You cannot report your own post.");
       return;
     }
 
@@ -52,7 +53,7 @@ export default function ReportPostButton({ report }) {
     e.stopPropagation();
 
     if (!reason) {
-      alert("Please select a reason.");
+      toast("Please select a reason.");
       return;
     }
 
@@ -60,17 +61,17 @@ export default function ReportPostButton({ report }) {
       const reportId = getReportId();
 
       if (!isBackendReportId(reportId)) {
-        alert("This post is not connected with the backend database. Please refresh the page and try again.");
+        toast("This post is not connected with the backend database. Please refresh the page and try again.");
         return;
       }
 
       await reportPost(reportId, reason);
-      alert("Post reported successfully. Admin will review it.");
+      toast("Post reported successfully. Admin will review it.");
 
       setShowModal(false);
       setReason("");
     } catch (error) {
-      alert(error.message || "Unable to report this post.");
+      toast(error.message || "Unable to report this post.");
     }
   };
 

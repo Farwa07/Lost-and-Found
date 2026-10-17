@@ -20,6 +20,8 @@ import {
 } from "../api/commentApi";
 
 import "./CommentsButton.css";
+import { toast } from "../utils/notify";
+import { confirmDialog } from "../utils/notify";
 
 const createId = () => {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -124,7 +126,7 @@ export default function CommentsButton({
   };
 
   const showAuthPrompt = (actionText) => {
-    alert(
+    toast(
       isRegistered
         ? `Please login to ${actionText}.`
         : `Please create an account to ${actionText}.`
@@ -182,7 +184,7 @@ export default function CommentsButton({
     const text = commentText.trim();
 
     if (!text) {
-      alert("Comment cannot be empty");
+      toast("Comment cannot be empty");
       return;
     }
 
@@ -201,7 +203,7 @@ export default function CommentsButton({
       syncCommentsToReport([newComment, ...comments]);
       setCommentText("");
     } catch (error) {
-      alert(error.message || "Unable to add comment.");
+      toast(error.message || "Unable to add comment.");
     }
   };
 
@@ -216,11 +218,11 @@ export default function CommentsButton({
     );
 
     if (!canDeleteComment(targetComment)) {
-      alert("You can delete only your own comment.");
+      toast("You can delete only your own comment.");
       return;
     }
 
-    const confirmDelete = window.confirm("Delete this comment?");
+    const confirmDelete = await confirmDialog("Delete this comment?");
 
     if (!confirmDelete) return;
 
@@ -232,7 +234,7 @@ export default function CommentsButton({
 
       syncCommentsToReport(nextComments);
     } catch (error) {
-      alert(error.message || "Unable to delete comment.");
+      toast(error.message || "Unable to delete comment.");
     }
   };
 
@@ -256,7 +258,7 @@ export default function CommentsButton({
     const text = replyText.trim();
 
     if (!text) {
-      alert("Reply cannot be empty");
+      toast("Reply cannot be empty");
       return;
     }
 
@@ -286,7 +288,7 @@ export default function CommentsButton({
       setReplyText("");
       setReplyingTo(null);
     } catch (error) {
-      alert(error.message || "Unable to add reply.");
+      toast(error.message || "Unable to add reply.");
     }
   };
 
@@ -305,11 +307,11 @@ export default function CommentsButton({
     );
 
     if (!canDeleteComment(targetReply)) {
-      alert("You can delete only your own reply.");
+      toast("You can delete only your own reply.");
       return;
     }
 
-    const confirmDelete = window.confirm("Delete this reply?");
+    const confirmDelete = await confirmDialog("Delete this reply?");
 
     if (!confirmDelete) return;
 
@@ -328,7 +330,7 @@ export default function CommentsButton({
 
       syncCommentsToReport(nextComments);
     } catch (error) {
-      alert(error.message || "Unable to delete reply.");
+      toast(error.message || "Unable to delete reply.");
     }
   };
 

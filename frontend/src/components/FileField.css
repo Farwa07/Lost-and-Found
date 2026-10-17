@@ -1,0 +1,137 @@
+.file-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.file-field__label {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.file-field__optional {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.file-field__drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 150px;
+  padding: 20px 16px;
+  border: 2px dashed #c4b5fd;
+  border-radius: 18px;
+  background: var(--accent-soft);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.file-field__drop:hover,
+.file-field__drop.is-dragging {
+  border-color: #8b5cf6;
+  background: var(--accent-soft);
+}
+
+.file-field__input:focus-visible + .file-field__drop,
+.file-field__drop:focus-within {
+  outline: 3px solid #8b5cf6;
+  outline-offset: 2px;
+}
+
+.file-field__icon {
+  font-size: 30px;
+  color: #8b5cf6;
+  margin-bottom: 4px;
+}
+
+.file-field__cta {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.file-field__hint {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.file-field__selected {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 96px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.file-field__thumb {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  object-fit: cover;
+  background: var(--surface-3);
+}
+
+.file-field__thumb--doc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  color: var(--danger-text);
+  background: var(--danger-soft);
+}
+
+.file-field__meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.file-field__name {
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-field__size {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.file-field__remove {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 10px;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  cursor: pointer;
+}
+
+.file-field__remove:hover {
+  background: var(--danger-soft);
+}
+
+/* Visually hidden but focusable and still validated by the browser. */
+.file-field__input {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}

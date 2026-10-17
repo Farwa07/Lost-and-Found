@@ -1,0 +1,79 @@
+.form-shell {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
+}
+
+.form-shell__body {
+  display: flex;
+  align-items: flex-start;
+}
+
+.form-shell__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-shell__back {
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0 0 max(20px, calc((100% - 1050px) / 2));
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.form-shell__back:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.form-shell__back:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* The form pages paint their own gradient; inside the shell it comes from here. */
+.form-shell .lost-item-page,
+.form-shell .found-item-page,
+.form-shell .missing-person-page,
+.form-shell .found-person-page {
+  min-height: 0;
+  background: transparent;
+  padding-top: 16px;
+}
+
+@media (max-width: 600px) {
+  .form-shell__back {
+    margin: 16px 0 0 16px;
+  }
+
+  .form-shell .lost-item-page,
+  .form-shell .found-item-page,
+  .form-shell .missing-person-page,
+  .form-shell .found-person-page {
+    padding: 12px 12px 32px;
+  }
+}
+
+.form-shell input[readonly] {
+  background: var(--surface-3) !important;
+  color: var(--text-2);
+  border-style: dashed !important;
+  cursor: not-allowed;
+}
+
+.form-shell .reporter-profile-note {
+  margin: -6px 0 18px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.form-shell .reporter-profile-note a {
+  color: var(--accent-text);
+  font-weight: 700;
+}

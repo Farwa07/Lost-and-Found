@@ -1,19 +1,17 @@
 import "./Terms.css";
-import { useState } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 import { FaFileContract, FaCheckCircle, FaExclamationTriangle, FaUserShield } from "react-icons/fa";
 
 export default function Terms() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="terms-page">
-      <Navbar toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <Navbar />
 
       <div className="terms-layout">
-        <Sidebar open={sidebarOpen} />
+        <Sidebar />
 
         <main className="terms-main">
           <section className="terms-hero">

@@ -28,6 +28,7 @@ export const unblockAdminUser = (id) => apiRequest(`/admin/users/${id}/unblock`,
 export const deleteAdminUser = (id) => apiRequest(`/admin/users/${id}`, { method: "DELETE" });
 
 export const getMatchSuggestions = () => apiRequest("/admin/matches/suggestions");
+export const getConfirmedMatches = () => apiRequest("/admin/matches/confirmed");
 export const confirmMatchSuggestion = (matchId) => apiRequest(`/admin/matches/${matchId}/confirm`, { method: "POST" });
 export const dismissMatchSuggestion = (matchId) => apiRequest(`/admin/matches/${matchId}/dismiss`, { method: "POST" });
 export const getAdminLogs = () => apiRequest("/admin/logs");

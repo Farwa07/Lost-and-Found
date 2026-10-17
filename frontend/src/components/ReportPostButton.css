@@ -1,7 +1,7 @@
 .report-post-btn {
   border: none !important;
-  background: #fef2f2 !important;
-  color: #dc2626 !important;
+  background: var(--danger-soft) !important;
+  color: var(--danger-text) !important;
   padding: 12px !important;
   border-radius: 12px !important;
   font-weight: 800 !important;
@@ -17,7 +17,7 @@
 }
 
 .report-post-btn:hover {
-  background: #fee2e2 !important;
+  background: var(--danger-soft) !important;
   transform: translateY(-2px);
 }
 
@@ -39,7 +39,7 @@
   width: 100%;
   max-width: 430px;
 
-  background: white;
+  background: var(--surface);
 
   border-radius: 26px;
   padding: 30px;
@@ -76,8 +76,8 @@
 
   border-radius: 18px;
 
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger-text);
 
   display: flex;
   align-items: center;
@@ -89,7 +89,7 @@
 }
 
 .report-post-modal h2 {
-  color: #111827;
+  color: var(--text);
   font-size: 28px;
   font-weight: 900;
 
@@ -97,7 +97,7 @@
 }
 
 .report-post-modal p {
-  color: #64748b;
+  color: var(--text-muted);
   line-height: 1.6;
 
   margin-bottom: 20px;
@@ -110,21 +110,21 @@
 }
 
 .report-post-modal label {
-  color: #374151;
+  color: var(--text-2);
   font-weight: 800;
 }
 
 .report-post-modal select {
   height: 52px;
 
-  border: 1px solid #dbe4ff;
+  border: 1px solid var(--border);
   border-radius: 15px;
 
   padding: 0 14px;
 
   outline: none;
-  background: white;
-  color: #111827;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .report-post-modal select:focus {

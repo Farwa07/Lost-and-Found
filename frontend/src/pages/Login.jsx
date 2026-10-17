@@ -1,4 +1,5 @@
 import "./Login.css";
+import BackButton from "../components/BackButton";
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -65,6 +66,7 @@ export default function Login() {
 
   return (
     <div className="login">
+      <BackButton className="auth-back" fallback="/" />
       <div className="login__left">
         <div className="login__overlay">
           <div className="login__content">
@@ -145,10 +147,6 @@ export default function Login() {
               {isSubmitting ? "Signing In..." : "Sign In"}
             </button>
           </form>
-
-          <p className="login__subtitle" style={{ marginTop: "18px" }}>
-            Demo Admin: admin@lostfound.com / Admin@123
-          </p>
 
           <p className="login__bottom">
             Don&apos;t have an account? <span onClick={() => navigate("/signup")}>Sign Up</span>

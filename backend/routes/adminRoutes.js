@@ -23,6 +23,7 @@ const {
   sendGeneralAlert,
   getAdminLogs,
   getMatchSuggestions,
+  getConfirmedMatches,
   recomputeMatches,
   confirmMatch,
   dismissMatch,
@@ -52,6 +53,7 @@ router.patch("/complaints/:id/status", authMiddleware, adminMiddleware, updateCo
 router.get("/logs", authMiddleware, adminMiddleware, getAdminLogs);
 
 router.get("/matches/suggestions", authMiddleware, adminMiddleware, getMatchSuggestions);
+router.get("/matches/confirmed", authMiddleware, adminMiddleware, getConfirmedMatches);
 router.post("/matches/recompute", authMiddleware, adminMiddleware, recomputeMatches);
 router.post("/matches/:matchId/confirm", authMiddleware, adminMiddleware, confirmMatch);
 router.post("/matches/:matchId/dismiss", authMiddleware, adminMiddleware, dismissMatch);

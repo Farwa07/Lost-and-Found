@@ -244,7 +244,6 @@ export default function MatchAlertDetails() {
   const { matchId } = useParams();
   const navigate = useNavigate();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [match, setMatch] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -389,10 +388,10 @@ export default function MatchAlertDetails() {
 
   return (
     <div className="match-alert-page">
-      <Navbar toggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+      <Navbar />
 
       <div className="match-alert-container">
-        <Sidebar open={sidebarOpen} />
+        <Sidebar />
 
         <main className="match-alert-main">
           {isLoading ? (

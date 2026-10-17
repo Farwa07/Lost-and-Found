@@ -4,7 +4,7 @@ const User = require("../models/user");
 const {
   PRIVATE_FIELDS,
   toStoredPath,
-  resolveStoredFile,
+  sendStoredDocument,
   removeStoredFiles,
   removeUploadedRequestFiles,
 } = require("../utils/uploads");
@@ -57,15 +57,25 @@ const isOwnerOrAdmin = (req, report) =>
         (report.userId && String(report.userId) === String(req.user.id)))
   );
 
-const getCity = (city, location = "") => {
-  if (city) return city;
+// "  lahore  cantt " -> "Lahore Cantt". Every report must name its city so
+// lists can be filtered by city and matching can compare cities.
+const normalizeCity = (value = "") =>
+  String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/(^|[\s-])\S/g, (letter) => letter.toUpperCase());
 
-  const parts = String(location)
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
+const requireCity = (value) => {
+  const city = normalizeCity(value);
 
-  return parts.length > 0 ? parts[parts.length - 1] : "";
+  if (!city || city.length > 60) {
+    const error = new Error("Please select the city of this report.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return city;
 };
 
 const normalizeEmail = (email = "") => String(email || "").trim().toLowerCase();
@@ -111,11 +121,8 @@ const getAuthenticatedReporter = async (req) => {
     reporterFullName: user.fullName || String(req.body.reporterFullName || "").trim(),
     reporterContactNumber: user.phone || String(req.body.reporterContactNumber || "").trim(),
     reporterEmail: loggedInEmail,
-    reporterAddress:
-      user.address ||
-      String(req.body.reporterAddress || "").trim() ||
-      user.city ||
-      "",
+    reporterAddress: user.address || String(req.body.reporterAddress || "").trim(),
+    reporterCity: normalizeCity(user.city || req.body.reporterCity),
   };
 };
 
@@ -146,6 +153,7 @@ const buildPublicReportQuery = (queryParams = {}, fixedCategory = "") => {
     gender,
     itemCategory,
     city,
+    caseStatus,
   } = queryParams;
 
   const query = {
@@ -167,7 +175,16 @@ const buildPublicReportQuery = (queryParams = {}, fixedCategory = "") => {
   const selectedCity = normalizeQueryValue(city);
 
   if (selectedCity && selectedCity.toLowerCase() !== "all") {
-    query.city = { $regex: escapeRegex(selectedCity), $options: "i" };
+    query.city = { $regex: `^${escapeRegex(selectedCity)}$`, $options: "i" };
+  }
+
+  // "Solved" / "Unsolved" (anything that is not solved counts as unsolved).
+  const selectedCaseStatus = normalizeQueryValue(caseStatus).toLowerCase();
+
+  if (selectedCaseStatus === "solved") {
+    query.caseStatus = "Solved";
+  } else if (selectedCaseStatus === "unsolved") {
+    query.caseStatus = { $ne: "Solved" };
   }
 
   const selectedItemCategory = normalizeQueryValue(itemCategory);
@@ -315,7 +332,7 @@ const createLostItemReport = async (req, res) => {
       userId: req.user ? req.user.id : null,
       reportType: "lost",
       category: "item",
-      city: getCity(city, lostLocation),
+      city: requireCity(city),
 
       itemName,
       itemCategory,
@@ -373,7 +390,7 @@ const createFoundItemReport = async (req, res) => {
       userId: req.user ? req.user.id : null,
       reportType: "found",
       category: "item",
-      city: getCity(city, foundLocation),
+      city: requireCity(city),
 
       itemName,
       itemCategory,
@@ -431,7 +448,7 @@ const createMissingPersonReport = async (req, res) => {
       userId: req.user ? req.user.id : null,
       reportType: "lost",
       category: "person",
-      city: getCity(city, missingPersonLastSeenLocation),
+      city: requireCity(city),
 
       missingPersonName,
       missingPersonAge,
@@ -493,7 +510,7 @@ const createFoundPersonReport = async (req, res) => {
       userId: req.user ? req.user.id : null,
       reportType: "found",
       category: "person",
-      city: getCity(city, foundLocation),
+      city: requireCity(city),
 
       foundPersonName,
       estimatedAge,
@@ -790,6 +807,11 @@ const updateMyReport = async (req, res) => {
     validateReporterPhone(updateData.reporterContactNumber);
     updateData.reporterEmail = reporter.reporterEmail;
     updateData.reporterAddress = reporter.reporterAddress;
+    updateData.reporterCity = reporter.reporterCity;
+
+    if (updateData.city !== undefined) {
+      updateData.city = requireCity(updateData.city);
+    }
 
     const imageFieldNames = [
       "lostItemImage",
@@ -865,21 +887,14 @@ const getReportDocument = async (req, res) => {
       });
     }
 
-    const filePath = resolveStoredFile(report[field]);
-
-    if (!filePath) {
-      return res.status(404).json({
-        message: "Document not found",
-      });
-    }
-
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.sendFile(filePath, (error) => {
-      if (error && !res.headersSent) {
-        res.status(404).json({ message: "Document not found" });
-      }
-    });
+
+    const sent = report[field] && (await sendStoredDocument(res, report[field]));
+
+    if (!sent && !res.headersSent) {
+      res.status(404).json({ message: "Document not found" });
+    }
   } catch (error) {
     sendErrorResponse(res, error);
   }

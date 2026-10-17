@@ -608,6 +608,15 @@ const recomputeAllMatches = async () => {
       ReportMatch.find(),
     ]);
 
+    // Matches (any status) that point at a report which no longer exists.
+    const existingReportIds = await Report.distinct("_id");
+    await ReportMatch.deleteMany({
+      $or: [
+        { lostReportId: { $nin: existingReportIds } },
+        { foundReportId: { $nin: existingReportIds } },
+      ],
+    });
+
     // Suggestions whose reports are no longer verified/open are stale.
     await ReportMatch.deleteMany({
       status: "suggested",
@@ -1055,6 +1064,47 @@ const getMatchSuggestions = async (req, res) => {
   }
 };
 
+// Confirmed lost <-> found pairs, newest first, plus reports that are still
+// marked "matched" but whose partner report was deleted later.
+const getConfirmedMatches = async (req, res) => {
+  try {
+    const matches = await ReportMatch.find({ status: "confirmed" })
+      .populate(populateReportWithOwner("lostReportId"))
+      .populate(populateReportWithOwner("foundReportId"))
+      .sort({ confirmedAt: -1, updatedAt: -1 });
+
+    const pairs = matches
+      .filter((match) => match.lostReportId && match.foundReportId)
+      .map((match) => ({
+        matchId: match._id,
+        score: match.score,
+        reasons: match.reasons,
+        matchedFields: match.matchedFields,
+        confirmedAt: match.confirmedAt || match.updatedAt,
+        lostReport: match.lostReportId,
+        foundReport: match.foundReportId,
+      }));
+
+    const pairedIds = pairs.flatMap((pair) => [pair.lostReport._id, pair.foundReport._id]);
+
+    const unpairedReports = await Report.find({
+      status: "matched",
+      _id: { $nin: pairedIds },
+    })
+      .populate("userId", "fullName email phone role status")
+      .sort({ matchedAt: -1, updatedAt: -1 });
+
+    res.status(200).json({
+      message: "Confirmed matches fetched successfully",
+      count: pairs.length,
+      matches: pairs,
+      unpairedReports,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const recomputeMatches = async (req, res) => {
   try {
     const changes = await recomputeAllMatches();
@@ -1229,6 +1279,7 @@ module.exports = {
   sendGeneralAlert,
   getAdminLogs,
   getMatchSuggestions,
+  getConfirmedMatches,
   recomputeMatches,
   recomputeAllMatches,
   syncAllConfirmedMatchReports,

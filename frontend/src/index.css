@@ -1,0 +1,142 @@
+/* Global base styles. Page/component CSS files should only style their own
+   class names. */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+
+  /* Theme colors (light). Dark values are below; the theme is chosen in
+     Settings and stored as <html data-theme="light|dark">. */
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #f1f5f9;
+  --surface-glass: rgba(255, 255, 255, 0.9);
+  --border: #e2e8f0;
+  --text: #111827;
+  --text-2: #475569;
+  --text-muted: #64748b;
+  --accent-text: #4f46e5;
+  --accent-soft: #eef2ff;
+  --success-text: #16a34a;
+  --success-soft: #ecfdf5;
+  --danger-text: #dc2626;
+  --danger-soft: #fef2f2;
+  --warning-text: #b45309;
+  --warning-soft: #fffbeb;
+  --info-soft: #e0f2fe;
+  --auth-bg: linear-gradient(135deg, #f8fbff 0%, #eef4ff 40%, #f5f3ff 100%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0b1220;
+  --surface: #131c2f;
+  --surface-2: #0f172a;
+  --surface-3: #1b2540;
+  --surface-glass: rgba(19, 28, 47, 0.94);
+  --border: #26324a;
+  --text: #e5e7eb;
+  --text-2: #cbd5e1;
+  --text-muted: #94a3b8;
+  --accent-text: #a5b4fc;
+  --accent-soft: #1f2550;
+  --success-text: #86efac;
+  --success-soft: #0f2a1f;
+  --danger-text: #fca5a5;
+  --danger-soft: #2e1517;
+  --warning-text: #fcd34d;
+  --warning-soft: #2b2111;
+  --info-soft: #0c2638;
+  --auth-bg: linear-gradient(135deg, #0b1220 0%, #111a33 60%, #17153a 100%);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+input,
+button,
+select,
+textarea {
+  font: inherit;
+}
+
+:where(input, select, textarea) {
+  color: var(--text);
+  background-color: var(--surface);
+}
+
+:where(input[type="checkbox"], input[type="radio"], input[type="range"], input[type="file"]) {
+  background-color: transparent;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+/* Hidden visually but still read by screen readers. */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+
+/* Back button on pages without the navbar (login, sign up, ...). */
+.auth-back {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: var(--surface-glass);
+  color: var(--accent-text);
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+  cursor: pointer;
+}
+
+.auth-back:hover {
+  background: var(--surface);
+}
+
+.auth-back:focus-visible {
+  outline: 3px solid #8b5cf6;
+  outline-offset: 2px;
+}

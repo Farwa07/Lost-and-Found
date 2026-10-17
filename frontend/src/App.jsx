@@ -1,7 +1,16 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import {
+  Outlet,
+  Route,
+  RouterProvider,
+  ScrollRestoration,
+  createBrowserRouter,
+  createRoutesFromElements,
+} from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Toaster from "./components/Toaster";
+import ConfirmDialogHost from "./components/ConfirmDialog";
 
 import Home from "./pages/Home";
 
@@ -12,6 +21,7 @@ import FoundPerson from "./pages/FoundPerson";
 import Items from "./pages/Items";
 import LostItem from "./pages/LostItem";
 import FoundItem from "./pages/FoundItem";
+import ReportDetails from "./pages/ReportDetails";
 
 import Statistics from "./pages/Statistics";
 import Contact from "./pages/Contact";
@@ -35,109 +45,123 @@ import Settings from "./pages/Settings";
 import AdminPanel from "./pages/AdminPanel";
 import MatchAlertDetails from "./pages/MatchAlertDetails";
 
-export default function App() {
-
+// Shared frame for every page: restores the scroll position when the user
+// goes back to a page (and starts new pages at the top).
+function RootLayout() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/persons" element={<Persons />} />
-          <Route path="/items" element={<Items />} />
-          <Route path="/statistics" element={<Statistics />} />
-          <Route path="/contact" element={<Contact />} />
+    <>
+      <Outlet />
+      <ScrollRestoration />
+      <Toaster />
+      <ConfirmDialogHost />
+    </>
+  );
+}
 
-          <Route path="/signup" element={<SignUp />} />
-          <Route path="/verify-otp" element={<VerifyOtp />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <Route element={<RootLayout />}>
+      <Route path="/" element={<Home />} />
+      <Route path="/persons" element={<Persons />} />
+      <Route path="/items" element={<Items />} />
+      <Route path="/items/:id" element={<ReportDetails kind="item" />} />
+      <Route path="/persons/:id" element={<ReportDetails kind="person" />} />
+      <Route path="/statistics" element={<Statistics />} />
+      <Route path="/contact" element={<Contact />} />
 
-          <Route path="/faqs" element={<Faqs />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/settings" element={<Settings />} />
+      <Route path="/signup" element={<SignUp />} />
+      <Route path="/verify-otp" element={<VerifyOtp />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-          
-          <Route path="/match-alert/:matchId" element={<MatchAlertDetails />} />
+      <Route path="/faqs" element={<Faqs />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/settings" element={<Settings />} />
 
-          <Route
+      
+      <Route path="/match-alert/:matchId" element={<MatchAlertDetails />} />
+
+      <Route
   path="/admin-panel"
   element={
-    <ProtectedRoute adminOnly={true}>
-      <AdminPanel />
-    </ProtectedRoute>
+<ProtectedRoute adminOnly={true}>
+  <AdminPanel />
+</ProtectedRoute>
   }
 />
 
-          <Route
-            path="/reports"
-            element={
-              <ProtectedRoute>
-                <MyReports />
-              </ProtectedRoute>
-            }
-          />
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute>
+            <MyReports />
+          </ProtectedRoute>
+        }
+      />
 
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        }
+      />
 
-          <Route
-            path="/notifications"
-            element={
-              <ProtectedRoute>
-                <Notifications />
-              </ProtectedRoute>
-            }
-          />
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <Notifications />
+          </ProtectedRoute>
+        }
+      />
 
-          <Route
-            path="/report-missing-person"
-            element={
-              <ProtectedRoute>
-                <MissingPerson />
-              </ProtectedRoute>
-            }
-          />
+      <Route
+        path="/report-missing-person"
+        element={
+          <ProtectedRoute>
+            <MissingPerson />
+          </ProtectedRoute>
+        }
+      />
 
-          <Route
-            path="/report-found-person"
-            element={
-              <ProtectedRoute>
-                <FoundPerson />
-              </ProtectedRoute>
-            }
-          />
+      <Route
+        path="/report-found-person"
+        element={
+          <ProtectedRoute>
+            <FoundPerson />
+          </ProtectedRoute>
+        }
+      />
 
-          <Route
-            path="/report-lost-item"
-            element={
-              <ProtectedRoute>
-                <LostItem />
-              </ProtectedRoute>
-            }
-          />
+      <Route
+        path="/report-lost-item"
+        element={
+          <ProtectedRoute>
+            <LostItem />
+          </ProtectedRoute>
+        }
+      />
 
-          <Route
-            path="/report-found-item"
-            element={
-              <ProtectedRoute>
-                <FoundItem />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+      <Route
+        path="/report-found-item"
+        element={
+          <ProtectedRoute>
+            <FoundItem />
+          </ProtectedRoute>
+        }
+      />
+    </Route>
+  )
+);
 
-            
-
-
-      </BrowserRouter>
+export default function App() {
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
     </AuthProvider>
   );
 }

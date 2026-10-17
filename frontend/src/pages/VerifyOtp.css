@@ -1,21 +1,9 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: Arial, sans-serif;
-}
-
 .verify-otp {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1fr 1fr;
   background:
-    linear-gradient(
-      135deg,
-      #f8fbff 0%,
-      #eef4ff 40%,
-      #f5f3ff 100%
-    );
+    var(--auth-bg);
 }
 
 /* LEFT SIDE */
@@ -90,7 +78,7 @@
   width: 100%;
   max-width: 480px;
 
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--surface-glass);
 
   backdrop-filter: blur(18px);
 
@@ -109,7 +97,7 @@
   border: none;
   background: transparent;
 
-  color: #4f46e5;
+  color: var(--accent-text);
 
   display: inline-flex;
   align-items: center;
@@ -146,13 +134,13 @@
   font-size: 34px;
   font-weight: 800;
 
-  color: #111827;
+  color: var(--text);
 
   margin-bottom: 12px;
 }
 
 .verify-otp__subtitle {
-  color: #6b7280;
+  color: var(--text-muted);
 
   line-height: 1.7;
 
@@ -160,7 +148,7 @@
 }
 
 .verify-otp__subtitle b {
-  color: #111827;
+  color: var(--text);
 }
 
 /* MESSAGE */
@@ -183,14 +171,14 @@
 }
 
 .verify-otp__message--error {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger-text);
   border: 1px solid #fecaca;
 }
 
 .verify-otp__message--success {
-  background: #ecfdf5;
-  color: #16a34a;
+  background: var(--success-soft);
+  color: var(--success-text);
   border: 1px solid #bbf7d0;
 }
 
@@ -212,18 +200,18 @@
   width: 100%;
   height: 58px;
 
-  border: 1px solid #dbe4ff;
+  border: 1px solid var(--border);
 
   border-radius: 16px;
 
-  background: white;
+  background: var(--surface);
 
   text-align: center;
 
   font-size: 24px;
   font-weight: 800;
 
-  color: #111827;
+  color: var(--text);
 
   outline: none;
 
@@ -239,14 +227,14 @@
 .verify-otp__timer {
   text-align: center;
 
-  color: #64748b;
+  color: var(--text-muted);
 
   font-size: 14px;
   font-weight: 700;
 }
 
 .verify-otp__expired {
-  color: #dc2626;
+  color: var(--danger-text);
 }
 
 .verify-otp__btn {
@@ -284,7 +272,7 @@
 
   flex-wrap: wrap;
 
-  color: #6b7280;
+  color: var(--text-muted);
 
   font-size: 14px;
 }
@@ -306,7 +294,7 @@
 }
 
 .verify-otp__bottom button:disabled {
-  color: #9ca3af;
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 

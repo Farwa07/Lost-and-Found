@@ -29,6 +29,7 @@ import {
 
 import { getProfile, updateProfile, updateProfileImage } from "../api/authApi";
 import { getMyReports } from "../api/reportApi";
+import { toast } from "../utils/notify";
 
 const defaultProfileData = {
   fullName: "",
@@ -116,7 +117,6 @@ export default function Profile() {
   const navigate = useNavigate();
   const { updateUserInList } = useAuth();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileImage, setProfileImage] = useState("");
   const [message, setMessage] = useState("");
   const [profileData, setProfileData] = useState(defaultProfileData);
@@ -291,7 +291,7 @@ export default function Profile() {
       showMessage(response?.message || "Profile picture updated successfully.");
     } catch (error) {
       console.error("Profile Image Upload Error:", error);
-      alert(error.message || "Failed to upload profile picture.");
+      toast(error.message || "Failed to upload profile picture.");
     } finally {
       setIsImageUploading(false);
     }
@@ -318,7 +318,7 @@ export default function Profile() {
       showMessage("Profile picture removed successfully.");
     } catch (error) {
       console.error("Profile Image Remove Error:", error);
-      alert(error.message || "Failed to remove profile picture.");
+      toast(error.message || "Failed to remove profile picture.");
     } finally {
       setIsImageUploading(false);
     }
@@ -368,7 +368,7 @@ export default function Profile() {
       showMessage(response?.message || "Profile updated successfully.");
     } catch (error) {
       console.error("Profile Update Error:", error);
-      alert(error.message || "Failed to update profile.");
+      toast(error.message || "Failed to update profile.");
     } finally {
       setIsSaving(false);
     }
@@ -390,10 +390,10 @@ export default function Profile() {
 
   return (
     <div className="profile">
-      <Navbar toggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+      <Navbar />
 
       <div className="profile__container">
-        <Sidebar open={sidebarOpen} />
+        <Sidebar />
 
         <main className="profile__main">
           <section className="profile-hero">

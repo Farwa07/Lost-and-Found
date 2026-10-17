@@ -10,12 +10,20 @@ import {
   FaIdCard,
   FaFileAlt,
 } from "react-icons/fa";
+import { toast } from "../utils/notify";
+import { todayInputValue } from "../utils/date";
+import ReportFormShell from "../components/ReportFormShell";
+import FileField from "../components/FileField";
+import CityInput from "../components/CityInput";
+import useFormDraft from "../hooks/useFormDraft";
+import { Link, useNavigate } from "react-router-dom";
 
 const initialState = {
   missingPersonName: "",
   missingPersonAge: "",
   missingPersonGender: "",
   missingPersonLastSeenLocation: "",
+  city: "",
   missingPersonLastSeenDate: "",
   missingPersonDescription: "",
 
@@ -23,6 +31,7 @@ const initialState = {
   reporterContactNumber: "+92",
   reporterEmail: "",
   reporterAddress: "",
+  reporterCity: "",
   reporterRelationship: "",
 
   reporterIdCardImage: null,
@@ -32,7 +41,10 @@ const initialState = {
 
 const MissingPerson = () => {
   const { currentUser } = useAuth();
-  const [formData, setFormData] = useState(() => applyReporterFields(initialState, currentUser));
+  const navigate = useNavigate();
+  const [formData, setFormData, clearDraft] = useFormDraft("report-missing-person", () =>
+    applyReporterFields(initialState, currentUser)
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const reporterDefaults = useMemo(
@@ -45,7 +57,7 @@ const MissingPerson = () => {
       ...previousData,
       ...reporterDefaults,
     }));
-  }, [reporterDefaults]);
+  }, [reporterDefaults, setFormData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -70,7 +82,7 @@ const MissingPerson = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isValidPhoneNumber(formData.reporterContactNumber)) {
-      alert("Enter 10 digits after the +92 prefix.");
+      toast("Enter 10 digits after the +92 prefix.");
       return;
     }
 
@@ -81,12 +93,12 @@ const MissingPerson = () => {
     const loggedInEmail = normalizeEmail(currentUser?.email || "");
 
     if (!loggedInEmail) {
-      alert("Please login again before submitting a report.");
+      toast("Please login again before submitting a report.");
       return;
     }
 
     if (normalizeEmail(formData.reporterEmail) !== loggedInEmail) {
-      alert("Reporter email must match your logged-in account email.");
+      toast("Reporter email must match your logged-in account email.");
       setFormData((previousData) => ({
         ...previousData,
         reporterEmail: loggedInEmail,
@@ -108,6 +120,7 @@ const MissingPerson = () => {
         "missingPersonLastSeenLocation",
         formData.missingPersonLastSeenLocation.trim()
       );
+      payload.append("city", formData.city.trim());
       payload.append(
         "missingPersonLastSeenDate",
         formData.missingPersonLastSeenDate
@@ -124,6 +137,7 @@ const MissingPerson = () => {
       );
       payload.append("reporterEmail", normalizeEmail(currentUser?.email || formData.reporterEmail));
       payload.append("reporterAddress", formData.reporterAddress.trim());
+      payload.append("reporterCity", formData.reporterCity.trim());
       payload.append(
         "reporterRelationship",
         formData.reporterRelationship.trim()
@@ -143,16 +157,18 @@ const MissingPerson = () => {
 
       const response = await createMissingPersonReport(payload);
 
-      alert(
+      toast(
         response?.message ||
           "Missing Person Report Submitted Successfully! It is now pending admin verification."
       );
 
+      clearDraft();
       setFormData(applyReporterFields(initialState, currentUser));
       formElement.reset();
+      navigate("/reports");
     } catch (error) {
       console.error("Missing Person Submit Error:", error);
-      alert(
+      toast(
         error.message ||
           "Something went wrong while submitting the report. Please try again."
       );
@@ -162,6 +178,7 @@ const MissingPerson = () => {
   };
 
   return (
+    <ReportFormShell backTo="/persons" backLabel="Back to Persons">
     <div className="missing-person-page">
       <div className="missing-overlay">
         <div className="missing-form-container">
@@ -229,11 +246,12 @@ const MissingPerson = () => {
               </div>
 
               <div className="input-group">
-                <label>Last Seen Location</label>
+                <label htmlFor="missingPersonLastSeenLocation">Last seen location</label>
                 <input
                   type="text"
+                  id="missingPersonLastSeenLocation"
                   name="missingPersonLastSeenLocation"
-                  placeholder="Enter last seen location, city"
+                  placeholder="e.g. Data Darbar, near main gate"
                   value={formData.missingPersonLastSeenLocation}
                   onChange={handleChange}
                   required
@@ -241,9 +259,15 @@ const MissingPerson = () => {
               </div>
 
               <div className="input-group">
+                <label htmlFor="city">City</label>
+                <CityInput id="city" name="city" value={formData.city} onChange={handleChange} required />
+              </div>
+
+              <div className="input-group">
                 <label>Last Seen Date</label>
                 <input
                   type="date"
+                  max={todayInputValue()}
                   name="missingPersonLastSeenDate"
                   value={formData.missingPersonLastSeenDate}
                   onChange={handleChange}
@@ -268,12 +292,19 @@ const MissingPerson = () => {
               <h3>Reporter Details</h3>
             </div>
 
+            <p className="reporter-profile-note">
+              These details come from your profile and are shown to people who want to contact you.{" "}
+              <Link to="/profile">Edit profile</Link>
+            </p>
+
             <div className="form-grid">
               <div className="input-group">
                 <label>Reporter Full Name</label>
                 <input
                   type="text"
                   name="reporterFullName"
+                  readOnly={Boolean(reporterDefaults.reporterFullName)}
+                  title={reporterDefaults.reporterFullName ? "Taken from your profile. Update it in Profile to change it." : undefined}
                   placeholder="Enter reporter full name"
                   value={formData.reporterFullName}
                   onChange={handleChange}
@@ -288,6 +319,8 @@ const MissingPerson = () => {
                 <input
                   type="tel"
                   name="reporterContactNumber"
+                  readOnly={Boolean(reporterDefaults.reporterContactNumber)}
+                  title={reporterDefaults.reporterContactNumber ? "Taken from your profile. Update it in Profile to change it." : undefined}
                   placeholder="+923XXXXXXXXX"
                   value={formData.reporterContactNumber}
                   onChange={handleChange}
@@ -314,14 +347,29 @@ const MissingPerson = () => {
               </div>
 
               <div className="input-group">
-                <label>Reporter Address</label>
+                <label htmlFor="reporterAddress">Your address</label>
                 <input
                   type="text"
+                  id="reporterAddress"
                   name="reporterAddress"
-                  placeholder="Enter reporter address, city"
+                  readOnly={Boolean(reporterDefaults.reporterAddress)}
+                  title={reporterDefaults.reporterAddress ? "Taken from your profile. Update it in Profile to change it." : undefined}
+                  placeholder="House no, street, area"
                   value={formData.reporterAddress}
                   onChange={handleChange}
                   required
+                />
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="reporterCity">Your city</label>
+                <CityInput
+                  id="reporterCity"
+                  name="reporterCity"
+                  value={formData.reporterCity}
+                  onChange={handleChange}
+                  readOnly={Boolean(reporterDefaults.reporterCity)}
+                  title={reporterDefaults.reporterCity ? "Taken from your profile. Update it in Profile to change it." : undefined}
                 />
               </div>
 
@@ -343,62 +391,34 @@ const MissingPerson = () => {
             </div>
 
             <div className="upload-grid">
-              <div className="upload-box">
-                <label htmlFor="missingPersonImage">
-                  <FaUpload className="upload-icon" />
-                  Upload Missing Person Picture
-                </label>
-                <input
-                  type="file"
-                  id="missingPersonImage"
-                  name="missingPersonImage"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  required
-                />
-                {formData.missingPersonImage && (
-                  <p className="file-name">
-                    {formData.missingPersonImage.name}
-                  </p>
-                )}
-              </div>
+              <FileField
+                name="missingPersonImage"
+                label="Missing Person Picture"
+                icon={FaUpload}
+                file={formData.missingPersonImage}
+                onChange={handleFileChange}
+                required
+              />
 
-              <div className="upload-box">
-                <label htmlFor="reporterIdCardImage">
-                  <FaIdCard className="upload-icon" />
-                  Upload Reporter ID Card Picture
-                </label>
-                <input
-                  type="file"
-                  id="reporterIdCardImage"
-                  name="reporterIdCardImage"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  required
-                />
-                {formData.reporterIdCardImage && (
-                  <p className="file-name">
-                    {formData.reporterIdCardImage.name}
-                  </p>
-                )}
-              </div>
+              <FileField
+                name="reporterIdCardImage"
+                label="Your CNIC / ID card"
+                icon={FaIdCard}
+                hint="Kept private. Only you and the admins can see it."
+                file={formData.reporterIdCardImage}
+                onChange={handleFileChange}
+                required
+              />
 
-              <div className="upload-box">
-                <label htmlFor="firReportImage">
-                  <FaFileAlt className="upload-icon" />
-                  Upload FIR Report Picture / PDF Optional
-                </label>
-                <input
-                  type="file"
-                  id="firReportImage"
-                  name="firReportImage"
-                  accept="image/*,.pdf"
-                  onChange={handleFileChange}
-                />
-                {formData.firReportImage && (
-                  <p className="file-name">{formData.firReportImage.name}</p>
-                )}
-              </div>
+              <FileField
+                name="firReportImage"
+                label="FIR report"
+                icon={FaFileAlt}
+                hint="Kept private. JPG, PNG or PDF, up to 5 MB."
+                file={formData.firReportImage}
+                onChange={handleFileChange}
+                allowPdf
+              />
             </div>
 
             <button type="submit" className="submit-btn" disabled={isSubmitting}>
@@ -408,6 +428,7 @@ const MissingPerson = () => {
         </div>
       </div>
     </div>
+    </ReportFormShell>
   );
 };
 

@@ -1,4 +1,5 @@
 import "./VerifyOtp.css";
+import BackButton from "../components/BackButton";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -11,6 +12,7 @@ import {
   FaRedo,
   FaShieldAlt,
 } from "react-icons/fa";
+import { toast } from "../utils/notify";
 
 export default function VerifyOtp() {
   const navigate = useNavigate();
@@ -42,7 +44,7 @@ export default function VerifyOtp() {
     const savedPendingSignup = getPendingSignup();
 
     if (!savedPendingSignup?.email) {
-      alert("No signup request found. Please sign up first.");
+      toast("No signup request found. Please sign up first.");
       navigate("/signup");
       return;
     }
@@ -187,6 +189,7 @@ export default function VerifyOtp() {
 
   return (
     <div className="verify-otp">
+      <BackButton className="auth-back" fallback="/" />
       <div className="verify-otp__left">
         <div className="verify-otp__overlay">
           <div className="verify-otp__content">

@@ -16,7 +16,6 @@ import {
 } from "react-icons/fa";
 
 export default function Contact() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -109,10 +108,10 @@ export default function Contact() {
 
   return (
     <div className="contact-page">
-      <Navbar toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <Navbar />
 
       <div className="contact-layout">
-        <Sidebar open={sidebarOpen} />
+        <Sidebar />
 
         <main className="contact-main">
           <section className="contact-hero">

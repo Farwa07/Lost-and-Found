@@ -1,4 +1,5 @@
 import "./ForgotPassword.css";
+import BackButton from "../components/BackButton";
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -44,6 +45,7 @@ export default function ForgotPassword() {
 
   return (
     <div className="forgot">
+      <BackButton className="auth-back" fallback="/" />
       <div className="forgot__left">
         <div className="forgot__overlay">
           <div className="forgot__content">

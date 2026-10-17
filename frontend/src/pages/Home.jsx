@@ -1,442 +1,134 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import HeroSection from "../components/HeroSection";
-import CommentsButton from "../components/CommentsButton";
-import ReportPostButton from "../components/ReportPostButton";
-import ImagePreviewModal from "../components/ImagePreviewModal";
-
-import {
-  FaSearch,
-  FaUsers,
-  FaBoxOpen,
-  FaUser,
-  FaMapMarkerAlt,
-  FaCalendarAlt,
-  FaPhoneAlt,
-  FaTimes,
-  FaEye,
-  FaShareAlt,
-} from "react-icons/fa";
+import ReportCard, { ReportCardSkeleton } from "../components/ReportCard";
+import { FaSearch, FaUsers, FaBoxOpen, FaUser, FaBell, FaArrowRight } from "react-icons/fa";
 
 import "./Home.css";
 import { getPublicReports } from "../api/reportApi";
-import { getFallbackReportImage, normalizePublicReport } from "../utils/reportMapper";
+import useCachedRequest from "../hooks/useCachedRequest";
+import { normalizePublicReport } from "../utils/reportMapper";
 
-const handleHomeReportImageError = (event, category = "Item") => {
-  const fallbackImage = getFallbackReportImage(category);
+const FEATURES = [
+  {
+    icon: FaUsers,
+    title: "Report missing or found persons",
+    text: "Share a photo, last seen location and contact details so people nearby can help.",
+  },
+  {
+    icon: FaBoxOpen,
+    title: "Recover lost belongings",
+    text: "Post lost or found phones, wallets, documents and more in a couple of minutes.",
+  },
+  {
+    icon: FaBell,
+    title: "Get notified about matches",
+    text: "Similar lost and found reports are matched and both reporters are alerted.",
+  },
+];
 
-  if (event.currentTarget.src !== fallbackImage) {
-    event.currentTarget.src = fallbackImage;
-  }
-};
+const REPORT_TYPES = [
+  { to: "/report-missing-person", label: "Missing Person", hint: "Someone you know is missing", icon: FaUser, tone: "lost" },
+  { to: "/report-found-person", label: "Found Person", hint: "You found someone who is lost", icon: FaUser, tone: "found" },
+  { to: "/report-lost-item", label: "Lost Item", hint: "You lost something", icon: FaBoxOpen, tone: "lost" },
+  { to: "/report-found-item", label: "Found Item", hint: "You found something", icon: FaSearch, tone: "found" },
+];
 
 export default function Home() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedReport, setSelectedReport] = useState(null);
-  const [homeReports, setHomeReports] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [previewImage, setPreviewImage] = useState(null);
-
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    let ignore = false;
-
-    const loadRecentReports = async () => {
-      try {
-        setIsLoading(true);
-        setError("");
-
-        const response = await getPublicReports({ limit: 9 });
-
-        if (ignore) return;
-
-        setHomeReports((response?.reports || []).map(normalizePublicReport));
-      } catch (err) {
-        if (!ignore) {
-          setError(err.message || "Unable to load recent reports.");
-          setHomeReports([]);
-        }
-      } finally {
-        if (!ignore) setIsLoading(false);
-      }
-    };
-
-    loadRecentReports();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
-
-  const handleShare = (report) => {
-    const title = report.title || report.name || report.itemName || "Report";
-
-    const location =
-      report.location ||
-      report.lastSeenLocation ||
-      report.foundLocation ||
-      "N/A";
-
-    const contact =
-      report.reporterContact ||
-      report.reporterContactNumber ||
-      "N/A";
-
-    const text = `${report.type} ${report.category}: ${title}, Location: ${location}, Contact: ${contact}`;
-
-    navigator.clipboard.writeText(text);
-
-    alert("Report details copied for sharing!");
-  };
+  const { data, error, isLoading } = useCachedRequest("home:recent", () =>
+    getPublicReports({ limit: 8 })
+  );
+  const homeReports = (data?.reports || []).map(normalizePublicReport);
 
   return (
     <div className="home">
-      <Navbar toggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+      <Navbar />
 
       <div className="home__container">
-        <Sidebar open={sidebarOpen} />
+        <Sidebar />
 
         <main className="home__main">
           <HeroSection />
 
-          <section className="features">
-            <div className="feature-card">
-              <div className="feature-icon">
-                <FaUsers />
+          <section className="home-section home-features" aria-label="How Lost & Found helps">
+            {FEATURES.map((feature) => (
+              <div className="home-feature" key={feature.title}>
+                <div className="home-feature__icon">
+                  <feature.icon aria-hidden="true" />
+                </div>
+                <h2>{feature.title}</h2>
+                <p>{feature.text}</p>
               </div>
-              <h3>Report Missing or Found Persons</h3>
-              <p>
-                Quickly report missing or found persons with complete details and images.
-              </p>
-            </div>
-
-            <div className="feature-card">
-              <div className="feature-icon">
-                <FaBoxOpen />
-              </div>
-              <h3>Lost & Found Items</h3>
-              <p>
-                Post lost or found items and help people recover their belongings.
-              </p>
-            </div>
-
-            <div className="feature-card">
-              <div className="feature-icon">
-                <FaSearch />
-              </div>
-              <h3>Search & Filter Cases</h3>
-              <p>
-                Search reports by name, item, city, category and case type.
-              </p>
-            </div>
+            ))}
           </section>
 
-          <section className="report-section">
-            <h2 className="section-title">Report a Case</h2>
-            <p className="section-subtitle">Choose what you want to report</p>
+          <section className="home-section" aria-labelledby="report-heading">
+            <h2 id="report-heading" className="home-title">
+              Report a Case
+            </h2>
+            <p className="home-subtitle">Choose what you want to report</p>
 
-            <div className="report-grid">
-              <button
-                className="report-card"
-                onClick={() => navigate("/report-missing-person")}
-              >
-                <div className="report-card__icon">
-                  <FaUser />
-                </div>
-                <h3>Missing Person</h3>
-              </button>
-
-              <button
-                className="report-card"
-                onClick={() => navigate("/report-found-person")}
-              >
-                <div className="report-card__icon">
-                  <FaUser />
-                </div>
-                <h3>Found Person</h3>
-              </button>
-
-              <button
-                className="report-card"
-                onClick={() => navigate("/report-lost-item")}
-              >
-                <div className="report-card__icon">
-                  <FaBoxOpen />
-                </div>
-                <h3>Lost Item</h3>
-              </button>
-
-              <button
-                className="report-card"
-                onClick={() => navigate("/report-found-item")}
-              >
-                <div className="report-card__icon">
-                  <FaBoxOpen />
-                </div>
-                <h3>Found Item</h3>
-              </button>
-            </div>
-          </section>
-
-          <section className="recent-reports">
-            <div className="recent-header">
-              <div>
-                <h2 className="section-title">Recent Cases</h2>
-                <p className="section-subtitle">
-                  Latest missing, lost and found reports
-                </p>
-              </div>
-
-              <div className="recent-header-buttons">
-                <button onClick={() => navigate("/persons")}>View Persons</button>
-                <button onClick={() => navigate("/items")}>View Items</button>
-              </div>
-            </div>
-
-            {isLoading && <div className="empty-box"><h3>Loading recent cases...</h3></div>}
-            {error && !isLoading && <div className="empty-box"><h3>{error}</h3></div>}
-
-            <div className="recent-grid">
-              {homeReports.map((report) => (
-                <div key={report.viewId} className="recent-card">
-                  <div
-                    className={`case-tag ${
-                      report.type === "Found"
-                        ? "case-tag--found"
-                        : "case-tag--missing"
-                    }`}
-                  >
-                    {report.type}
-                  </div>
-
-                  {report.adminStatus === "Matched" &&
-  report.caseStatus === "Solved" && (
-    <div className="case-solved-tag">
-      Solved
-    </div>
-)}
-
-                  <img
-                    className="clickable-report-image"
-                    src={report.image}
-                    alt={report.title}
-                    title="Click to view full image"
-                    onClick={() => setPreviewImage({ src: report.image, alt: report.title })}
-                    onError={(event) =>
-                      handleHomeReportImageError(event, report.category)
-                    }
-                  />
-
-                  <div className="recent-card__content">
-                    <span className="case-category">{report.category}</span>
-
-                    <h3>{report.title}</h3>
-
-                    <p>
-                      <FaMapMarkerAlt /> {report.location || report.city}
-                    </p>
-
-                    <p>
-                      <FaCalendarAlt /> {report.date || "N/A"}
-                    </p>
-
-                    <div className="recent-card__actions">
-                      <button
-                        className="recent-view-btn"
-                        onClick={() => setSelectedReport(report)}
-                      >
-                        <FaEye />
-                        View Details
-                      </button>
-
-                      <CommentsButton
-  reportId={report.id}
-  reportTitle={report.title}
-  initialComments={report.comments || []}
-  currentUser="User"
-/>
-
-                      <ReportPostButton report={report} />
-
-                      <button
-                        className="recent-share-btn"
-                        onClick={() => handleShare(report)}
-                      >
-                        <FaShareAlt />
-                        Share
-                      </button>
-                    </div>
-                  </div>
-                </div>
+            <div className="home-report-types">
+              {REPORT_TYPES.map((type) => (
+                <Link key={type.to} to={type.to} className={`home-report-type is-${type.tone}`}>
+                  <span className="home-report-type__icon">
+                    <type.icon aria-hidden="true" />
+                  </span>
+                  <span className="home-report-type__label">{type.label}</span>
+                  <span className="home-report-type__hint">{type.hint}</span>
+                </Link>
               ))}
             </div>
           </section>
 
-          {selectedReport && (
-            <div
-              className="home-modal-overlay"
-              onClick={() => setSelectedReport(null)}
-            >
-              <div
-                className="home-details-modal"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  className="home-modal-close"
-                  onClick={() => setSelectedReport(null)}
-                >
-                  <FaTimes />
-                </button>
+          <section className="home-section" aria-labelledby="recent-heading">
+            <div className="home-recent__header">
+              <div>
+                <h2 id="recent-heading" className="home-title">
+                  Recent Cases
+                </h2>
+                <p className="home-subtitle">Latest missing, lost and found reports</p>
+              </div>
 
-                <img
-                  className="clickable-report-image"
-                  src={selectedReport.image}
-                  alt={selectedReport.title}
-                  title="Click to view full image"
-                  onClick={() => setPreviewImage({ src: selectedReport.image, alt: selectedReport.title })}
-                  onError={(event) =>
-                    handleHomeReportImageError(event, selectedReport.category)
-                  }
-                />
-
-                <span
-                  className={`detail-status ${
-                    selectedReport.type === "Found"
-                      ? "case-tag--found"
-                      : "case-tag--missing"
-                  }`}
-                >
-                  {selectedReport.type}
-                </span>
-
-                <h2>{selectedReport.title}</h2>
-
-                <div className="home-detail-grid">
-                  <p>
-                    <b>Case Type:</b> {selectedReport.type}
-                  </p>
-
-                  <p>
-                    <b>Category:</b> {selectedReport.category}
-                  </p>
-
-                  {selectedReport.age && (
-                    <p>
-                      <b>Age:</b> {selectedReport.age}
-                    </p>
-                  )}
-
-                  {selectedReport.gender && (
-                    <p>
-                      <b>Gender:</b> {selectedReport.gender}
-                    </p>
-                  )}
-
-                  {selectedReport.city && (
-                    <p>
-                      <b>City:</b> {selectedReport.city}
-                    </p>
-                  )}
-
-                  <p>
-                    <b>Date:</b> {selectedReport.date || "N/A"}
-                  </p>
-
-                  <p>
-                    <b>Case Status:</b>{" "}
-                    {selectedReport.caseStatus || "Unsolved"}
-                  </p>
-                </div>
-
-                {selectedReport.itemCategory && (
-                  <p>
-                    <b>Item Category:</b> {selectedReport.itemCategory}
-                  </p>
-                )}
-
-                {selectedReport.brand && (
-                  <p>
-                    <b>Brand:</b> {selectedReport.brand}
-                  </p>
-                )}
-
-                {selectedReport.color && (
-                  <p>
-                    <b>Color:</b> {selectedReport.color}
-                  </p>
-                )}
-
-                <p>
-                  <b>Location:</b> {selectedReport.location || "N/A"}
-                </p>
-
-                {selectedReport.currentLocation && (
-                  <p>
-                    <b>Current Location:</b> {selectedReport.currentLocation}
-                  </p>
-                )}
-
-                <p>
-                  <b>Description:</b> {selectedReport.description}
-                </p>
-
-                <hr />
-
-                <h3>Reporter Details</h3>
-
-                <p>
-                  <b>Reporter Name:</b> {selectedReport.reporterName}
-                </p>
-
-                {selectedReport.relation && (
-                  <p>
-                    <b>Relation:</b> {selectedReport.relation}
-                  </p>
-                )}
-
-                {selectedReport.reporterAddress && (
-                  <p>
-                    <b>Address:</b> {selectedReport.reporterAddress}
-                  </p>
-                )}
-
-                {selectedReport.reporterEmail && (
-                  <p>
-                    <b>Email:</b> {selectedReport.reporterEmail}
-                  </p>
-                )}
-
-                <p>
-                  <b>Contact Number:</b>{" "}
-                  {selectedReport.reporterContact || "N/A"}
-                </p>
-
-                {selectedReport.reporterContact && (
-                  <a
-                    href={`tel:${selectedReport.reporterContact}`}
-                    className="call-btn"
-                  >
-                    <FaPhoneAlt /> Contact Now
-                  </a>
-                )}
+              <div className="home-recent__links">
+                <Link to="/persons">
+                  All Persons <FaArrowRight aria-hidden="true" />
+                </Link>
+                <Link to="/items">
+                  All Items <FaArrowRight aria-hidden="true" />
+                </Link>
               </div>
             </div>
-          )}
 
-          <ImagePreviewModal
-            image={previewImage?.src}
-            alt={previewImage?.alt}
-            onClose={() => setPreviewImage(null)}
-          />
+            <div className="report-grid">
+              {isLoading &&
+                Array.from({ length: 6 }, (_, index) => <ReportCardSkeleton key={index} />)}
 
-          <Footer />
+              {!isLoading && error && (
+                <div className="report-empty" role="alert">
+                  <h3>Could not load recent cases</h3>
+                  <p>{error}</p>
+                </div>
+              )}
+
+              {!isLoading && !error && homeReports.length === 0 && (
+                <div className="report-empty">
+                  <h3>No cases yet</h3>
+                  <p>Be the first to report a missing person or a lost item.</p>
+                </div>
+              )}
+
+              {!isLoading &&
+                !error &&
+                homeReports.map((report) => <ReportCard key={report.id} report={report} />)}
+            </div>
+          </section>
         </main>
       </div>
+
+      <Footer />
     </div>
   );
 }

@@ -4,6 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getNotificationSummary } from "../api/notificationApi";
+import { resolveMediaUrl } from "../utils/mediaUrl";
+import {
+  closeSidebarOnMobile,
+  setSidebarOpen,
+  useIsMobile,
+  useSidebarOpen,
+} from "../utils/sidebarStore";
 
 import {
   FaTachometerAlt,
@@ -14,16 +21,26 @@ import {
   FaFileAlt,
   FaCog,
   FaUserShield,
+  FaEnvelope,
+  FaHome,
 } from "react-icons/fa";
 
-export default function Sidebar({ open }) {
+const GUEST_LINKS = [
+  { to: "/", label: "Home", icon: FaHome, end: true },
+  { to: "/persons", label: "Persons", icon: FaUsers },
+  { to: "/items", label: "Items", icon: FaBoxOpen },
+  { to: "/statistics", label: "Statistics", icon: FaChartBar },
+  { to: "/contact", label: "Contact", icon: FaEnvelope },
+];
+
+export default function Sidebar() {
   const { isLoggedIn, isAdmin, currentUser } = useAuth();
   const location = useLocation();
+  const open = useSidebarOpen();
+  const isMobile = useIsMobile();
 
-  const [profileImage, setProfileImage] = useState(currentUser?.profileImage || "");
-  const [profileName, setProfileName] = useState(
-    currentUser?.fullName || currentUser?.name || "User"
-  );
+  const profileImage = resolveMediaUrl(currentUser?.profileImage || "");
+  const profileName = currentUser?.fullName || currentUser?.name || "User";
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const loadNotificationBadge = useCallback(async () => {
@@ -37,27 +54,15 @@ export default function Sidebar({ open }) {
       const summary = response?.summary || response?.counts || {};
       const unreadCount = Number(summary?.unread ?? response?.unread ?? 0);
       setUnreadNotificationCount(Number.isFinite(unreadCount) ? unreadCount : 0);
-    } catch (error) {
+    } catch {
       setUnreadNotificationCount(0);
     }
   }, [isLoggedIn]);
 
-  const loadProfileData = () => {
-    setProfileImage(currentUser?.profileImage || "");
-    setProfileName(currentUser?.fullName || currentUser?.name || "User");
-  };
-
+  // Close the mobile drawer after navigating.
   useEffect(() => {
-    loadProfileData();
-
-    window.addEventListener("profileUpdated", loadProfileData);
-    window.addEventListener("authChanged", loadProfileData);
-
-    return () => {
-      window.removeEventListener("profileUpdated", loadProfileData);
-      window.removeEventListener("authChanged", loadProfileData);
-    };
-  }, [currentUser]);
+    closeSidebarOnMobile();
+  }, [location.pathname]);
 
   useEffect(() => {
     loadNotificationBadge();
@@ -84,7 +89,25 @@ export default function Sidebar({ open }) {
     };
   }, [isLoggedIn, loadNotificationBadge]);
 
-  if (!isLoggedIn) {
+  // Mobile drawer: close with Escape and stop the page behind from scrolling.
+  useEffect(() => {
+    if (!isMobile || !open) return undefined;
+
+    const handleKey = (event) => {
+      if (event.key === "Escape") setSidebarOpen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKey);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [isMobile, open]);
+
+  // Guests use the top navbar links on desktop; the drawer is mobile only.
+  if (!isLoggedIn && !isMobile) {
     return null;
   }
 
@@ -100,70 +123,105 @@ export default function Sidebar({ open }) {
     `sidebar__link ${isActive ? "sidebar__link--active" : ""}`;
 
   return (
-    <aside className={`sidebar ${open ? "" : "sidebar--closed"}`}>
-      <div className="sidebar__links">
-        <NavLink to="/" end className={getLinkClass}>
-          <FaTachometerAlt />
-          Dashboard
-        </NavLink>
+    <>
+      {isMobile && open && (
+        <div
+          className="sidebar__backdrop"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
-        {isAdmin && (
-          <NavLink to="/admin-panel" className={getLinkClass}>
-            <FaUserShield />
-            Admin Panel
-          </NavLink>
-        )}
+      <aside
+        id="app-sidebar"
+        className={`sidebar ${open ? "" : "sidebar--closed"}`}
+        aria-label="Sidebar navigation"
+        aria-hidden={!open}
+        inert={!open}
+      >
+        <nav className="sidebar__links">
+          {!isLoggedIn &&
+            GUEST_LINKS.map((link) => (
+              <NavLink key={link.to} to={link.to} end={link.end} className={getLinkClass}>
+                <link.icon aria-hidden="true" />
+                {link.label}
+              </NavLink>
+            ))}
 
-        <NavLink to="/persons" className={getLinkClass}>
-          <FaUsers />
-          Persons
-        </NavLink>
+          {isLoggedIn && (
+            <>
+              <NavLink to="/" end className={getLinkClass}>
+                <FaTachometerAlt aria-hidden="true" />
+                Dashboard
+              </NavLink>
 
-        <NavLink to="/items" className={getLinkClass}>
-          <FaBoxOpen />
-          Items
-        </NavLink>
+              {isAdmin && (
+                <NavLink to="/admin-panel" className={getLinkClass}>
+                  <FaUserShield aria-hidden="true" />
+                  Admin Panel
+                </NavLink>
+              )}
 
-        <NavLink to="/statistics" className={getLinkClass}>
-          <FaChartBar />
-          Statistics
-        </NavLink>
+              <NavLink to="/persons" className={getLinkClass}>
+                <FaUsers aria-hidden="true" />
+                Persons
+              </NavLink>
 
-        <NavLink to="/notifications" className={getLinkClass}>
-          <FaBell />
-          <span className="sidebar__link-text">Notifications</span>
-          {unreadNotificationCount > 0 && (
-            <span
-              className="sidebar__notification-badge"
-              aria-label={`${unreadNotificationCount} unread notifications`}
-              title={`${unreadNotificationCount} unread notifications`}
-            >
-              {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-            </span>
+              <NavLink to="/items" className={getLinkClass}>
+                <FaBoxOpen aria-hidden="true" />
+                Items
+              </NavLink>
+
+              <NavLink to="/statistics" className={getLinkClass}>
+                <FaChartBar aria-hidden="true" />
+                Statistics
+              </NavLink>
+
+              <NavLink to="/notifications" className={getLinkClass}>
+                <FaBell aria-hidden="true" />
+                <span className="sidebar__link-text">Notifications</span>
+                {unreadNotificationCount > 0 && (
+                  <span
+                    className="sidebar__notification-badge"
+                    aria-label={`${unreadNotificationCount} unread notifications`}
+                    title={`${unreadNotificationCount} unread notifications`}
+                  >
+                    {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+                  </span>
+                )}
+              </NavLink>
+
+              <NavLink to="/reports" className={getLinkClass}>
+                <FaFileAlt aria-hidden="true" />
+                My Reports
+              </NavLink>
+
+              <NavLink to="/settings" className={getLinkClass}>
+                <FaCog aria-hidden="true" />
+                Settings
+              </NavLink>
+
+              {isMobile && (
+                <NavLink to="/contact" className={getLinkClass}>
+                  <FaEnvelope aria-hidden="true" />
+                  Contact
+                </NavLink>
+              )}
+
+              <NavLink to="/profile" className="sidebar__profile">
+                <div className="sidebar__avatar">
+                  {profileImage ? <img src={profileImage} alt="" /> : initials}
+                </div>
+
+                <div className="sidebar__profile-info">
+                  <h4>{profileName}</h4>
+                  <p>View Profile</p>
+                </div>
+              </NavLink>
+            </>
           )}
-        </NavLink>
-
-        <NavLink to="/reports" className={getLinkClass}>
-          <FaFileAlt />
-          My Reports
-        </NavLink>
-
-        <NavLink to="/settings" className={getLinkClass}>
-          <FaCog />
-          Settings
-        </NavLink>
-
-        <NavLink to="/profile" className="sidebar__profile">
-          <div className="sidebar__avatar">
-            {profileImage ? <img src={profileImage} alt="Profile" /> : initials}
-          </div>
-
-          <div>
-            <h4>{profileName}</h4>
-            <p>View Profile</p>
-          </div>
-        </NavLink>
-      </div>
-    </aside>
+        </nav>
+      </aside>
+    </>
   );
 }

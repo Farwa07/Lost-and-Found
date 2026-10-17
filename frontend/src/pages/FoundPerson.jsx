@@ -10,12 +10,20 @@ import {
   FaUpload,
   FaIdCard,
 } from "react-icons/fa";
+import { toast } from "../utils/notify";
+import { todayInputValue } from "../utils/date";
+import ReportFormShell from "../components/ReportFormShell";
+import FileField from "../components/FileField";
+import CityInput from "../components/CityInput";
+import useFormDraft from "../hooks/useFormDraft";
+import { Link, useNavigate } from "react-router-dom";
 
 const initialState = {
   foundPersonName: "",
   estimatedAge: "",
   foundPersonGender: "",
   foundLocation: "",
+  city: "",
   foundDate: "",
   currentLocation: "",
   foundPersonDescription: "",
@@ -24,6 +32,7 @@ const initialState = {
   reporterContactNumber: "+92",
   reporterEmail: "",
   reporterAddress: "",
+  reporterCity: "",
   reporterRelationship: "",
 
   foundPersonImage: null,
@@ -32,7 +41,10 @@ const initialState = {
 
 const FoundPerson = () => {
   const { currentUser } = useAuth();
-  const [formData, setFormData] = useState(() => applyReporterFields(initialState, currentUser));
+  const navigate = useNavigate();
+  const [formData, setFormData, clearDraft] = useFormDraft("report-found-person", () =>
+    applyReporterFields(initialState, currentUser)
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const reporterDefaults = useMemo(
@@ -45,7 +57,7 @@ const FoundPerson = () => {
       ...previousData,
       ...reporterDefaults,
     }));
-  }, [reporterDefaults]);
+  }, [reporterDefaults, setFormData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -70,7 +82,7 @@ const FoundPerson = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isValidPhoneNumber(formData.reporterContactNumber)) {
-      alert("Enter 10 digits after the +92 prefix.");
+      toast("Enter 10 digits after the +92 prefix.");
       return;
     }
 
@@ -81,12 +93,12 @@ const FoundPerson = () => {
     const loggedInEmail = normalizeEmail(currentUser?.email || "");
 
     if (!loggedInEmail) {
-      alert("Please login again before submitting a report.");
+      toast("Please login again before submitting a report.");
       return;
     }
 
     if (normalizeEmail(formData.reporterEmail) !== loggedInEmail) {
-      alert("Reporter email must match your logged-in account email.");
+      toast("Reporter email must match your logged-in account email.");
       setFormData((previousData) => ({
         ...previousData,
         reporterEmail: loggedInEmail,
@@ -105,6 +117,7 @@ const FoundPerson = () => {
       payload.append("estimatedAge", formData.estimatedAge);
       payload.append("foundPersonGender", formData.foundPersonGender);
       payload.append("foundLocation", formData.foundLocation.trim());
+      payload.append("city", formData.city.trim());
       payload.append("foundDate", formData.foundDate);
       payload.append("currentLocation", formData.currentLocation.trim());
       payload.append(
@@ -119,6 +132,7 @@ const FoundPerson = () => {
       );
       payload.append("reporterEmail", normalizeEmail(currentUser?.email || formData.reporterEmail));
       payload.append("reporterAddress", formData.reporterAddress.trim());
+      payload.append("reporterCity", formData.reporterCity.trim());
       payload.append(
         "reporterRelationship",
         formData.reporterRelationship.trim()
@@ -134,16 +148,18 @@ const FoundPerson = () => {
 
       const response = await createFoundPersonReport(payload);
 
-      alert(
+      toast(
         response?.message ||
           "Found Person Report Submitted Successfully! It is now pending admin verification."
       );
 
+      clearDraft();
       setFormData(applyReporterFields(initialState, currentUser));
       formElement.reset();
+      navigate("/reports");
     } catch (error) {
       console.error("Found Person Submit Error:", error);
-      alert(
+      toast(
         error.message ||
           "Something went wrong while submitting the report. Please try again."
       );
@@ -153,6 +169,7 @@ const FoundPerson = () => {
   };
 
   return (
+    <ReportFormShell backTo="/persons" backLabel="Back to Persons">
     <div className="found-person-page">
       <div className="found-overlay">
         <div className="found-container">
@@ -224,12 +241,13 @@ const FoundPerson = () => {
               </div>
 
               <div className="found-input">
-                <label>Found Location</label>
+                <label htmlFor="foundLocation">Found location</label>
 
                 <input
                   type="text"
+                  id="foundLocation"
                   name="foundLocation"
-                  placeholder="Where was the person found, city?"
+                  placeholder="e.g. Railway Station, platform 2"
                   value={formData.foundLocation}
                   onChange={handleChange}
                   required
@@ -237,10 +255,16 @@ const FoundPerson = () => {
               </div>
 
               <div className="found-input">
+                <label htmlFor="city">City</label>
+                <CityInput id="city" name="city" value={formData.city} onChange={handleChange} required />
+              </div>
+
+              <div className="found-input">
                 <label>Found Date</label>
 
                 <input
                   type="date"
+                  max={todayInputValue()}
                   name="foundDate"
                   value={formData.foundDate}
                   onChange={handleChange}
@@ -254,7 +278,7 @@ const FoundPerson = () => {
                 <textarea
                   rows="4"
                   name="currentLocation"
-                  placeholder="Enter complete current address where the found person is currently staying (Police Station, NGO, Hospital, Home etc.), city"
+                  placeholder="Where is the person staying now? e.g. Police Station, Edhi Centre, hospital, home address"
                   value={formData.currentLocation}
                   onChange={handleChange}
                   required
@@ -279,6 +303,11 @@ const FoundPerson = () => {
               <h3>Reporter Details</h3>
             </div>
 
+            <p className="reporter-profile-note">
+              These details come from your profile and are shown to people who want to contact you.{" "}
+              <Link to="/profile">Edit profile</Link>
+            </p>
+
             <div className="found-grid">
               <div className="found-input">
                 <label>Reporter Full Name</label>
@@ -286,6 +315,8 @@ const FoundPerson = () => {
                 <input
                   type="text"
                   name="reporterFullName"
+                  readOnly={Boolean(reporterDefaults.reporterFullName)}
+                  title={reporterDefaults.reporterFullName ? "Taken from your profile. Update it in Profile to change it." : undefined}
                   placeholder="Enter reporter full name"
                   value={formData.reporterFullName}
                   onChange={handleChange}
@@ -301,6 +332,8 @@ const FoundPerson = () => {
                 <input
                   type="tel"
                   name="reporterContactNumber"
+                  readOnly={Boolean(reporterDefaults.reporterContactNumber)}
+                  title={reporterDefaults.reporterContactNumber ? "Taken from your profile. Update it in Profile to change it." : undefined}
                   placeholder="+923XXXXXXXXX"
                   value={formData.reporterContactNumber}
                   onChange={handleChange}
@@ -327,14 +360,29 @@ const FoundPerson = () => {
               </div>
 
               <div className="found-input">
-                <label>Reporter Address</label>
+                <label htmlFor="reporterAddress">Your address</label>
                 <input
                   type="text"
+                  id="reporterAddress"
                   name="reporterAddress"
-                  placeholder="Enter reporter address, city"
+                  readOnly={Boolean(reporterDefaults.reporterAddress)}
+                  title={reporterDefaults.reporterAddress ? "Taken from your profile. Update it in Profile to change it." : undefined}
+                  placeholder="House no, street, area"
                   value={formData.reporterAddress}
                   onChange={handleChange}
                   required
+                />
+              </div>
+
+              <div className="found-input">
+                <label htmlFor="reporterCity">Your city</label>
+                <CityInput
+                  id="reporterCity"
+                  name="reporterCity"
+                  value={formData.reporterCity}
+                  onChange={handleChange}
+                  readOnly={Boolean(reporterDefaults.reporterCity)}
+                  title={reporterDefaults.reporterCity ? "Taken from your profile. Update it in Profile to change it." : undefined}
                 />
               </div>
 
@@ -357,47 +405,24 @@ const FoundPerson = () => {
             </div>
 
             <div className="upload-grid">
-              <div className="upload-box">
-                <label htmlFor="foundPersonImage">
-                  <FaUpload className="upload-icon" />
-                  Upload Found Person Picture
-                </label>
+              <FileField
+                name="foundPersonImage"
+                label="Found Person Picture"
+                icon={FaUpload}
+                file={formData.foundPersonImage}
+                onChange={handleFileChange}
+                required
+              />
 
-                <input
-                  type="file"
-                  id="foundPersonImage"
-                  name="foundPersonImage"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  required
-                />
-
-                {formData.foundPersonImage && (
-                  <p className="file-name">{formData.foundPersonImage.name}</p>
-                )}
-              </div>
-
-              <div className="upload-box">
-                <label htmlFor="reporterIdCardImage">
-                  <FaIdCard className="upload-icon" />
-                  Upload Reporter ID Card Picture
-                </label>
-
-                <input
-                  type="file"
-                  id="reporterIdCardImage"
-                  name="reporterIdCardImage"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  required
-                />
-
-                {formData.reporterIdCardImage && (
-                  <p className="file-name">
-                    {formData.reporterIdCardImage.name}
-                  </p>
-                )}
-              </div>
+              <FileField
+                name="reporterIdCardImage"
+                label="Your CNIC / ID card"
+                icon={FaIdCard}
+                hint="Kept private. Only you and the admins can see it."
+                file={formData.reporterIdCardImage}
+                onChange={handleFileChange}
+                required
+              />
             </div>
 
             <button
@@ -411,6 +436,7 @@ const FoundPerson = () => {
         </div>
       </div>
     </div>
+    </ReportFormShell>
   );
 };
 

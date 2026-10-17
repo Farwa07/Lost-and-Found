@@ -1,19 +1,17 @@
 import "./PrivacyPolicy.css";
-import { useState } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 import { FaShieldAlt, FaUserLock, FaDatabase, FaEnvelope } from "react-icons/fa";
 
 export default function PrivacyPolicy() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="privacy-page">
-      <Navbar toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <Navbar />
 
       <div className="privacy-layout">
-        <Sidebar open={sidebarOpen} />
+        <Sidebar />
 
         <main className="privacy-main">
           <section className="privacy-hero">

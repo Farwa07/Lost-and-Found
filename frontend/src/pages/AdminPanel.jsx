@@ -9,16 +9,14 @@ import {
   getAdminLogs,
   getAdminReports,
   getAdminUsers,
+  getConfirmedMatches,
   getMatchSuggestions,
-  rejectAdminReport,
   sendGeneralAlert,
   sendReportAlert,
   unblockAdminUser,
   updateAdminReportStatus,
   updateAdminReportCaseStatus,
-  verifyAdminReport,
 } from "../api/adminApi";
-import { fetchReportDocument } from "../api/reportApi";
 import {
   getFallbackReportImage,
   mapBackendReportToUi,
@@ -26,11 +24,14 @@ import {
 } from "../utils/reportMapper";
 
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { getReportPath } from "../utils/reportLinks";
 
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 import ImagePreviewModal from "../components/ImagePreviewModal";
+import MatchPairCard from "../components/MatchPairCard";
 
 import {
   FaBan,
@@ -59,6 +60,7 @@ import {
   FaUsers,
   FaUserShield,
 } from "react-icons/fa";
+import { confirmDialog, toast } from "../utils/notify";
 
 const handleReportImageError = (event, category = "Item") => {
   const fallbackImage = getFallbackReportImage(category);
@@ -138,18 +140,26 @@ const removeDuplicateReports = (reports) => {
   });
 };
 
+const ADMIN_TABS = ["reports", "matches", "matched", "users", "alerts", "logs"];
+
 export default function AdminPanel() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("reports");
+  // The open tab lives in the URL (?tab=matches) so "Back" from a report returns to it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = ADMIN_TABS.includes(searchParams.get("tab")) ? searchParams.get("tab") : "reports";
+  const setActiveTab = (tab) => setSearchParams(tab === "reports" ? {} : { tab }, { replace: true });
+  const navigate = useNavigate();
+  const openReportPage = (report) =>
+    navigate(getReportPath(report), {
+      state: { backTo: `/admin-panel?tab=${activeTab}`, backLabel: "Back to Admin Panel" },
+    });
   const [reports, setReports] = useState([]);
   const [users, setUsers] = useState([]);
   const [adminLogs, setAdminLogs] = useState([]);
   const [apiMatchSuggestions, setApiMatchSuggestions] = useState([]);
-  const [selectedReport, setSelectedReport] = useState(null);
+  const [confirmedMatches, setConfirmedMatches] = useState({ pairs: [], unpaired: [] });
   const [previewImage, setPreviewImage] = useState(null);
   const [alertReport, setAlertReport] = useState(null);
   const [showAlertPopup, setShowAlertPopup] = useState(false);
-  const [message, setMessage] = useState("");
 
   const [filters, setFilters] = useState({
     search: "",
@@ -191,7 +201,7 @@ export default function AdminPanel() {
     try {
       const logsResponse = await getAdminLogs();
       setAdminLogs((logsResponse?.logs || []).map(normalizeAdminLog));
-    } catch (error) {
+    } catch {
       setAdminLogs([]);
     }
   };
@@ -230,6 +240,25 @@ export default function AdminPanel() {
     }
   };
 
+  const loadConfirmedMatches = async () => {
+    try {
+      const response = await getConfirmedMatches();
+      setConfirmedMatches({
+        pairs: (response?.matches || []).map((match) => ({
+          id: match.matchId,
+          score: match.score || 0,
+          reasons: Array.isArray(match.reasons) ? match.reasons : [],
+          confirmedAt: match.confirmedAt,
+          lostReport: mapBackendReportToUi(match.lostReport),
+          foundReport: mapBackendReportToUi(match.foundReport),
+        })),
+        unpaired: mapBackendReportsToUi(response?.unpairedReports || []),
+      });
+    } catch {
+      setConfirmedMatches({ pairs: [], unpaired: [] });
+    }
+  };
+
   const loadAdminData = async () => {
     try {
       const [reportsResponse, usersResponse, matchesResponse, logsResponse] = await Promise.all([
@@ -237,6 +266,7 @@ export default function AdminPanel() {
         getAdminUsers(),
         getMatchSuggestions().catch(() => ({ suggestions: [] })),
         getAdminLogs().catch(() => ({ logs: [] })),
+        loadConfirmedMatches(),
       ]);
 
       setReports(removeDuplicateReports(mapBackendReportsToUi(reportsResponse?.reports || [])));
@@ -252,17 +282,12 @@ export default function AdminPanel() {
     }
   };
 
+  const showMessage = (text) => toast(text);
+
   useEffect(() => {
     loadAdminData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const showMessage = (text) => {
-    setMessage(text);
-
-    setTimeout(() => {
-      setMessage("");
-    }, 3200);
-  };
 
   const saveReports = (nextReports, successMessage = "Admin changes saved.") => {
     const cleanReports = removeDuplicateReports(nextReports);
@@ -341,14 +366,6 @@ export default function AdminPanel() {
     });
   }, [reports, filters]);
 
-  const matchedReports = useMemo(() => {
-  return reports.filter(
-    (report) =>
-      report.adminStatus === "Matched" ||
-      report.matchDecision === "Confirmed" ||
-      report.matchId
-  );
-}, [reports]);
 
 
   const potentialMatches = useMemo(() => {
@@ -421,11 +438,6 @@ export default function AdminPanel() {
       );
 
       saveReports(syncedReports, `Report marked as ${nextStatus}.`);
-      setSelectedReport((previousReport) =>
-        previousReport && String(previousReport.id) === String(reportId)
-          ? syncedReports.find((report) => String(report.id) === String(reportId)) || previousReport
-          : previousReport
-      );
       addAdminLog(`Report marked as ${nextStatus}`, targetReport?.title);
       loadMatchSuggestions();
     } catch (error) {
@@ -474,11 +486,6 @@ export default function AdminPanel() {
       );
 
       saveReports(syncedReports, `Case status changed to ${nextCaseStatus}.`);
-      setSelectedReport((previousReport) =>
-        previousReport && String(previousReport.id) === String(reportId)
-          ? syncedReports.find((report) => String(report.id) === String(reportId)) || previousReport
-          : previousReport
-      );
       addAdminLog(`Case status changed to ${nextCaseStatus}`, targetReport?.title);
       loadMatchSuggestions();
     } catch (error) {
@@ -498,8 +505,9 @@ export default function AdminPanel() {
       return;
     }
 
-    const confirmClear = window.confirm(
-      `Mark all flags on "${targetReport.title}" as reviewed and clear them?`
+    const confirmClear = await confirmDialog(
+      `Mark all flags on "${targetReport.title}" as reviewed and clear them?`,
+      { title: "Clear flags", confirmText: "Clear Flags", danger: false }
     );
 
     if (!confirmClear) return;
@@ -535,11 +543,6 @@ export default function AdminPanel() {
       );
 
       saveReports(syncedReports, "Flags reviewed and cleared.");
-      setSelectedReport((previousReport) =>
-        previousReport && String(previousReport.id) === String(reportId)
-          ? syncedReports.find((report) => String(report.id) === String(reportId)) || previousReport
-          : previousReport
-      );
       addAdminLog("Flags cleared", targetReport?.title);
     } catch (error) {
       console.error("Clear flags error:", error);
@@ -553,7 +556,7 @@ export default function AdminPanel() {
       (report) => String(report.id) === String(reportId)
     );
 
-    const confirmDelete = window.confirm(
+    const confirmDelete = await confirmDialog(
       "Are you sure you want to delete this report as fake/inappropriate?"
     );
 
@@ -568,15 +571,15 @@ export default function AdminPanel() {
 
       saveReports(nextReports, "Report deleted by admin.");
       addAdminLog("Report deleted", targetReport?.title);
-      setSelectedReport(null);
     } catch (error) {
       showMessage(error.message || "Unable to delete report.");
     }
   };
 
   const confirmMatch = async (match) => {
-    const confirmAction = window.confirm(
-      `Confirm match between "${match.lostReport.title}" and "${match.foundReport.title}"?`
+    const confirmAction = await confirmDialog(
+      `Confirm match between "${match.lostReport.title}" and "${match.foundReport.title}"?`,
+      { title: "Confirm match", confirmText: "Confirm Match", danger: false }
     );
 
     if (!confirmAction) {
@@ -650,8 +653,9 @@ export default function AdminPanel() {
   };
 
   const dismissMatch = async (match) => {
-    const confirmAction = window.confirm(
-      `Mark "${match.lostReport.title}" and "${match.foundReport.title}" as Not Matched?`
+    const confirmAction = await confirmDialog(
+      `Mark "${match.lostReport.title}" and "${match.foundReport.title}" as Not Matched?`,
+      { title: "Not a match?", confirmText: "Mark Not Matched" }
     );
 
     if (!confirmAction) {
@@ -760,27 +764,9 @@ export default function AdminPanel() {
     }
   };
 
-  const openReportDocument = async (report, field, label) => {
-    try {
-      const { url, type } = await fetchReportDocument(report.id, field);
-
-      if (type.startsWith("image/")) {
-        setPreviewImage({ src: url, alt: `${label} - ${report.title}` });
-        return;
-      }
-
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${label.replace(/\s+/g, "-").toLowerCase()}-${report.id}`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch (error) {
-      showMessage(error.message || "Unable to open document.");
-    }
-  };
 
   const deleteUser = async (userId) => {
-    const confirmDelete = window.confirm(
+    const confirmDelete = await confirmDialog(
       "Delete this user permanently? All of their reports, comments and uploaded files will also be deleted."
     );
 
@@ -910,14 +896,14 @@ export default function AdminPanel() {
                 onChange={(e) => updateCaseStatus(report.id, e.target.value)}
               >
                 {caseStatusOptions.map((status) => (
-                  <option key={status}>{status}</option>
+                  <option key={status} value={status}>{status === "All" ? "All statuses" : status}</option>
                 ))}
               </select>
             </label>
           </div>
 
           <div className="admin-report-actions">
-            <button type="button" onClick={() => setSelectedReport(report)}>
+            <button type="button" onClick={() => openReportPage(report)}>
               <FaEye /> View
             </button>
 
@@ -980,6 +966,7 @@ export default function AdminPanel() {
           </div>
 
           <select
+            aria-label="Filter by status"
             value={filters.status}
             onChange={(e) =>
               setFilters({
@@ -994,6 +981,7 @@ export default function AdminPanel() {
           </select>
 
           <select
+            aria-label="Filter by category"
             value={filters.category}
             onChange={(e) =>
               setFilters({
@@ -1002,12 +990,13 @@ export default function AdminPanel() {
               })
             }
           >
-            <option>All</option>
-            <option>Person</option>
-            <option>Item</option>
+            <option value="All">Persons & items</option>
+            <option value="Person">Persons</option>
+            <option value="Item">Items</option>
           </select>
 
           <select
+            aria-label="Filter by case type"
             value={filters.type}
             onChange={(e) =>
               setFilters({
@@ -1017,11 +1006,12 @@ export default function AdminPanel() {
             }
           >
             {types.map((type) => (
-              <option key={type}>{type}</option>
+              <option key={type} value={type}>{type === "All" ? "All case types" : type}</option>
             ))}
           </select>
 
           <select
+            aria-label="Filter by city"
             value={filters.city}
             onChange={(e) =>
               setFilters({
@@ -1031,7 +1021,7 @@ export default function AdminPanel() {
             }
           >
             {cities.map((city) => (
-              <option key={city}>{city}</option>
+              <option key={city} value={city}>{city === "All" ? "All cities" : city}</option>
             ))}
           </select>
 
@@ -1079,107 +1069,71 @@ export default function AdminPanel() {
   };
 
 
+  const formatMatchDate = (value) =>
+    value
+      ? new Date(value).toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })
+      : "";
+
   const renderMatchedTab = () => {
-  return (
-    <>
-      <section className="admin-list-heading">
-        <div>
-          <h2>Matched & Solved Reports</h2>
+    const { pairs, unpaired } = confirmedMatches;
 
-          <p>
-            These are the reports confirmed by admin as matched. Both lost/missing
-            and found reports are saved here with Matched and Solved status.
-          </p>
-        </div>
-      </section>
-
-      <section className="admin-report-list">
-        {matchedReports.length > 0 ? (
-          matchedReports.map(renderReportCard)
-        ) : (
-          <div className="admin-empty-box">
-            <FaPeopleArrows />
-            <h3>No matched reports yet</h3>
-            <p>
-              Confirm a match from Matches tab. After confirmation, matched reports
-              will appear here.
-            </p>
-          </div>
-        )}
-      </section>
-    </>
-  );
-};
-
-
-  const renderMatchReportBox = (report, sideTitle) => {
     return (
-      <div className="admin-match-report">
-        <img
-          className="clickable-report-image"
-          src={report.image}
-          alt={report.title}
-          title="Click to view full image"
-          onClick={() => setPreviewImage({ src: report.image, alt: report.title })}
-          onError={(event) => handleReportImageError(event, report.category)}
-        />
+      <>
+        <section className="admin-list-heading">
+          <div>
+            <h2>Confirmed Matches</h2>
+            <p>Lost or missing reports that an admin confirmed as the same case as a found report. Both reports are marked Solved.</p>
+          </div>
+        </section>
 
-        <span>{sideTitle}</span>
-
-        <h3>{report.title}</h3>
-
-        <p>{report.location}</p>
-
-        <div className="admin-report-info-grid">
-          <span>
-            <b>Type:</b> {report.type}
-          </span>
-          <span>
-            <b>Category:</b> {report.category}
-          </span>
-          <span>
-            <b>City:</b> {report.city}
-          </span>
-          <span>
-            <b>Date:</b> {report.date}
-          </span>
-
-          {report.category === "Person" && (
-            <>
-              <span>
-                <b>Age:</b> {report.age || "N/A"}
-              </span>
-              <span>
-                <b>Gender:</b> {report.gender || "N/A"}
-              </span>
-            </>
+        <section className="admin-match-list">
+          {pairs.length > 0 ? (
+            pairs.map((match) => (
+              <MatchPairCard
+                key={match.id}
+                lostReport={match.lostReport}
+                foundReport={match.foundReport}
+                score={match.score}
+                reasons={match.reasons}
+                status={
+                  <span className="admin-match-confirmed">
+                    <FaCheckDouble aria-hidden="true" /> Confirmed {formatMatchDate(match.confirmedAt)}
+                  </span>
+                }
+              >
+                <button type="button" onClick={() => openReportPage(match.lostReport)}>
+                  <FaEye aria-hidden="true" /> View {match.lostReport.type.toLowerCase()} report
+                </button>
+                <button type="button" onClick={() => openReportPage(match.foundReport)}>
+                  <FaEye aria-hidden="true" /> View found report
+                </button>
+              </MatchPairCard>
+            ))
+          ) : (
+            <div className="admin-empty-box">
+              <FaPeopleArrows />
+              <h3>No confirmed matches</h3>
+              <p>When you confirm a suggestion in the Suggestions tab, the pair appears here.</p>
+            </div>
           )}
+        </section>
 
-          {report.category === "Item" && (
-            <>
-              <span>
-                <b>Item:</b> {report.itemCategory || "N/A"}
-              </span>
-              <span>
-                <b>Color:</b> {report.color || "N/A"}
-              </span>
-              <span>
-                <b>Brand:</b> {report.brand || "N/A"}
-              </span>
-            </>
-          )}
+        {unpaired.length > 0 && (
+          <>
+            <section className="admin-list-heading">
+              <div>
+                <h2>Matched, partner report deleted</h2>
+                <p>
+                  These reports were matched, but the report they were matched with has since been deleted.
+                  Change their status if they should be searchable again.
+                </p>
+              </div>
+            </section>
 
-          <span>
-            <b>Reporter:</b> {report.reporterName || "N/A"}
-          </span>
-          <span>
-            <b>Phone:</b> {report.reporterContact || "N/A"}
-          </span>
-          <span>
-            <b>Email:</b> {report.reporterEmail || "N/A"}
-          </span>
-        </div>
-      </div>
+            <section className="admin-report-list">{unpaired.map(renderReportCard)}</section>
+          </>
+        )}
+      </>
     );
   };
 
@@ -1188,80 +1142,44 @@ export default function AdminPanel() {
       <section className="admin-match-list">
         <section className="admin-list-heading">
           <div>
-            <h2>Rule-Based Match Comparison</h2>
+            <h2>Match Suggestions</h2>
             <p>
-              Only 55% or higher lost/missing vs found candidates are shown for admin decision.
+              Verified lost/missing and found reports that look like the same case (55% similar or more).
+              Check both reports, then confirm or reject the match.
             </p>
           </div>
         </section>
 
         {potentialMatches.length > 0 ? (
           potentialMatches.map((match) => (
-            <article className="admin-match-card" key={match.id}>
-              <div className="admin-match-score">
-                <strong>{match.score}%</strong>
-                <span>Match Score</span>
-              </div>
-
-              <div className="admin-match-columns">
-                {renderMatchReportBox(match.lostReport, "Lost / Missing Case")}
-
-                <div className="admin-match-line">
-                  <FaPeopleArrows />
-                </div>
-
-                {renderMatchReportBox(match.foundReport, "Found Case")}
-              </div>
-
-              <div className="admin-match-reasons">
-                {match.reasons.map((reason) => (
-                  <span key={reason}>{reason}</span>
-                ))}
-              </div>
-
-              <div className="admin-report-info-grid">
-                <span>
-                  <b>Matched Fields:</b> {match.matchedFields.join(", ")}
-                </span>
-
-                <span>
-                  <b>Threshold:</b> {match.threshold || 55}%
-                </span>
-              </div>
-
-              <div className="admin-report-actions">
-                <button type="button" onClick={() => setSelectedReport(match.lostReport)}>
-                  <FaEye /> View Lost/Missing
-                </button>
-
-                <button type="button" onClick={() => setSelectedReport(match.foundReport)}>
-                  <FaEye /> View Found
-                </button>
-
-                <button
-                  type="button"
-                  className="admin-action-success"
-                  onClick={() => confirmMatch(match)}
-                >
-                  <FaCheckDouble /> Confirm Matched & Solve
-                </button>
-
-                <button
-                  type="button"
-                  className="admin-action-warning"
-                  onClick={() => dismissMatch(match)}
-                >
-                  <FaBan /> Not Matched
-                </button>
-              </div>
-            </article>
+            <MatchPairCard
+              key={match.id}
+              lostReport={match.lostReport}
+              foundReport={match.foundReport}
+              score={match.score}
+              reasons={match.reasons}
+            >
+              <button type="button" onClick={() => openReportPage(match.lostReport)}>
+                <FaEye aria-hidden="true" /> View {match.lostReport.type.toLowerCase()}
+              </button>
+              <button type="button" onClick={() => openReportPage(match.foundReport)}>
+                <FaEye aria-hidden="true" /> View found
+              </button>
+              <button type="button" className="is-danger is-push" onClick={() => dismissMatch(match)}>
+                <FaBan aria-hidden="true" /> Not a match
+              </button>
+              <button type="button" className="is-primary" onClick={() => confirmMatch(match)}>
+                <FaCheckDouble aria-hidden="true" /> Confirm match
+              </button>
+            </MatchPairCard>
           ))
         ) : (
           <div className="admin-empty-box">
             <FaPeopleArrows />
-            <h3>No 55%+ potential matches</h3>
+            <h3>No suggestions right now</h3>
             <p>
-              New possible matches will appear here when lost/missing and found reports have strong similarity.
+              Suggestions are created automatically when a verified lost/missing report and a verified found
+              report are at least 55% similar.
             </p>
           </div>
         )}
@@ -1430,212 +1348,6 @@ export default function AdminPanel() {
     );
   };
 
-  const renderDetailsModal = () => {
-    if (!selectedReport) return null;
-
-    return (
-      <div className="admin-modal-overlay" onClick={() => setSelectedReport(null)}>
-        <div className="admin-details-modal" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            className="admin-modal-close"
-            onClick={() => setSelectedReport(null)}
-          >
-            <FaTimes />
-          </button>
-
-          <img
-          className="clickable-report-image"
-          src={selectedReport.image}
-          alt={selectedReport.title}
-          title="Click to view full image"
-          onClick={() => setPreviewImage({ src: selectedReport.image, alt: selectedReport.title })}
-          onError={(event) =>
-            handleReportImageError(event, selectedReport.category)
-          }
-        />
-
-          <div className="admin-modal-badges">
-            <span
-              className={`admin-type-badge ${
-                selectedReport.type === "Found" ? "admin-type-badge--found" : ""
-              }`}
-            >
-              {selectedReport.type}
-            </span>
-
-            {renderStatusBadge(selectedReport.adminStatus)}
-          </div>
-
-          <h2>{selectedReport.title}</h2>
-
-          <div className="admin-detail-grid">
-            <p>
-              <b>Category:</b> {selectedReport.category}
-            </p>
-            <p>
-              <b>Case Status:</b> {selectedReport.caseStatus}
-            </p>
-            <p>
-              <b>City:</b> {selectedReport.city || "N/A"}
-            </p>
-            <p>
-              <b>Date:</b> {selectedReport.date || "N/A"}
-            </p>
-            <p>
-              <b>Location:</b> {selectedReport.location || "N/A"}
-            </p>
-            <p>
-              <b>Current Location:</b> {selectedReport.currentLocation || "N/A"}
-            </p>
-
-            {selectedReport.category === "Person" && (
-              <>
-                <p>
-                  <b>Age:</b> {selectedReport.age || "N/A"}
-                </p>
-                <p>
-                  <b>Gender:</b> {selectedReport.gender || "N/A"}
-                </p>
-                <p>
-                  <b>Relation:</b> {selectedReport.relation || "N/A"}
-                </p>
-              </>
-            )}
-
-            {selectedReport.category === "Item" && (
-              <>
-                <p>
-                  <b>Item Category:</b> {selectedReport.itemCategory || "N/A"}
-                </p>
-                <p>
-                  <b>Color:</b> {selectedReport.color || "N/A"}
-                </p>
-                <p>
-                  <b>Brand:</b> {selectedReport.brand || "N/A"}
-                </p>
-              </>
-            )}
-          </div>
-
-          <h3>Description</h3>
-          <p>{selectedReport.description}</p>
-
-          <hr />
-
-          <h3>Reporter Details</h3>
-
-          <div className="admin-detail-grid">
-            <p>
-              <FaUser /> <b>Name:</b> {selectedReport.reporterName || "N/A"}
-            </p>
-            <p>
-              <FaPhoneAlt /> <b>Phone:</b>{" "}
-              {selectedReport.reporterContact || "N/A"}
-            </p>
-            <p>
-              <FaEnvelope /> <b>Email:</b>{" "}
-              {selectedReport.reporterEmail || "N/A"}
-            </p>
-            <p>
-              <FaMapMarkerAlt /> <b>Address:</b>{" "}
-              {selectedReport.reporterAddress || "N/A"}
-            </p>
-          </div>
-
-          <h3>Verification Documents (private)</h3>
-
-          <div className="admin-detail-grid">
-            <p>
-              <FaFileAlt /> <b>ID Card:</b>{" "}
-              {selectedReport.reporterIdCardImage ? (
-                <button
-                  type="button"
-                  className="admin-doc-view-btn"
-                  onClick={() =>
-                    openReportDocument(selectedReport, "reporterIdCardImage", "ID Card")
-                  }
-                >
-                  <FaEye /> View
-                </button>
-              ) : (
-                "Not uploaded"
-              )}
-            </p>
-
-            {selectedReport.category === "Person" && selectedReport.type !== "Found" && (
-              <p>
-                <FaFileAlt /> <b>FIR Report:</b>{" "}
-                {selectedReport.firReportImage ? (
-                  <button
-                    type="button"
-                    className="admin-doc-view-btn"
-                    onClick={() =>
-                      openReportDocument(selectedReport, "firReportImage", "FIR Report")
-                    }
-                  >
-                    <FaEye /> View
-                  </button>
-                ) : (
-                  "Not uploaded"
-                )}
-              </p>
-            )}
-          </div>
-
-          <hr />
-
-          <h3>Flags / Reports</h3>
-
-          {Number(selectedReport.flagCount || 0) > 0 ? (
-            <div className="admin-detail-grid">
-              {(selectedReport.flags || []).map((flag, index) => (
-                <p key={`${flag.reason}-${index}`}>
-                  <FaFlag /> <b>{flag.user || "User"}:</b> {flag.reason}{" "}
-                  {flag.date ? `(${flag.date})` : ""}
-                </p>
-              ))}
-            </div>
-          ) : (
-            <p>No flags reported for this post.</p>
-          )}
-
-          <div className="admin-modal-actions">
-            <button
-              type="button"
-              className="admin-action-success"
-              onClick={() => updateAdminStatus(selectedReport.id, "Verified")}
-            >
-              <FaCheckCircle /> Verify
-            </button>
-
-            <button
-              type="button"
-              className="admin-action-warning"
-              onClick={() => updateAdminStatus(selectedReport.id, "Rejected")}
-            >
-              <FaBan /> Reject
-            </button>
-
-            {activeTab !== "matches" && (
-  <button type="button" onClick={() => openAlertModal(selectedReport)}>
-    <FaBell /> Send Alert
-  </button>
-)}
-
-            <button
-              type="button"
-              className="admin-action-danger"
-              onClick={() => deleteReport(selectedReport.id)}
-            >
-              <FaTrash /> Delete Fake
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   const renderAlertModal = () => {
     if (!showAlertPopup) return null;
 
@@ -1728,10 +1440,10 @@ export default function AdminPanel() {
 
   return (
     <div className="admin-panel">
-      <Navbar toggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+      <Navbar />
 
       <div className="admin-panel__container">
-        <Sidebar open={sidebarOpen} />
+        <Sidebar />
 
         <main className="admin-panel__main">
           <section className="admin-hero">
@@ -1756,17 +1468,6 @@ export default function AdminPanel() {
               <FaBell /> Send Alert
             </button>
           </section>
-
-          {message && (
-            <div className="admin-message">
-              <FaCheckCircle />
-              {message}
-
-              <button type="button" onClick={() => setMessage("")}>
-                <FaTimes />
-              </button>
-            </div>
-          )}
 
           <section className="admin-stats-grid">
             <button type="button" onClick={() => openFilteredReports("All")}>
@@ -1820,7 +1521,7 @@ export default function AdminPanel() {
 
               <div>
                 <h3>{potentialMatches.length}</h3>
-                <p>55%+ Matches</p>
+                <p>Match suggestions</p>
               </div>
             </button>
 
@@ -1850,7 +1551,7 @@ export default function AdminPanel() {
               className={activeTab === "matches" ? "admin-tab--active" : ""}
               onClick={() => setActiveTab("matches")}
             >
-              <FaPeopleArrows /> Matches
+              <FaPeopleArrows /> Suggestions
             </button>
 
             <button
@@ -1858,7 +1559,7 @@ export default function AdminPanel() {
   className={activeTab === "matched" ? "admin-tab--active" : ""}
   onClick={() => setActiveTab("matched")}
 >
-  <FaCheckDouble /> Matched
+  <FaCheckDouble /> Confirmed
 </button>
 
             <button
@@ -1892,8 +1593,6 @@ export default function AdminPanel() {
           {activeTab === "users" && renderUsersTab()}
           {activeTab === "alerts" && renderAlertsTab()}
           {activeTab === "logs" && renderLogsTab()}
-
-          {renderDetailsModal()}
           {renderAlertModal()}
 
           <ImagePreviewModal

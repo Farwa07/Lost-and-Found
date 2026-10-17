@@ -1,4 +1,5 @@
 import "./SignUp.css";
+import BackButton from "../components/BackButton";
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -112,6 +113,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   return (
     <div className="signup">
+      <BackButton className="auth-back" fallback="/" />
       <div className="signup__left">
         <div className="signup__overlay">
           <div className="signup__content">

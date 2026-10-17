@@ -33,6 +33,8 @@ import {
   FaCamera,
   FaExclamationCircle,
 } from "react-icons/fa";
+import { confirmDialog } from "../utils/notify";
+import CityInput from "../components/CityInput";
 
 const getSafeImage = (report) => {
   if (report.image) {
@@ -154,7 +156,6 @@ export default function MyReports() {
   const { currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [allReports, setAllReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
@@ -302,7 +303,7 @@ export default function MyReports() {
   };
 
   const handleDeleteReport = async (id) => {
-    const confirmDelete = window.confirm(
+    const confirmDelete = await confirmDialog(
       "Are you sure you want to delete this report?"
     );
 
@@ -453,10 +454,10 @@ export default function MyReports() {
 
   return (
     <div className="myreports">
-      <Navbar toggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+      <Navbar />
 
       <div className="myreports__container">
-        <Sidebar open={sidebarOpen} />
+        <Sidebar />
 
         <main className="myreports__main">
           <section className="myreports-hero">
@@ -1034,12 +1035,12 @@ export default function MyReports() {
                     )}
 
                     <div className="myreports-field">
-                      <label>City</label>
+                      <label htmlFor="edit-city">City</label>
 
-                      <input
-                        type="text"
+                      <CityInput
+                        id="edit-city"
                         name="city"
-                        value={editingReport.city}
+                        value={editingReport.city === "Unknown" ? "" : editingReport.city}
                         onChange={handleEditChange}
                         required
                       />

@@ -1,0 +1,251 @@
+.mpair {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.mpair__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.mpair__score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  background: var(--warning-soft);
+  color: var(--warning-text);
+}
+
+.mpair__score strong {
+  font-size: 20px;
+}
+
+.mpair__score span {
+  font-size: 13px;
+}
+
+.mpair__score.is-medium {
+  background: var(--info-soft);
+  color: #075985;
+}
+
+.mpair__score.is-high {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.mpair__status {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.mpair__sides {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.mpair__side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.mpair__media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--surface-3);
+}
+
+.mpair__media img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.mpair__label {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+  background: #dc2626;
+}
+
+.mpair__label.is-found {
+  background: #16a34a;
+}
+
+.mpair__info {
+  padding: 12px 14px 14px;
+}
+
+.mpair__info h3 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.mpair__info h3 a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.mpair__info h3 a:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
+.mpair__facts {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-text);
+}
+
+.mpair__meta {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.mpair__meta li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  min-width: 0;
+}
+
+.mpair__meta svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--text-muted);
+}
+
+.mpair__meta span {
+  overflow-wrap: anywhere;
+}
+
+.mpair__reasons {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.mpair__reasons li {
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mpair__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.mpair__actions button,
+.mpair__actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mpair__actions button:hover,
+.mpair__actions a:hover {
+  background: var(--surface-3);
+}
+
+.mpair__actions .is-primary {
+  border-color: transparent;
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.mpair__actions .is-primary:hover {
+  background: #15803d;
+}
+
+.mpair__actions .is-danger {
+  color: var(--danger-text);
+  border-color: #fecaca;
+  background: var(--danger-soft);
+}
+
+.mpair__actions .is-danger:hover {
+  background: var(--danger-soft);
+}
+
+.mpair__actions .is-push {
+  margin-left: auto;
+}
+
+.mpair__actions button:focus-visible,
+.mpair__actions a:focus-visible,
+.mpair__info h3 a:focus-visible {
+  outline: 3px solid #8b5cf6;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .mpair {
+    padding: 14px;
+  }
+
+  .mpair__sides {
+    grid-template-columns: 1fr;
+  }
+
+  .mpair__actions > * {
+    flex: 1 1 140px;
+  }
+
+  .mpair__actions .is-push {
+    margin-left: 0;
+  }
+}

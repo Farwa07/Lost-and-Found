@@ -6,64 +6,13 @@ import { applyReporterFields, getReporterFieldsFromUser, normalizeEmail } from "
 import { isValidPhoneNumber, normalizePhoneNumber } from "../utils/phoneNumber";
 
 import { FaBoxOpen, FaUpload, FaIdCard } from "react-icons/fa";
-
-const cityOptions = [
-  "Lahore",
-  "Karachi",
-  "Islamabad",
-  "Gujranwala",
-  "Kamoki",
-  "Kamoke",
-  "Sialkot",
-  "Faisalabad",
-  "Multan",
-  "Rawalpindi",
-  "Peshawar",
-  "Quetta",
-  "Hyderabad",
-  "Wazirabad",
-  "Gujrat",
-  "Sheikhupura",
-  "Sargodha",
-  "Bahawalpur",
-  "Sahiwal",
-  "Okara",
-  "Kasur",
-  "Jhelum",
-  "Mardan",
-  "Abbottabad",
-  "Sukkur",
-];
-
-const cityAliases = {
-  kamoki: "Kamoki",
-  kamoke: "Kamoki",
-  gujranwala: "Gujranwala",
-  grw: "Gujranwala",
-  lahore: "Lahore",
-  karachi: "Karachi",
-  islamabad: "Islamabad",
-  rawalpindi: "Rawalpindi",
-  pindi: "Rawalpindi",
-  faisalabad: "Faisalabad",
-  multan: "Multan",
-  sialkot: "Sialkot",
-  peshawar: "Peshawar",
-  quetta: "Quetta",
-  hyderabad: "Hyderabad",
-  wazirabad: "Wazirabad",
-  gujrat: "Gujrat",
-  sheikhupura: "Sheikhupura",
-  sargodha: "Sargodha",
-  bahawalpur: "Bahawalpur",
-  sahiwal: "Sahiwal",
-  okara: "Okara",
-  kasur: "Kasur",
-  jhelum: "Jhelum",
-  mardan: "Mardan",
-  abbottabad: "Abbottabad",
-  sukkur: "Sukkur",
-};
+import { toast } from "../utils/notify";
+import { todayInputValue } from "../utils/date";
+import ReportFormShell from "../components/ReportFormShell";
+import FileField from "../components/FileField";
+import CityInput from "../components/CityInput";
+import useFormDraft from "../hooks/useFormDraft";
+import { Link, useNavigate } from "react-router-dom";
 
 const initialState = {
   itemName: "",
@@ -71,6 +20,7 @@ const initialState = {
   itemColor: "",
   itemBrand: "",
   lostLocation: "",
+  city: "",
   lostDate: "",
   itemDescription: "",
 
@@ -78,70 +28,18 @@ const initialState = {
   reporterContactNumber: "+92",
   reporterEmail: "",
   reporterAddress: "",
+  reporterCity: "",
 
   lostItemImage: null,
   reporterIdCardImage: null,
 };
 
-const cleanCityName = (value = "") => {
-  return String(value)
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, " ");
-};
-
-const titleCaseCity = (value = "") => {
-  return cleanCityName(value)
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-};
-
-const inferCity = (...values) => {
-  const combinedValue = values.filter(Boolean).join(" ").toLowerCase();
-
-  const aliasKey = Object.keys(cityAliases).find((key) => {
-    const pattern = new RegExp(`\\b${key}\\b`, "i");
-    return pattern.test(combinedValue);
-  });
-
-  if (aliasKey) {
-    return cityAliases[aliasKey];
-  }
-
-  const matchedCity = cityOptions.find((city) => {
-    const pattern = new RegExp(`\\b${city.toLowerCase()}\\b`, "i");
-    return pattern.test(combinedValue);
-  });
-
-  if (matchedCity) {
-    return matchedCity === "Kamoke" ? "Kamoki" : matchedCity;
-  }
-
-  const locationValue = values.find(Boolean) || "";
-
-  const locationParts = locationValue
-    .split(",")
-    .map((part) => cleanCityName(part))
-    .filter(Boolean);
-
-  if (locationParts.length > 1) {
-    return titleCaseCity(locationParts[locationParts.length - 1]);
-  }
-
-  const words = cleanCityName(locationValue).split(" ").filter(Boolean);
-
-  if (words.length > 0) {
-    return titleCaseCity(words[words.length - 1]);
-  }
-
-  return "Unknown";
-};
-
 const LostItem = () => {
   const { currentUser } = useAuth();
-  const [formData, setFormData] = useState(() => applyReporterFields(initialState, currentUser));
+  const navigate = useNavigate();
+  const [formData, setFormData, clearDraft] = useFormDraft("report-lost-item", () =>
+    applyReporterFields(initialState, currentUser)
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const reporterDefaults = useMemo(
@@ -154,7 +52,7 @@ const LostItem = () => {
       ...previousData,
       ...reporterDefaults,
     }));
-  }, [reporterDefaults]);
+  }, [reporterDefaults, setFormData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -179,7 +77,7 @@ const LostItem = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isValidPhoneNumber(formData.reporterContactNumber)) {
-      alert("Enter 10 digits after the +92 prefix.");
+      toast("Enter 10 digits after the +92 prefix.");
       return;
     }
 
@@ -190,12 +88,12 @@ const LostItem = () => {
     const loggedInEmail = normalizeEmail(currentUser?.email || "");
 
     if (!loggedInEmail) {
-      alert("Please login again before submitting a report.");
+      toast("Please login again before submitting a report.");
       return;
     }
 
     if (normalizeEmail(formData.reporterEmail) !== loggedInEmail) {
-      alert("Reporter email must match your logged-in account email.");
+      toast("Reporter email must match your logged-in account email.");
       setFormData((previousData) => ({
         ...previousData,
         reporterEmail: loggedInEmail,
@@ -217,10 +115,7 @@ const LostItem = () => {
       payload.append("lostLocation", formData.lostLocation.trim());
       payload.append("lostDate", formData.lostDate);
       payload.append("itemDescription", formData.itemDescription.trim());
-      payload.append(
-        "city",
-        inferCity(formData.lostLocation, formData.reporterAddress)
-      );
+      payload.append("city", formData.city.trim());
 
       payload.append("reporterFullName", formData.reporterFullName.trim());
       payload.append(
@@ -229,6 +124,7 @@ const LostItem = () => {
       );
       payload.append("reporterEmail", normalizeEmail(currentUser?.email || formData.reporterEmail));
       payload.append("reporterAddress", formData.reporterAddress.trim());
+      payload.append("reporterCity", formData.reporterCity.trim());
 
       if (formData.lostItemImage) {
         payload.append("lostItemImage", formData.lostItemImage);
@@ -242,22 +138,25 @@ const LostItem = () => {
 
       console.log("Lost Item Report Submitted:", response?.report);
 
-      alert(
+      toast(
         response?.message ||
           "Lost Item Report Submitted Successfully! It is now pending admin verification."
       );
 
+      clearDraft();
       setFormData(applyReporterFields(initialState, currentUser));
       formElement.reset();
+      navigate("/reports");
     } catch (error) {
       console.error("Lost Item Submit Error:", error);
-      alert(error.message || "Something went wrong while submitting the report. Please try again.");
+      toast(error.message || "Something went wrong while submitting the report. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
+    <ReportFormShell backTo="/items" backLabel="Back to Items">
     <div className="lost-item-page">
       <div className="lost-item-overlay">
         <div className="lost-item-container">
@@ -338,12 +237,13 @@ const LostItem = () => {
               </div>
 
               <div className="lost-item-input">
-                <label>Lost Location</label>
+                <label htmlFor="lostLocation">Lost location</label>
 
                 <input
                   type="text"
+                  id="lostLocation"
                   name="lostLocation"
-                  placeholder="Enter lost location, city"
+                  placeholder="e.g. Liberty Market, Gulberg"
                   value={formData.lostLocation}
                   onChange={handleChange}
                   required
@@ -351,10 +251,16 @@ const LostItem = () => {
               </div>
 
               <div className="lost-item-input">
+                <label htmlFor="city">City</label>
+                <CityInput id="city" name="city" value={formData.city} onChange={handleChange} required />
+              </div>
+
+              <div className="lost-item-input">
                 <label>Lost Date</label>
 
                 <input
                   type="date"
+                  max={todayInputValue()}
                   name="lostDate"
                   value={formData.lostDate}
                   onChange={handleChange}
@@ -380,6 +286,11 @@ const LostItem = () => {
               <h3>Reporter Details</h3>
             </div>
 
+            <p className="reporter-profile-note">
+              These details come from your profile and are shown to people who want to contact you.{" "}
+              <Link to="/profile">Edit profile</Link>
+            </p>
+
             <div className="lost-item-grid">
               <div className="lost-item-input">
                 <label>Reporter Full Name</label>
@@ -387,6 +298,8 @@ const LostItem = () => {
                 <input
                   type="text"
                   name="reporterFullName"
+                  readOnly={Boolean(reporterDefaults.reporterFullName)}
+                  title={reporterDefaults.reporterFullName ? "Taken from your profile. Update it in Profile to change it." : undefined}
                   placeholder="Enter reporter full name"
                   value={formData.reporterFullName}
                   onChange={handleChange}
@@ -402,6 +315,8 @@ const LostItem = () => {
                 <input
                   type="tel"
                   name="reporterContactNumber"
+                  readOnly={Boolean(reporterDefaults.reporterContactNumber)}
+                  title={reporterDefaults.reporterContactNumber ? "Taken from your profile. Update it in Profile to change it." : undefined}
                   placeholder="+923XXXXXXXXX"
                   value={formData.reporterContactNumber}
                   onChange={handleChange}
@@ -429,15 +344,30 @@ const LostItem = () => {
               </div>
 
               <div className="lost-item-input">
-                <label>Reporter Address</label>
+                <label htmlFor="reporterAddress">Your address</label>
 
                 <input
                   type="text"
+                  id="reporterAddress"
                   name="reporterAddress"
-                  placeholder="Enter reporter address, city"
+                  readOnly={Boolean(reporterDefaults.reporterAddress)}
+                  title={reporterDefaults.reporterAddress ? "Taken from your profile. Update it in Profile to change it." : undefined}
+                  placeholder="House no, street, area"
                   value={formData.reporterAddress}
                   onChange={handleChange}
                   required
+                />
+              </div>
+
+              <div className="lost-item-input">
+                <label htmlFor="reporterCity">Your city</label>
+                <CityInput
+                  id="reporterCity"
+                  name="reporterCity"
+                  value={formData.reporterCity}
+                  onChange={handleChange}
+                  readOnly={Boolean(reporterDefaults.reporterCity)}
+                  title={reporterDefaults.reporterCity ? "Taken from your profile. Update it in Profile to change it." : undefined}
                 />
               </div>
             </div>
@@ -447,47 +377,24 @@ const LostItem = () => {
             </div>
 
             <div className="upload-grid">
-              <div className="upload-box">
-                <label htmlFor="lostItemImage">
-                  <FaUpload className="upload-icon" />
-                  Upload Lost Item Picture
-                </label>
+              <FileField
+                name="lostItemImage"
+                label="Lost Item Picture"
+                icon={FaUpload}
+                file={formData.lostItemImage}
+                onChange={handleFileChange}
+                required
+              />
 
-                <input
-                  type="file"
-                  id="lostItemImage"
-                  name="lostItemImage"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  required
-                />
-
-                {formData.lostItemImage && (
-                  <p className="file-name">{formData.lostItemImage.name}</p>
-                )}
-              </div>
-
-              <div className="upload-box">
-                <label htmlFor="reporterIdCardImage">
-                  <FaIdCard className="upload-icon" />
-                  Upload Reporter ID Card Picture
-                </label>
-
-                <input
-                  type="file"
-                  id="reporterIdCardImage"
-                  name="reporterIdCardImage"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  required
-                />
-
-                {formData.reporterIdCardImage && (
-                  <p className="file-name">
-                    {formData.reporterIdCardImage.name}
-                  </p>
-                )}
-              </div>
+              <FileField
+                name="reporterIdCardImage"
+                label="Your CNIC / ID card"
+                icon={FaIdCard}
+                hint="Kept private. Only you and the admins can see it."
+                file={formData.reporterIdCardImage}
+                onChange={handleFileChange}
+                required
+              />
             </div>
 
             <button
@@ -501,6 +408,7 @@ const LostItem = () => {
         </div>
       </div>
     </div>
+    </ReportFormShell>
   );
 };
 

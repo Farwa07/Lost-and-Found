@@ -11,129 +11,18 @@ import {
   FaUpload,
   FaIdCard,
 } from "react-icons/fa";
+import { toast } from "../utils/notify";
+import { todayInputValue } from "../utils/date";
+import ReportFormShell from "../components/ReportFormShell";
+import FileField from "../components/FileField";
+import CityInput from "../components/CityInput";
+import useFormDraft from "../hooks/useFormDraft";
+import { Link, useNavigate } from "react-router-dom";
 
-
-const cityOptions = [
-  "Lahore",
-  "Karachi",
-  "Islamabad",
-  "Gujranwala",
-  "Kamoki",
-  "Kamoke",
-  "Sialkot",
-  "Faisalabad",
-  "Multan",
-  "Rawalpindi",
-  "Peshawar",
-  "Quetta",
-  "Hyderabad",
-  "Wazirabad",
-  "Gujrat",
-  "Sheikhupura",
-  "Sargodha",
-  "Bahawalpur",
-  "Sahiwal",
-  "Okara",
-  "Kasur",
-  "Jhelum",
-  "Mardan",
-  "Abbottabad",
-  "Sukkur",
-];
-
-const cityAliases = {
-  kamoki: "Kamoki",
-  kamoke: "Kamoki",
-  gujranwala: "Gujranwala",
-  grw: "Gujranwala",
-  lahore: "Lahore",
-  karachi: "Karachi",
-  islamabad: "Islamabad",
-  rawalpindi: "Rawalpindi",
-  pindi: "Rawalpindi",
-  faisalabad: "Faisalabad",
-  multan: "Multan",
-  sialkot: "Sialkot",
-  peshawar: "Peshawar",
-  quetta: "Quetta",
-  hyderabad: "Hyderabad",
-  wazirabad: "Wazirabad",
-  gujrat: "Gujrat",
-  sheikhupura: "Sheikhupura",
-  sargodha: "Sargodha",
-  bahawalpur: "Bahawalpur",
-  sahiwal: "Sahiwal",
-  okara: "Okara",
-  kasur: "Kasur",
-  jhelum: "Jhelum",
-  mardan: "Mardan",
-  abbottabad: "Abbottabad",
-  sukkur: "Sukkur",
-};
-
-const cleanCityName = (value = "") => {
-  return String(value)
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, " ");
-};
-
-const titleCaseCity = (value = "") => {
-  return cleanCityName(value)
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-};
-
-const inferCity = (...values) => {
-  const combinedValue = values
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  const aliasKey = Object.keys(cityAliases).find((key) => {
-    const pattern = new RegExp(`\\b${key}\\b`, "i");
-    return pattern.test(combinedValue);
-  });
-
-  if (aliasKey) {
-    return cityAliases[aliasKey];
-  }
-
-  const matchedCity = cityOptions.find((city) => {
-    const pattern = new RegExp(`\\b${city.toLowerCase()}\\b`, "i");
-    return pattern.test(combinedValue);
-  });
-
-  if (matchedCity) {
-    return matchedCity === "Kamoke" ? "Kamoki" : matchedCity;
-  }
-
-  const locationValue = values.find(Boolean) || "";
-
-  const locationParts = locationValue
-    .split(",")
-    .map((part) => cleanCityName(part))
-    .filter(Boolean);
-
-  if (locationParts.length > 1) {
-    return titleCaseCity(locationParts[locationParts.length - 1]);
-  }
-
-  const words = cleanCityName(locationValue)
-    .split(" ")
-    .filter(Boolean);
-
-  if (words.length > 0) {
-    return titleCaseCity(words[words.length - 1]);
-  }
-
-  return "Unknown";
-};
 
 const FoundItem = () => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
 
   const initialState = {
     itemName: "",
@@ -141,6 +30,7 @@ const FoundItem = () => {
     itemColor: "",
     itemBrand: "",
     foundLocation: "",
+    city: "",
     foundDate: "",
     currentLocation: "",
     itemDescription: "",
@@ -149,12 +39,15 @@ const FoundItem = () => {
     reporterContactNumber: "+92",
     reporterEmail: "",
     reporterAddress: "",
+    reporterCity: "",
 
     foundItemImage: null,
     reporterIdCardImage: null,
   };
 
-  const [formData, setFormData] = useState(() => applyReporterFields(initialState, currentUser));
+  const [formData, setFormData, clearDraft] = useFormDraft("report-found-item", () =>
+    applyReporterFields(initialState, currentUser)
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const reporterDefaults = useMemo(
@@ -167,7 +60,7 @@ const FoundItem = () => {
       ...previousData,
       ...reporterDefaults,
     }));
-  }, [reporterDefaults]);
+  }, [reporterDefaults, setFormData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -187,7 +80,7 @@ const FoundItem = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isValidPhoneNumber(formData.reporterContactNumber)) {
-      alert("Enter 10 digits after the +92 prefix.");
+      toast("Enter 10 digits after the +92 prefix.");
       return;
     }
 
@@ -198,12 +91,12 @@ const FoundItem = () => {
     const loggedInEmail = normalizeEmail(currentUser?.email || "");
 
     if (!loggedInEmail) {
-      alert("Please login again before submitting a report.");
+      toast("Please login again before submitting a report.");
       return;
     }
 
     if (normalizeEmail(formData.reporterEmail) !== loggedInEmail) {
-      alert("Reporter email must match your logged-in account email.");
+      toast("Reporter email must match your logged-in account email.");
       setFormData((previousData) => ({
         ...previousData,
         reporterEmail: loggedInEmail,
@@ -226,10 +119,7 @@ const FoundItem = () => {
       payload.append("foundDate", formData.foundDate);
       payload.append("currentLocation", formData.currentLocation.trim());
       payload.append("itemDescription", formData.itemDescription.trim());
-      payload.append(
-        "city",
-        inferCity(formData.foundLocation, formData.currentLocation, formData.reporterAddress)
-      );
+      payload.append("city", formData.city.trim());
 
       payload.append("reporterFullName", formData.reporterFullName.trim());
       payload.append(
@@ -238,6 +128,7 @@ const FoundItem = () => {
       );
       payload.append("reporterEmail", normalizeEmail(currentUser?.email || formData.reporterEmail));
       payload.append("reporterAddress", formData.reporterAddress.trim());
+      payload.append("reporterCity", formData.reporterCity.trim());
 
       if (formData.foundItemImage) {
         payload.append("foundItemImage", formData.foundItemImage);
@@ -251,22 +142,25 @@ const FoundItem = () => {
 
       console.log("Found Item Report Submitted:", response?.report);
 
-      alert(
+      toast(
         response?.message ||
           "Found Item Report Submitted Successfully! It is now pending admin verification."
       );
 
+      clearDraft();
       setFormData(applyReporterFields(initialState, currentUser));
       formElement.reset();
+      navigate("/reports");
     } catch (error) {
       console.error("Found Item Submit Error:", error);
-      alert(error.message || "Something went wrong while submitting the report. Please try again.");
+      toast(error.message || "Something went wrong while submitting the report. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
+    <ReportFormShell backTo="/items" backLabel="Back to Items">
     <div className="found-item-page">
       <div className="found-item-overlay">
         <div className="found-item-container">
@@ -347,12 +241,13 @@ const FoundItem = () => {
               </div>
 
               <div className="found-item-input">
-                <label>Found Location</label>
+                <label htmlFor="foundLocation">Found location</label>
 
                 <input
                   type="text"
+                  id="foundLocation"
                   name="foundLocation"
-                  placeholder="Enter found location, city"
+                  placeholder="e.g. Liberty Market, Gulberg"
                   value={formData.foundLocation}
                   onChange={handleChange}
                   required
@@ -360,10 +255,16 @@ const FoundItem = () => {
               </div>
 
               <div className="found-item-input">
+                <label htmlFor="city">City</label>
+                <CityInput id="city" name="city" value={formData.city} onChange={handleChange} required />
+              </div>
+
+              <div className="found-item-input">
                 <label>Found Date</label>
 
                 <input
                   type="date"
+                  max={todayInputValue()}
                   name="foundDate"
                   value={formData.foundDate}
                   onChange={handleChange}
@@ -377,7 +278,7 @@ const FoundItem = () => {
                 <textarea
                   rows="4"
                   name="currentLocation"
-                  placeholder="Enter current location where item is kept, city"
+                  placeholder="Where is the item kept now? e.g. Kamoki police station"
                   value={formData.currentLocation}
                   onChange={handleChange}
                   required
@@ -402,6 +303,11 @@ const FoundItem = () => {
               <h3>Reporter Details</h3>
             </div>
 
+            <p className="reporter-profile-note">
+              These details come from your profile and are shown to people who want to contact you.{" "}
+              <Link to="/profile">Edit profile</Link>
+            </p>
+
             <div className="found-item-grid">
               <div className="found-item-input">
                 <label>Reporter Full Name</label>
@@ -409,6 +315,8 @@ const FoundItem = () => {
                 <input
                   type="text"
                   name="reporterFullName"
+                  readOnly={Boolean(reporterDefaults.reporterFullName)}
+                  title={reporterDefaults.reporterFullName ? "Taken from your profile. Update it in Profile to change it." : undefined}
                   placeholder="Enter reporter full name"
                   value={formData.reporterFullName}
                   onChange={handleChange}
@@ -424,6 +332,8 @@ const FoundItem = () => {
                 <input
                   type="tel"
                   name="reporterContactNumber"
+                  readOnly={Boolean(reporterDefaults.reporterContactNumber)}
+                  title={reporterDefaults.reporterContactNumber ? "Taken from your profile. Update it in Profile to change it." : undefined}
                   placeholder="+923XXXXXXXXX"
                   value={formData.reporterContactNumber}
                   onChange={handleChange}
@@ -451,15 +361,30 @@ const FoundItem = () => {
               </div>
 
               <div className="found-item-input">
-                <label>Reporter Address</label>
+                <label htmlFor="reporterAddress">Your address</label>
 
                 <input
                   type="text"
+                  id="reporterAddress"
                   name="reporterAddress"
-                  placeholder="Enter reporter address, city"
+                  readOnly={Boolean(reporterDefaults.reporterAddress)}
+                  title={reporterDefaults.reporterAddress ? "Taken from your profile. Update it in Profile to change it." : undefined}
+                  placeholder="House no, street, area"
                   value={formData.reporterAddress}
                   onChange={handleChange}
                   required
+                />
+              </div>
+
+              <div className="found-item-input">
+                <label htmlFor="reporterCity">Your city</label>
+                <CityInput
+                  id="reporterCity"
+                  name="reporterCity"
+                  value={formData.reporterCity}
+                  onChange={handleChange}
+                  readOnly={Boolean(reporterDefaults.reporterCity)}
+                  title={reporterDefaults.reporterCity ? "Taken from your profile. Update it in Profile to change it." : undefined}
                 />
               </div>
             </div>
@@ -469,47 +394,24 @@ const FoundItem = () => {
             </div>
 
             <div className="upload-grid">
-              <div className="upload-box">
-                <label htmlFor="foundItemImage">
-                  <FaUpload className="upload-icon" />
-                  Upload Found Item Picture
-                </label>
+              <FileField
+                name="foundItemImage"
+                label="Found Item Picture"
+                icon={FaUpload}
+                file={formData.foundItemImage}
+                onChange={handleFileChange}
+                required
+              />
 
-                <input
-                  type="file"
-                  id="foundItemImage"
-                  name="foundItemImage"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  required
-                />
-
-                {formData.foundItemImage && (
-                  <p className="file-name">{formData.foundItemImage.name}</p>
-                )}
-              </div>
-
-              <div className="upload-box">
-                <label htmlFor="reporterIdCardImage">
-                  <FaIdCard className="upload-icon" />
-                  Upload Reporter ID Card Picture
-                </label>
-
-                <input
-                  type="file"
-                  id="reporterIdCardImage"
-                  name="reporterIdCardImage"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  required
-                />
-
-                {formData.reporterIdCardImage && (
-                  <p className="file-name">
-                    {formData.reporterIdCardImage.name}
-                  </p>
-                )}
-              </div>
+              <FileField
+                name="reporterIdCardImage"
+                label="Your CNIC / ID card"
+                icon={FaIdCard}
+                hint="Kept private. Only you and the admins can see it."
+                file={formData.reporterIdCardImage}
+                onChange={handleFileChange}
+                required
+              />
             </div>
 
             <button
@@ -523,6 +425,7 @@ const FoundItem = () => {
         </div>
       </div>
     </div>
+    </ReportFormShell>
   );
 };
 

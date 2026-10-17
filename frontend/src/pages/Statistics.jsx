@@ -27,6 +27,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { useThemePreference } from "../utils/theme";
 
 import { Line, Pie } from "react-chartjs-2";
 
@@ -94,7 +95,13 @@ const emptyStatistics = {
 };
 
 export default function Statistics() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Chart.js draws on a canvas, so it needs real colors instead of CSS variables.
+  useThemePreference();
+  const isDark = document.documentElement.dataset.theme === "dark";
+  const chartColors = isDark
+    ? { grid: "#26324a", ticks: "#94a3b8", surface: "#131c2f" }
+    : { grid: "#e5e7eb", ticks: "#64748b", surface: "#ffffff" };
+
   const [activeTab, setActiveTab] = useState("persons");
   const [city, setCity] = useState("All Cities");
   const [month, setMonth] = useState("All Months");
@@ -103,7 +110,6 @@ export default function Statistics() {
   const [errorMessage, setErrorMessage] = useState("");
   const [showAllRows, setShowAllRows] = useState(false);
 
-  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   useEffect(() => {
     let isMounted = true;
@@ -254,6 +260,7 @@ export default function Statistics() {
         position: "bottom",
         labels: {
           usePointStyle: true,
+          color: chartColors.ticks,
           boxWidth: 8,
           boxHeight: 8,
           padding: 18,
@@ -285,11 +292,11 @@ export default function Statistics() {
     scales: {
       x: {
         grid: {
-          color: "#e5e7eb",
+          color: chartColors.grid,
           borderDash: [4, 4],
         },
         ticks: {
-          color: "#64748b",
+          color: chartColors.ticks,
           font: {
             size: 13,
             weight: "600",
@@ -302,14 +309,14 @@ export default function Statistics() {
         ticks: {
           stepSize: 5,
           precision: 0,
-          color: "#64748b",
+          color: chartColors.ticks,
           font: {
             size: 13,
             weight: "600",
           },
         },
         grid: {
-          color: "#d1d5db",
+          color: chartColors.grid,
           borderDash: [4, 4],
         },
       },
@@ -322,7 +329,7 @@ export default function Statistics() {
       {
         data: [totalMain, totalFound, totalResolved],
         backgroundColor: ["#ef4444", "#10b981", "#3b82f6"],
-        borderColor: "#ffffff",
+        borderColor: chartColors.surface,
         borderWidth: 2,
       },
     ],
@@ -336,6 +343,7 @@ export default function Statistics() {
         position: "bottom",
         labels: {
           usePointStyle: true,
+          color: chartColors.ticks,
           boxWidth: 8,
           boxHeight: 8,
           padding: 18,
@@ -368,10 +376,10 @@ export default function Statistics() {
 
   return (
     <div className="statistics">
-      <Navbar toggleSidebar={toggleSidebar} />
+      <Navbar />
 
       <div className="statistics__layout">
-        <Sidebar open={sidebarOpen} />
+        <Sidebar />
 
         <main className="statistics__main">
           <section className="statistics__header">

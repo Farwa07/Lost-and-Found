@@ -6,12 +6,7 @@
   grid-template-columns: 1fr 1fr;
 
   background:
-    linear-gradient(
-      135deg,
-      #f8fbff 0%,
-      #eef4ff 40%,
-      #f5f3ff 100%
-    );
+    var(--auth-bg);
 }
 
 /* LEFT */
@@ -67,7 +62,7 @@
   width: 100%;
   max-width: 460px;
 
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--surface-glass);
 
   backdrop-filter: blur(18px);
 
@@ -86,13 +81,13 @@
   font-size: 36px;
   font-weight: 800;
 
-  color: #111827;
+  color: var(--text);
 
   margin-bottom: 10px;
 }
 
 .login__subtitle {
-  color: #6b7280;
+  color: var(--text-muted);
 
   margin-bottom: 28px;
 }
@@ -116,7 +111,7 @@
 
   font-weight: 600;
 
-  color: #374151;
+  color: var(--text-2);
 }
 
 .login__field input {
@@ -124,9 +119,9 @@
 
   border-radius: 16px;
 
-  border: 1px solid #dbe4ff;
+  border: 1px solid var(--border);
 
-  background: rgba(255,255,255,0.9);
+  background: var(--surface-glass);
 
   font-size: 15px;
 
@@ -223,7 +218,7 @@
   transform: translateY(-50%);
   border: none;
   background: transparent;
-  color: black;
+  color: var(--text);
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
@@ -256,21 +251,21 @@
 }
 
 .login__message--success {
-  background: #ecfdf5;
-  color: #047857;
+  background: var(--success-soft);
+  color: var(--success-text);
   border: 1px solid #a7f3d0;
 }
 
 .login__message--error {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--danger-soft);
+  color: var(--danger-text);
   border: 1px solid #fecaca;
 }
 
 .login__bottom {
   margin-top: 16px;
   text-align: center;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 14px;
 }
 

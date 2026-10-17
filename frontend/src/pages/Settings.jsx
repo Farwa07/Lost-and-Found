@@ -26,7 +26,19 @@ import {
   FaTimes,
   FaTrash,
   FaUserShield,
+  FaPalette,
+  FaSun,
+  FaMoon,
+  FaDesktop,
 } from "react-icons/fa";
+import { setThemePreference, useThemePreference } from "../utils/theme";
+
+const THEME_OPTIONS = [
+  { value: "light", label: "Light", icon: FaSun },
+  { value: "dark", label: "Dark", icon: FaMoon },
+  { value: "system", label: "System", icon: FaDesktop },
+];
+import { toast } from "../utils/notify";
 
 const SETTINGS_KEY = "lostFoundSettings";
 
@@ -51,10 +63,10 @@ const safeParse = (value, fallback = null) => {
 };
 
 export default function Settings() {
+  const themePreference = useThemePreference();
   const navigate = useNavigate();
   const { logout, currentUser } = useAuth();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settings, setSettings] = useState(defaultSettings);
   const [message, setMessage] = useState("");
   const [confirmAction, setConfirmAction] = useState(null);
@@ -145,7 +157,7 @@ export default function Settings() {
     !passwordData.newPassword ||
     !passwordData.confirmPassword
   ) {
-    alert("Please fill all password fields.");
+    toast("Please fill all password fields.");
     return;
   }
 
@@ -153,14 +165,14 @@ export default function Settings() {
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
   if (!passwordRegex.test(passwordData.newPassword)) {
-    alert(
+    toast(
       "Password must contain uppercase, lowercase, number, special character and minimum 8 characters."
     );
     return;
   }
 
   if (passwordData.newPassword !== passwordData.confirmPassword) {
-    alert("New password and confirm password do not match.");
+    toast("New password and confirm password do not match.");
     return;
   }
 
@@ -178,7 +190,7 @@ export default function Settings() {
 
     showMessage(response?.message || "Password changed successfully.");
   } catch (error) {
-    alert(error.message || "Failed to change password.");
+    toast(error.message || "Failed to change password.");
   }
 };
 
@@ -209,7 +221,7 @@ export default function Settings() {
       URL.revokeObjectURL(url);
       showMessage("Your data file has been downloaded.");
     } catch (error) {
-      alert(error.message || "Unable to export your data.");
+      toast(error.message || "Unable to export your data.");
     }
   };
 
@@ -221,13 +233,13 @@ export default function Settings() {
   const handleLogout = () => {
     logout?.();
     setConfirmAction(null);
-    alert("You have been logged out.");
+    toast("You have been logged out.");
     navigate("/login");
   };
 
  const handleDeleteAccount = async () => {
   if (currentUser?.role === "Admin" || currentUser?.backendRole === "admin") {
-    alert("Admin account cannot be deleted from settings.");
+    toast("Admin account cannot be deleted from settings.");
     setConfirmAction(null);
     return;
   }
@@ -240,10 +252,10 @@ export default function Settings() {
 
     setConfirmAction(null);
 
-    alert(response?.message || "Account deleted successfully.");
+    toast(response?.message || "Account deleted successfully.");
     navigate("/signup");
   } catch (error) {
-    alert(error.message || "Failed to delete account.");
+    toast(error.message || "Failed to delete account.");
   }
 };
 
@@ -307,10 +319,10 @@ export default function Settings() {
 
   return (
     <div className="settings-page">
-      <Navbar toggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+      <Navbar />
 
       <div className="settings__container">
-        <Sidebar open={sidebarOpen} />
+        <Sidebar />
 
         <main className="settings__main">
           <section className="settings-hero">
@@ -341,6 +353,33 @@ export default function Settings() {
           )}
 
           <section className="settings-grid">
+            <div className="settings-card settings-card--wide">
+              <div className="settings-card__heading">
+                <div>
+                  <h2>Appearance</h2>
+                  <p>Choose a light or dark look. System follows your phone or computer setting.</p>
+                </div>
+
+                <FaPalette />
+              </div>
+
+              <div className="settings-theme" role="radiogroup" aria-label="Theme">
+                {THEME_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={themePreference === option.value}
+                    className={`settings-theme__option ${themePreference === option.value ? "is-active" : ""}`}
+                    onClick={() => setThemePreference(option.value)}
+                  >
+                    <option.icon aria-hidden="true" />
+                    <span>{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="settings-card">
               <div className="settings-card__heading">
                 <div>

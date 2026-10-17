@@ -1,6 +1,6 @@
 .statistics {
   min-height: 100vh;
-  background: #f8fafc;
+  background: var(--surface-2);
 }
 
 .statistics__layout {
@@ -40,12 +40,12 @@
 
 .statistics__header h1 {
   font-size: 36px;
-  color: #111827;
+  color: var(--text);
   margin: 0 0 5px;
 }
 
 .statistics__header p {
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 15px;
   margin: 0;
 }
@@ -61,8 +61,8 @@
 
 .statistics__tabs button {
   border: none;
-  background: #ffffff;
-  color: #374151;
+  background: var(--surface);
+  color: var(--text-2);
   padding: 12px 18px;
   border-radius: 12px;
   font-weight: 700;
@@ -84,7 +84,7 @@
 /* FILTERS */
 
 .statistics__filters {
-  background: #ffffff;
+  background: var(--surface);
   border-radius: 18px;
   padding: 22px;
   display: flex;
@@ -95,7 +95,7 @@
 }
 
 .statistics__filterBox {
-  background: #fff7cc;
+  background: var(--surface-3);
   padding: 12px 16px;
   border-radius: 12px;
   display: flex;
@@ -105,7 +105,7 @@
 }
 
 .statistics__filterBox svg {
-  color: #64748b;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -116,7 +116,7 @@
   outline: none;
   font-size: 15px;
   cursor: pointer;
-  color: #111827;
+  color: var(--text);
 }
 
 /* SUMMARY CARDS */
@@ -129,7 +129,7 @@
 }
 
 .statistics__card {
-  background: #ffffff;
+  background: var(--surface);
   border-radius: 20px;
   padding: 24px;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.07);
@@ -160,7 +160,7 @@
 
 .statistics__cardIcon.red {
   background: rgba(239, 68, 68, 0.13);
-  color: #ef4444;
+  color: var(--danger-text);
 }
 
 .statistics__cardIcon.green {
@@ -185,12 +185,12 @@
 
 .statistics__card h2 {
   font-size: 34px;
-  color: #111827;
+  color: var(--text);
   margin: 0 0 8px;
 }
 
 .statistics__card p {
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 14px;
   margin: 0;
 }
@@ -205,7 +205,7 @@
 }
 
 .statistics__graphCard {
-  background: #ffffff;
+  background: var(--surface);
   border-radius: 22px;
   padding: 24px;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.07);
@@ -221,12 +221,12 @@
 .statistics__graphHeader h2 {
   margin: 0 0 6px;
   font-size: 28px;
-  color: #111827;
+  color: var(--text);
 }
 
 .statistics__graphHeader p {
   margin: 0;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 15px;
 }
 
@@ -268,19 +268,19 @@
 .statistics__sectionHeader h2 {
   margin: 0 0 6px;
   font-size: 28px;
-  color: #111827;
+  color: var(--text);
 }
 
 .statistics__sectionHeader p {
   margin: 0;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 15px;
 }
 
 /* CITY WISE CASES */
 
 .statistics__citySection {
-  background: #ffffff;
+  background: var(--surface);
   border-radius: 22px;
   padding: 24px;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.07);
@@ -303,13 +303,13 @@
 
 .statistics__cityRow span {
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
   font-size: 14px;
 }
 
 .statistics__cityBar {
   height: 12px;
-  background: #e5e7eb;
+  background: var(--surface-3);
   border-radius: 30px;
   overflow: hidden;
 }
@@ -322,14 +322,14 @@
 }
 
 .statistics__cityRow strong {
-  color: #111827;
+  color: var(--text);
   text-align: right;
 }
 
 /* TABLE */
 
 .statistics__tableSection {
-  background: #ffffff;
+  background: var(--surface);
   border-radius: 22px;
   padding: 24px;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.07);
@@ -377,7 +377,7 @@
 .statistics__table td {
   padding: 16px;
   text-align: center;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
   font-size: 14px;
 }
 
@@ -387,11 +387,11 @@
 }
 
 .statistics__table td {
-  color: #475569;
+  color: var(--text-2);
 }
 
 .statistics__table tbody tr:hover {
-  background: #f8fafc;
+  background: var(--surface-2);
 }
 
 /* EMPTY STATES */
@@ -400,8 +400,8 @@
   width: 100%;
   padding: 26px;
   text-align: center;
-  color: #64748b;
-  background: #f8fafc;
+  color: var(--text-muted);
+  background: var(--surface-2);
   border-radius: 16px;
   font-weight: 600;
 }

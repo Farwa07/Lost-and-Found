@@ -178,6 +178,12 @@ foundPersonImage: {
       default: "",
     },
 
+    reporterCity: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     reporterIdCardImage: {
       type: String,
       default: "",

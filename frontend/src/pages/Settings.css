@@ -1,6 +1,6 @@
 .settings-page {
   min-height: 100vh;
-  background: #f8fafc;
+  background: var(--surface-2);
 }
 
 .settings__container {
@@ -62,8 +62,8 @@
   margin: 0 40px 24px;
   padding: 14px 16px;
   border-radius: 16px;
-  background: #ecfdf5;
-  color: #16a34a;
+  background: var(--success-soft);
+  color: var(--success-text);
   border: 1px solid #bbf7d0;
   display: flex;
   align-items: center;
@@ -76,7 +76,7 @@
   margin-left: auto;
   border: none;
   background: transparent;
-  color: #16a34a;
+  color: var(--success-text);
   cursor: pointer;
   font-size: 14px;
 }
@@ -91,10 +91,10 @@
 }
 
 .settings-card {
-  background: white;
+  background: var(--surface);
   border-radius: 26px;
   padding: 28px;
-  border: 1px solid #eef2ff;
+  border: 1px solid var(--border);
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
 
@@ -111,14 +111,14 @@
 }
 
 .settings-card__heading h2 {
-  color: #111827;
+  color: var(--text);
   font-size: 26px;
   font-weight: 900;
   margin-bottom: 7px;
 }
 
 .settings-card__heading p {
-  color: #64748b;
+  color: var(--text-muted);
   line-height: 1.6;
 }
 
@@ -146,8 +146,8 @@
   gap: 16px;
   padding: 16px;
   border-radius: 18px;
-  background: #f8fafc;
-  border: 1px solid #eef2ff;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
 }
 
 .settings-option__icon {
@@ -167,14 +167,14 @@
 }
 
 .settings-option__content h3 {
-  color: #111827;
+  color: var(--text);
   font-size: 16px;
   font-weight: 900;
   margin-bottom: 5px;
 }
 
 .settings-option__content p {
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -198,7 +198,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: white;
+  background: var(--surface);
   transition: 0.25s ease;
 }
 
@@ -225,7 +225,7 @@
 }
 
 .settings-field label {
-  color: #374151;
+  color: var(--text-2);
   font-size: 14px;
   font-weight: 800;
 }
@@ -234,10 +234,10 @@
 .settings-field select {
   width: 100%;
   height: 52px;
-  border: 1px solid #dbe4ff;
+  border: 1px solid var(--border);
   border-radius: 16px;
-  background: white;
-  color: #111827;
+  background: var(--surface);
+  color: var(--text);
   padding: 0 16px;
   outline: none;
   font-size: 15px;
@@ -295,8 +295,8 @@
   gap: 9px;
   padding: 14px 18px;
   border-radius: 15px;
-  background: #eef2ff;
-  color: #4f46e5;
+  background: var(--accent-soft);
+  color: var(--accent-text);
   font-size: 14px;
   font-weight: 900;
   cursor: pointer;
@@ -313,8 +313,8 @@
 }
 
 .settings-action-btn--danger {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger-text);
 }
 
 /* CONFIRM POPUP */
@@ -333,7 +333,7 @@
 .settings-confirm-box {
   width: 100%;
   max-width: 440px;
-  background: white;
+  background: var(--surface);
   border-radius: 26px;
   padding: 32px;
   text-align: center;
@@ -359,8 +359,8 @@
   height: 70px;
   margin: 0 auto 18px;
   border-radius: 50%;
-  background: #eef2ff;
-  color: #4f46e5;
+  background: var(--accent-soft);
+  color: var(--accent-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -368,19 +368,19 @@
 }
 
 .settings-confirm-icon--danger {
-  background: #fef2f2;
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger-text);
 }
 
 .settings-confirm-box h2 {
-  color: #111827;
+  color: var(--text);
   font-size: 26px;
   font-weight: 900;
   margin-bottom: 10px;
 }
 
 .settings-confirm-box p {
-  color: #64748b;
+  color: var(--text-muted);
   line-height: 1.7;
   margin-bottom: 24px;
 }
@@ -402,8 +402,8 @@
 }
 
 .settings-cancel-btn {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--surface-3);
+  color: var(--text-2);
 }
 
 .settings-confirm-btn {
@@ -431,8 +431,8 @@
   outline: none;
   padding: 13px 18px;
   border-radius: 14px;
-  background: #f8fafc;
-  color: #334155;
+  background: var(--surface-2);
+  color: var(--text-2);
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
@@ -441,13 +441,13 @@
   justify-content: center;
   gap: 9px;
   transition: 0.25s ease;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
 }
 
 .settings-actions button:hover {
   transform: translateY(-2px);
-  background: #eef2ff;
-  color: #4f46e5;
+  background: var(--accent-soft);
+  color: var(--accent-text);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
@@ -457,8 +457,8 @@
 }
 
 .settings-actions .settings-danger-btn {
-  background: #fff1f2;
-  color: #dc2626;
+  background: var(--danger-soft);
+  color: var(--danger-text);
   border-color: #fecdd3;
 }
 
@@ -554,4 +554,46 @@
   .settings-confirm-actions {
     flex-direction: column;
   }
+}
+/* Appearance (theme) */
+.settings-theme {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-theme__option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 92px;
+  padding: 14px;
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.settings-theme__option svg {
+  font-size: 22px;
+}
+
+.settings-theme__option:hover {
+  border-color: #a5b4fc;
+}
+
+.settings-theme__option.is-active {
+  border-color: #8b5cf6;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.settings-theme__option:focus-visible {
+  outline: 3px solid #8b5cf6;
+  outline-offset: 2px;
 }

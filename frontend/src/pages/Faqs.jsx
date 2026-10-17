@@ -11,7 +11,6 @@ import {
 } from "react-icons/fa";
 
 export default function Faqs() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [activeIndex, setActiveIndex] = useState(null);
 
@@ -68,10 +67,10 @@ export default function Faqs() {
 
   return (
     <div className="faqs-page">
-      <Navbar toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      <Navbar />
 
       <div className="faqs-layout">
-        <Sidebar open={sidebarOpen} />
+        <Sidebar />
 
         <main className="faqs-main">
           <section className="faqs-hero">

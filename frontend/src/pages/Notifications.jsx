@@ -28,6 +28,7 @@ import {
   markNotificationAsRead,
 } from "../api/notificationApi";
 import { getMatchByReportId } from "../api/matchApi";
+import { toast } from "../utils/notify";
 
 const getRelativeTime = (createdAt, fallback = "") => {
   if (!createdAt) {
@@ -96,7 +97,6 @@ const filterToQuery = (filter) => {
 export default function Notifications() {
   const navigate = useNavigate();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [allNotifications, setAllNotifications] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
@@ -161,7 +161,7 @@ export default function Notifications() {
       await markNotificationAsRead(id);
       await refreshAfterChange();
     } catch (err) {
-      alert(err.message || "Notification could not be marked as read.");
+      toast(err.message || "Notification could not be marked as read.");
     }
   };
 
@@ -173,7 +173,7 @@ export default function Notifications() {
       }
       await refreshAfterChange();
     } catch (err) {
-      alert(err.message || "Notification could not be deleted.");
+      toast(err.message || "Notification could not be deleted.");
     }
   };
 
@@ -184,7 +184,7 @@ export default function Notifications() {
       setSelectedNotification(null);
       await refreshAfterChange();
     } catch (err) {
-      alert(err.message || "Notifications could not be cleared.");
+      toast(err.message || "Notifications could not be cleared.");
     }
   };
 
@@ -307,10 +307,10 @@ export default function Notifications() {
 
   return (
     <div className="notifications-page">
-      <Navbar toggleSidebar={() => setSidebarOpen((prev) => !prev)} />
+      <Navbar />
 
       <div className="notifications__container">
-        <Sidebar open={sidebarOpen} />
+        <Sidebar />
 
         <main className="notifications__main">
           <section className="notifications-hero">
